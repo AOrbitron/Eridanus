@@ -1,19 +1,18 @@
 import httpx
 import asyncio
 from bs4 import BeautifulSoup
-import gc
 import re
 import time
 from urllib.parse import urljoin, quote, unquote
+import gc
 
 async def fetch_url(url, headers):
     async with httpx.AsyncClient() as client:
-        response = await client.get(url, headers=headers)
-        content = response.text
-        response = None
-        return content
+        response = await client.get(url, headers=headers, timeout=20.0)
+        return response
 
 def extract_div_contents(html_content):
+    """从Baidu搜索结果HTML中提取标题、链接和内容。"""
     soup = BeautifulSoup(html_content, 'html.parser')
     result_op_divs = soup.find_all('div', class_='result-op c-container new-pmd')
     result_xpath_log_divs = soup.find_all('div', class_='result c-container xpath-log new-pmd')
@@ -28,7 +27,7 @@ def extract_div_contents(html_content):
         
         all_texts = [text for text in div.stripped_strings if text != title]
         content = ' '.join(all_texts)
-        
+
         content = re.sub(r'UTC\+8(\d{5}:\d{2}:\d{2})', lambda x: 'UTC+8 ' + ':'.join([x.group(1)[i:i+2] for i in range(0, len(x.group(1)), 2)]).lstrip(':'), content)
         content = re.sub(r'(\d{2}:\d{2})(\d{4}-\d{2}-\d{2})', r'\1 \2', content)
         content = re.sub(r'(\d{2}) (\d{2}) : (\d{2}) (\d{2}) : (\d{2}) (\d{2})', r'\1:\3:\5', content)
@@ -38,9 +37,7 @@ def extract_div_contents(html_content):
             'link': link,
             'content': content
         })
-
-    soup = None
-    gc.collect()
+        
     return entries
 
 async def baidu_search(query):
@@ -67,17 +64,18 @@ async def baidu_search(query):
         "X-Custom-Time": str(current_timestamp),
     }
     
-    html_content = await fetch_url(url, headers)
+    response = await fetch_url(url, headers)
+    html_content = response.text
     entries = extract_div_contents(html_content)
-    
-    output = "baidu搜索结果:\n"
+
+    del response
+    del html_content
+
+    result_parts = ["baidu搜索结果:"]
     for entry in entries:
-        output += f"标题: {entry['title']}\n"
-        output += f"链接: {entry['link']}\n"
-        output += f"内容: {entry['content']}\n"
-        output += "- " * 10 + "\n"
-    
-    return output
+        result_parts.append(f"标题: {entry['title']}\n链接: {entry['link']}\n内容: {entry['content']}\n" + "- " * 10)
+        
+    return "\n".join(result_parts)
 
 async def searx_search(query):
     url = 'https://searx.bndkt.io/search'
@@ -113,13 +111,14 @@ async def searx_search(query):
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36 Edg/132.0.0.0",
         "X-Custom-Time": str(current_timestamp),
     }
-
+    
     async with httpx.AsyncClient() as client:
         try:
-            response = await client.get(url, params=params, headers=headers)
+            response = await client.get(url, params=params, headers=headers, timeout=20.0)
             response.raise_for_status()
             
             soup = BeautifulSoup(response.text, 'html.parser')
+            del response
             
             articles = soup.find_all('article', class_='result result-default category-general')
             
@@ -128,20 +127,16 @@ async def searx_search(query):
                 title = article.find('h3').get_text(strip=True)
                 link = article.find('a', class_='url_header')['href']
                 content = article.find('p', class_='content').get_text(strip=True)
-                results.append(f"标题: {title}\n链接: {link}\n内容: {content}\n{'- '* 10}")
-
-            final = "searx搜索结果:\n" + "\n".join(results)
-            return final
+                results.append(f"标题: {title}\n链接: {link}\n内容: {content}\n{'- ' * 10}")
+            del soup
+            
+            final_output = "searx搜索结果:\n" + "\n".join(results)
+            return final_output
+            
         except httpx.HTTPStatusError as exc:
-            print(f"An HTTP error occurred: {exc}")
-            print(exc.response.text)
+            return f"HTTP错误: {exc}\n响应内容: {exc.response.text}"
         except httpx.RequestError as exc:
-            print(f"An error occurred while making the request: {exc}")
-        finally:
-            soup = None
-            articles = None
-            results = None
-            gc.collect()
+            return f"请求错误: {exc}"
 
 async def html_read(url, config=None):
     headers = {
@@ -161,130 +156,97 @@ async def html_read(url, config=None):
         "Upgrade-Insecure-Requests": "1",
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36 Edg/132.0.0.0"
     }
-    proxies = None
-    if config is not None and config.common_config.basic_config["proxy"]["http_proxy"]:
-        proxies = {
-            "http://": config.common_config.basic_config["proxy"]["http_proxy"],
-            "https://": config.common_config.basic_config["proxy"]["http_proxy"]
-        }
     
+    proxies = None
+    if config and config.common_config.basic_config["proxy"]["http_proxy"]:
+        proxies = {"http://": config.common_config.basic_config["proxy"]["http_proxy"], "https://": config.common_config.basic_config["proxy"]["http_proxy"]}
+
     decoded_url = unquote(url)
     parsed_url = httpx.URL(decoded_url)
     encoded_path = quote(parsed_url.path)
     encoded_url = str(parsed_url.copy_with(path=encoded_path))
     
-    async with httpx.AsyncClient(follow_redirects=True, timeout=None, proxies=proxies, headers=headers) as client:
-        try:
+    try:
+        async with httpx.AsyncClient(follow_redirects=True, timeout=None, proxies=proxies, headers=headers) as client:
             response = await client.get(encoded_url)
             response.raise_for_status()
             
-            html_content = response.text
-            response = None
-            
-            soup = BeautifulSoup(html_content, 'html.parser')
-            html_content = None
-            
-            if not soup.html:
-                print("未找到<html>标签，请确认网页内容是否正确加载。")
-                soup = None
-                gc.collect()
-                return "未找到<html>标签，请确认网页内容是否正确加载。"
-            
-            for script_or_style in soup(['script', 'style']):
-                script_or_style.decompose()
+            soup = BeautifulSoup(response.text, 'html.parser')
+            base_url = str(response.url)
+            del response
 
-            def iterate_nodes(root_node):
-                stack = [(root_node, 0)]
+            if not soup.html:
+                return "未找到<html>标签，请确认网页内容是否正确加载。"
+            for script_or_style in soup(['script', 'style', 'meta', 'link']):
+                script_or_style.decompose()
+            def recurse(node, level=0, base_url_for_join=None):
+                indent = '  ' * level
                 result = []
-                url_attributes = {'a': 'href', 'img': 'src', 'link': 'href', 'iframe': 'src'}
                 
-                while stack:
-                    node, level = stack.pop()
-                    indent = '  ' * level
-                    
-                    if not hasattr(node, 'name'):
-                        if isinstance(node, str) and node.strip():
-                            text = node.strip()
-                            if not (text.startswith("//<![CDATA[") and text.endswith("//]]>")):
-                                result.append(f"{indent}{text}")
-                        continue
-                    
+                if hasattr(node, 'name') and node.name is not None:
                     tag_name = node.name.lower()
-                    
-                    if tag_name in ['script', 'style']:
-                        continue
+
+                    if tag_name in ['script', 'style']: return result
                     
                     if tag_name in ['pre', 'code']:
-                        all_lines = []
-                        spans = node.find_all('span', recursive=False)
-                        if spans:
-                            for span in spans:
-                                line_parts = [
-                                    part.get_text() if hasattr(part, "get_text") else str(part)
-                                    for part in span.contents
-                                ]
-                                full_line = ''.join(line_parts)
-                                if full_line.strip() or (full_line and not full_line.isspace()):
-                                    all_lines.append(full_line)
-                        else:
-                            code_text = node.get_text()
-                            for line in code_text.split('\n'):
-                                if line.strip() or (line and not line.isspace()):
-                                    all_lines.append(line)
-                        formatted_code = "\n".join([f"{indent}{line}" for line in all_lines])
-                        result.append(f"{indent}```yaml\n{formatted_code}\n{indent}```")
-                        continue
+                        code_text = node.get_text()
+                        lines = [line for line in code_text.split('\n') if line.strip()]
+                        formatted_code = "\n".join([f"{indent}{line}" for line in lines])
+                        if formatted_code:
+                            result.append(f"{indent}```\n{formatted_code}\n{indent}```")
+                        return result
                     
+                    url_attributes = {'a': 'href', 'img': 'src', 'iframe': 'src'}
                     if tag_name in url_attributes:
                         attr = url_attributes[tag_name]
                         url_attr_value = node.get(attr, '')
-                        
-                        if tag_name == 'a' and url_attr_value.lower().startswith('javascript:'):
-                            continue
-                        
-                        full_url = urljoin(encoded_url, url_attr_value)
-                        if tag_name == 'a':
-                            img_tag = node.find('img')
-                            if img_tag:
-                                alt = img_tag.get('alt', 'No description')
-                                result.append(f"{indent}[{alt}]({full_url})")
-                            else:
-                                link_text = ' '.join(node.stripped_strings)
-                                result.append(f"{indent}[{link_text}]({full_url})")
-                        elif tag_name == 'img':
-                            alt = node.get('alt', 'No description')
-                            result.append(f"{indent}[{alt}]({full_url})")
-                        else:
-                            result.append(f"{indent}[URL]({full_url})")
-                    else:
-                        for child in reversed(list(node.children)):
-                            stack.append((child, level + 1))
-                
-                return result
 
-            root_node = soup.html.body if (soup.html and soup.html.body) else soup.html
-            extracted_info = iterate_nodes(root_node)
-            
-            soup = None
-            root_node = None
-            gc.collect()
+                        if url_attr_value and not url_attr_value.lower().startswith('javascript:'):
+                            full_url = urljoin(base_url_for_join, url_attr_value)
+                            text_content = ' '.join(node.stripped_strings) or node.get('alt', 'link')
+                            result.append(f"{indent}[{text_content}]({full_url})")
+                        return result
+                    for child in node.children:
+                        result.extend(recurse(child, level + 1, base_url_for_join))
+                        
+                elif isinstance(node, str) and node.strip():
+                    text = ' '.join(node.strip().split())
+                    if text and not text.startswith("//<![CDATA[") and not text.endswith("//]]>"):
+                        result.append(f"{indent}{text}")
+                        
+                return result
+            target_node = soup.body if soup.body else soup
+            extracted_info = recurse(target_node, base_url_for_join=base_url)
+
+            del soup
+            del target_node
             
             return "\n".join(extracted_info)
-        
-        except httpx.RequestError as e:
-            return f"请求发生错误：{e}"
-        finally:
-            gc.collect()
+            
+    except httpx.RequestError as e:
+        return f"请求发生错误：{e}"
+    except Exception as e:
+        return f"处理时发生未知错误: {e}"
 
 async def main():
     while True:
         url = input("请输入要测试的URL（或输入'exit'退出）：")
         if url.lower() == 'exit':
             break
-        try:
-            print(await html_read(url))
-        except Exception as e:
-            print(f"发生错误：{e}")
+        
+        if url.startswith("baidu:"):
+            query = url.split(":", 1)[1]
+            result = await baidu_search(query)
+        elif url.startswith("searx:"):
+            query = url.split(":", 1)[1]
+            result = await searx_search(query)
+        else:
+            result = await html_read(url)
+            
+        print(result)
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        print("\n程序已退出。")
