@@ -374,117 +374,121 @@ def main(bot, config):
             return
 
         async def process_user_queue(uid):
+            """同一 uid 同时只处理一个事件，避免递归 create_task 导致并发与重复执行。"""
             user_state[uid]["running"] = True
             try:
-
-                current_event = await user_state[uid]["queue"].get()
-                try:
-                    reply_message = await aiReplyCore(
-                        current_event.processed_message,
-                        current_event.user_id,
-                        config,
-                        tools=tools,
-                        bot=bot,
-                        event=current_event,
-                    )
-                    if reply_message is None or '' == str(
-                            reply_message) or 'Maximum recursion depth' in reply_message:
-                        return
-                    # print(f'reply_message:{reply_message}')
-                    if "call_send_mface(summary='')" in reply_message:
-                        reply_message = reply_message.replace("call_send_mface(summary='')", '')
-                    # print(f"{current_event.processed_message[1]['text']}\n{reply_message}")
+                while True:
+                    current_event = await user_state[uid]["queue"].get()
                     try:
-                        tokens_total = count_tokens_approximate(current_event.processed_message[1]['text'],
-                                                                reply_message, user_info.ai_token_record)
-                        await update_user(user_id=event.user_id, ai_token_record=tokens_total)
-                    except:
-                        pass
-                    await send_text(bot, event, config, reply_message.strip())
-                except Exception as e:
-                    bot.logger.exception(f"用户 {uid} 处理出错: {e}")
-                finally:
-                    user_state[uid]["queue"].task_done()
+                        reply_message = await aiReplyCore(
+                            current_event.processed_message,
+                            current_event.user_id,
+                            config,
+                            tools=tools,
+                            bot=bot,
+                            event=current_event,
+                        )
 
-                    async def delayed_cleanup():
-                        await asyncio.sleep(config.ai_llm.config["llm"]["仁济模式"]["延时相关性"]["有效延时"])
-                        if event.user_id in recent_interactions:
-                            del recent_interactions[event.user_id]
-                            bot.logger.info(f"清理用户 {event.user_id} 的延时交互记录")
-                        if event.user_id in cleanup_tasks:
-                            del cleanup_tasks[event.user_id]
+                        if reply_message is None or '' == str(reply_message) or 'Maximum recursion depth' in str(reply_message):
+                            continue
 
-                    if event.user_id in cleanup_tasks:
-                        cleanup_tasks[event.user_id].cancel()
+                        if "call_send_mface(summary='')" in reply_message:
+                            reply_message = reply_message.replace("call_send_mface(summary='')", '')
 
-                    cleanup_tasks[event.user_id] = asyncio.create_task(delayed_cleanup())
-                    # print(user_state[uid]["queue"])
-                    """
-                    总结用户特征，伪长期记忆人格
-                    """
-                    if config.ai_llm.config["llm"]["用户画像"] and event.user_id not in portrait_updating:
-                        should_update = False
-                        if user_info.portrait_update_time == "":
-                            should_update = True
-                        else:
-                            try:
-                                time_diff = (datetime.datetime.now() - datetime.datetime.fromisoformat(
-                                    user_info.portrait_update_time)).total_seconds()
-                                should_update = time_diff > config.ai_llm.config["llm"]["用户画像更新间隔"]
-                            except:
+                        try:
+                            tokens_total = count_tokens_approximate(
+                                current_event.processed_message[1]['text'],
+                                reply_message,
+                                user_info.ai_token_record
+                            )
+                            await update_user(user_id=current_event.user_id, ai_token_record=tokens_total)
+                        except Exception:
+                            pass
+
+                        await send_text(bot, current_event, config, reply_message.strip())
+                    except Exception as e:
+                        bot.logger.exception(f"用户 {uid} 处理出错: {e}")
+                    finally:
+                        user_state[uid]["queue"].task_done()
+
+                        async def delayed_cleanup(clean_uid):
+                            await asyncio.sleep(config.ai_llm.config["llm"]["仁济模式"]["延时相关性"]["有效延时"])
+                            if clean_uid in recent_interactions:
+                                del recent_interactions[clean_uid]
+                                bot.logger.info(f"清理用户 {clean_uid} 的延时交互记录")
+                            if clean_uid in cleanup_tasks:
+                                del cleanup_tasks[clean_uid]
+
+                        if current_event.user_id in cleanup_tasks:
+                            cleanup_tasks[current_event.user_id].cancel()
+                        cleanup_tasks[current_event.user_id] = asyncio.create_task(delayed_cleanup(current_event.user_id))
+
+                        """
+                        总结用户特征，伪长期记忆人格
+                        """
+                        if config.ai_llm.config["llm"]["用户画像"] and current_event.user_id not in portrait_updating:
+                            should_update = False
+                            if user_info.portrait_update_time == "":
                                 should_update = True
+                            else:
+                                try:
+                                    time_diff = (datetime.datetime.now() - datetime.datetime.fromisoformat(
+                                        user_info.portrait_update_time)).total_seconds()
+                                    should_update = time_diff > config.ai_llm.config["llm"]["用户画像更新间隔"]
+                                except Exception:
+                                    should_update = True
 
-                        if should_update:
-                            portrait_updating.add(event.user_id)
-                            try:
-                                bot.logger.info(f"更新用户 {event.user_id} 设定")
-                                await update_user(event.user_id,
-                                                  portrait_update_time=datetime.datetime.now().isoformat())
-
-                                # 从用户历史记录中提取该用户发送的消息
-                                user_history = await get_user_history(current_event.user_id)
-                                user_messages = []
-                                for msg in user_history:
-                                    if msg.get("role") == "user":
-                                        # 提取文本内容
-                                        if "parts" in msg:  # Gemini 格式
-                                            for part in msg["parts"]:
-                                                if isinstance(part, dict) and "text" in part:
-                                                    user_messages.append(part["text"])
-                                        elif "content" in msg:  # OpenAI 格式
-                                            content = msg["content"]
-                                            if isinstance(content, str):
-                                                user_messages.append(content)
-                                            elif isinstance(content, list):
-                                                for item in content:
-                                                    if isinstance(item, dict) and item.get("type") == "text":
-                                                        user_messages.append(item.get("text", ""))
-
-                                if user_messages:
-                                    # 构建用户画像总结的 prompt
-                                    messages_text = "\n".join(user_messages[-20:])  # 取最近 20 条消息
-                                    bot_name = config.common_config.basic_config.get("bot", "Bot")
-                                    user_nickname = user_info.nickname if user_info and user_info.nickname else f"用户{event.user_id}"
-                                    portrait_prompt = [{
-                                        "text": f"以下是用户「{user_nickname}」发送的消息历史（注意：你是「{bot_name}」，请勿将bot的特征混入用户画像）：\n{messages_text}\n\n请根据以上内容总结该用户「{user_nickname}」的用户画像，包括人物性格特征、兴趣爱好、语言风格等。直接给出结果，不要回复。"
-                                    }]
-
-                                    reply_message = await utility_request(
-                                        config,
-                                        portrait_prompt,
-                                        system_instruction=f"你是一个用户画像分析助手。你需要分析的是用户「{user_nickname}」，而不是bot「{bot_name}」。请根据用户的消息历史总结其特征，不要把bot的特征混入用户画像。",
-                                        user_id=current_event.user_id,
+                            if should_update:
+                                portrait_updating.add(current_event.user_id)
+                                try:
+                                    bot.logger.info(f"更新用户 {current_event.user_id} 设定")
+                                    await update_user(
+                                        current_event.user_id,
+                                        portrait_update_time=datetime.datetime.now().isoformat()
                                     )
 
-                                    if reply_message:
-                                        await update_user(event.user_id, user_portrait=reply_message.strip())
-                                        bot.logger.info(f"用户 {event.user_id} 画像更新成功")
-                                else:
-                                    bot.logger.info(f"用户 {event.user_id} 没有足够的消息历史来生成画像")
-                            finally:
-                                portrait_updating.discard(event.user_id)
-                    if not user_state[uid]["queue"].empty():
-                        asyncio.create_task(process_user_queue(uid))
+                                    user_history = await get_user_history(current_event.user_id)
+                                    user_messages = []
+                                    for msg in user_history:
+                                        if msg.get("role") == "user":
+                                            if "parts" in msg:  # Gemini 格式
+                                                for part in msg["parts"]:
+                                                    if isinstance(part, dict) and "text" in part:
+                                                        user_messages.append(part["text"])
+                                            elif "content" in msg:  # OpenAI 格式
+                                                content = msg["content"]
+                                                if isinstance(content, str):
+                                                    user_messages.append(content)
+                                                elif isinstance(content, list):
+                                                    for item in content:
+                                                        if isinstance(item, dict) and item.get("type") == "text":
+                                                            user_messages.append(item.get("text", ""))
+
+                                    if user_messages:
+                                        messages_text = "\n".join(user_messages[-20:])
+                                        bot_name = config.common_config.basic_config.get("bot", "Bot")
+                                        user_nickname = user_info.nickname if user_info and user_info.nickname else f"用户{current_event.user_id}"
+                                        portrait_prompt = [{
+                                            "text": f"以下是用户「{user_nickname}」发送的消息历史（注意：你是「{bot_name}」，请勿将bot的特征混入用户画像）：\n{messages_text}\n\n请根据以上内容总结该用户「{user_nickname}」的用户画像，包括人物性格特征、兴趣爱好、语言风格等。直接给出结果，不要回复。"
+                                        }]
+
+                                        portrait_reply = await utility_request(
+                                            config,
+                                            portrait_prompt,
+                                            system_instruction=f"你是一个用户画像分析助手。你需要分析的是用户「{user_nickname}」，而不是bot「{bot_name}」。请根据用户的消息历史总结其特征，不要把bot的特征混入用户画像。",
+                                            user_id=current_event.user_id,
+                                        )
+
+                                        if portrait_reply:
+                                            await update_user(current_event.user_id, user_portrait=portrait_reply.strip())
+                                            bot.logger.info(f"用户 {current_event.user_id} 画像更新成功")
+                                    else:
+                                        bot.logger.info(f"用户 {current_event.user_id} 没有足够的消息历史来生成画像")
+                                finally:
+                                    portrait_updating.discard(current_event.user_id)
+
+                    if user_state[uid]["queue"].empty():
+                        break
             finally:
                 user_state[uid]["running"] = False
 
