@@ -162,6 +162,9 @@ class OpenAIAPI:
                     result = await func(**combined_args)
                 else:
                     result = await asyncio.to_thread(func, **combined_args)
+
+                if result is None:
+                    return None
                 
                 return {
                     "role": "tool",
@@ -173,7 +176,8 @@ class OpenAIAPI:
                 return {"role": "tool", "content": json.dumps({"error": str(e)}, ensure_ascii=False), "tool_call_id": tool_call_id}
 
         tasks = [run_single_tool(tc) for tc in tool_calls]
-        return list(await asyncio.gather(*tasks))
+        results = await asyncio.gather(*tasks)
+        return [r for r in results if r is not None]
 
     async def _chat_api(
         self,
@@ -423,35 +427,37 @@ class OpenAIAPI:
                             tools, 
                             tool_fixed_params
                         )
-                        
-                        api_messages.extend(tool_messages)
-                        messages.extend(tool_messages)
-                        second_request_params = request_params.copy()
-                        second_request_params["messages"] = api_messages
-                        second_request_params["stream"] = True
-                        try:
-                            async for chunk2 in await self.client.chat.completions.create(**second_request_params):
-                                if chunk2.choices:
-                                    delta2 = chunk2.choices[0].delta
-                                    if hasattr(delta2, 'reasoning_content') and delta2.reasoning_content:
-                                        yield {"thought": delta2.reasoning_content}
-                                    if delta2.content:
-                                        yield delta2.content
-                                        assistant_content += delta2.content
-                                    if chunk2.choices[0].finish_reason in ["stop", "length"]:
-                                        if assistant_content:
-                                            messages.append({
-                                                "role": "assistant",
-                                                "content": [{"type": "text", "text": assistant_content}]
-                                            })
-                                        assistant_content = ""
-                        except Exception as e:
-                            logger.error(f"第二次 API 调用失败: {str(e)}")
-                            yield f"错误: 无法获取最终响应 - {str(e)}"
-                            messages.append({
-                                "role": "assistant",
-                                "content": [{"type": "text", "text": f"错误: {str(e)}"}]
-                            })
+
+                        # 如果所有工具都返回 None，这里会是空列表：不需要也不应触发第二次请求。
+                        if tool_messages:
+                            api_messages.extend(tool_messages)
+                            messages.extend(tool_messages)
+                            second_request_params = request_params.copy()
+                            second_request_params["messages"] = api_messages
+                            second_request_params["stream"] = True
+                            try:
+                                async for chunk2 in await self.client.chat.completions.create(**second_request_params):
+                                    if chunk2.choices:
+                                        delta2 = chunk2.choices[0].delta
+                                        if hasattr(delta2, 'reasoning_content') and delta2.reasoning_content:
+                                            yield {"thought": delta2.reasoning_content}
+                                        if delta2.content:
+                                            yield delta2.content
+                                            assistant_content += delta2.content
+                                        if chunk2.choices[0].finish_reason in ["stop", "length"]:
+                                            if assistant_content:
+                                                messages.append({
+                                                    "role": "assistant",
+                                                    "content": [{"type": "text", "text": assistant_content}]
+                                                })
+                                            assistant_content = ""
+                            except Exception as e:
+                                logger.error(f"第二次 API 调用失败: {str(e)}")
+                                yield f"错误: 无法获取最终响应 - {str(e)}"
+                                messages.append({
+                                    "role": "assistant",
+                                    "content": [{"type": "text", "text": f"错误: {str(e)}"}]
+                                })
                         tool_calls_buffer = []
                     
                     if finish_reason in ["stop", "length"]:
@@ -608,14 +614,17 @@ class OpenAIAPI:
                         api_messages.append(assistant_message)
                         messages.append(assistant_message)
                         tool_messages = await self._execute_tool(message.tool_calls, tools, tool_fixed_params)
-                        api_messages.extend(tool_messages)
-                        messages.extend(tool_messages)
-                        second_request_params = request_params.copy()
-                        second_request_params["messages"] = api_messages
-                        second_request_params["stream"] = False
-                        response = await self.client.chat.completions.create(**second_request_params)
-                        choice = response.choices[0]
-                        message = choice.message
+
+                        # 如果所有工具都返回 None，则不触发第二次请求。
+                        if tool_messages:
+                            api_messages.extend(tool_messages)
+                            messages.extend(tool_messages)
+                            second_request_params = request_params.copy()
+                            second_request_params["messages"] = api_messages
+                            second_request_params["stream"] = False
+                            response = await self.client.chat.completions.create(**second_request_params)
+                            choice = response.choices[0]
+                            message = choice.message
                         assistant_message = {
                             "role": "assistant",
                             "content": [{"type": "text", "text": message.content or ""}]

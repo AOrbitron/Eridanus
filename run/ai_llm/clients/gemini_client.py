@@ -357,9 +357,13 @@ class GeminiAPI:
         tasks = [run_single_tool(call) for call in function_calls]
         function_response_parts = await asyncio.gather(*tasks)
 
+        filtered_parts = [p for p in function_response_parts if p is not None and not isinstance(p, Exception)]
+        if not filtered_parts:
+            return []
+
         return [{
             "role": "user",
-            "parts": list(function_response_parts)
+            "parts": filtered_parts
         }]
 
     async def _chat_api(
