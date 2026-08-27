@@ -128,7 +128,7 @@ class TriggerChecker:
             "model": self.model,
             "messages":[{"role": "user", "content": prompt}],
             "temperature": 0.1,
-            "max_tokens": 20,
+            #"max_tokens": 20,
             "stream": self.use_stream
         }
         headers = {"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"}

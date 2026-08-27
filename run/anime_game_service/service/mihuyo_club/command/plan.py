@@ -21,6 +21,7 @@ from ..api import BaseMission, get_missions_state
 from ..api.common import genshin_note, get_game_record, starrail_note
 from ..command.common import CommandRegistry
 from ..command.exchange import generate_image
+from ..command.sign import perform_game_sign_new
 from ..model import (MissionStatus, PluginDataManager, plugin_config, UserData, CommandUsage, GenshinNoteNotice,
                      StarRailNoteNotice)
 from ..utils import get_file, logger, COMMAND_BEGIN, GeneralMessageEvent, send_private_msg, get_all_bind, \
@@ -65,7 +66,7 @@ async def _(event: Union[GeneralMessageEvent], matcher: Matcher, command_arg=Com
                         await perform_game_sign(
                             bot=bot,
                             user=user_,
-                            user_ids=[],
+                            user_ids=[user_id_],
                             matcher=matcher,
                             event=event,
                             msgs_list=msgs_list
@@ -78,7 +79,7 @@ async def _(event: Union[GeneralMessageEvent], matcher: Matcher, command_arg=Com
                     await perform_game_sign(
                         bot=bot,
                         user=specified_user,
-                        user_ids=[],
+                        user_ids=[specified_user_id],
                         matcher=matcher,
                         event=event,
                         msgs_list=msgs_list
@@ -222,6 +223,44 @@ async def _(event: Union[GeneralMessageEvent], matcher: Matcher):
 
 
 async def perform_game_sign(
+        user: UserData,
+        user_ids: Iterable[str],
+        matcher: Matcher = None,
+        bot: Optional[Bot] = None,
+        event: Union[GeneralMessageEvent] = None,
+        msgs_list=None
+):
+    if matcher:
+        user_ids = list(user_ids or [])
+        user_id = user_ids[0] if user_ids else (event.get_user_id() if event else None)
+        result = await perform_game_sign_new(user=user, user_id=user_id, target='all', type='inner')
+        message_list = result.get('pure_text_list') or result.get('text_list') or []
+        if msgs_list is not None:
+            msgs_list.extend(message_list)
+            if isinstance(event, OneBotV11GroupMessageEvent) and bot:
+                await send_qqGroup(bot, event, msgs_list)
+                msgs_list.clear()
+            else:
+                for text in message_list:
+                    await matcher.send(text)
+                msgs_list.clear()
+        else:
+            for text in message_list:
+                await matcher.send(text)
+        return result
+
+    user_ids = list(user_ids or [])
+    user_id = user_ids[0] if user_ids else None
+    result = await perform_game_sign_new(user=user, user_id=user_id, target='all', type='auto')
+    message_list = result.get('pure_text_list') or result.get('text_list') or []
+    if user.enable_notice and message_list:
+        message = "\n".join(message_list)
+        for user_id in user_ids:
+            await send_private_msg(user_id=user_id, message=message)
+    return result
+
+
+async def _perform_game_sign_old(
         user: UserData,
         user_ids: Iterable[str],
         matcher: Matcher = None,

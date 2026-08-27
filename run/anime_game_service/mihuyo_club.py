@@ -20,7 +20,7 @@ def main(bot, config):
         if context.lower() in order_list:
             # await bot.send(event, f'当前该功能维护ing，无法登录喵')
             # return
-            await mys_login_new(userid, bot, event)
+            await mys_login_new(userid, bot, event,config)
 
     #米游社签到
     @bot.on(GroupMessageEvent)
@@ -40,6 +40,8 @@ def main(bot, config):
         if event.message_chain.has(At) and event.message_chain.has(Text):
             userid, context = event.message_chain.get(At)[0].qq, event.message_chain.get(Text)[0].text
         if context.strip() in order_list:
+            await bot.send(event, f'当前该功能维护ing')
+            return
             await mys_coin_sign(userid, bot, event)
 
     #游戏别名签到
@@ -70,6 +72,8 @@ def main(bot, config):
         if target_games is None:return
         else:target_games = target_games.strip()
         bot.logger.info(f'{target_games} 便签查询')
+        await bot.send(event, f'当前该功能维护ing')
+        return
         await mys_note_check(userid, bot, event, target_games)
 
     #更改默认签到游戏

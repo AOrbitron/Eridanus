@@ -53,11 +53,14 @@ async def call_bili_download_video(bot, event, config,type_download='video'):
             traceback.print_exc()
             await bot.send(event, f'下载失败\n {e}')
     elif type_download == 'img' and json_linking['pic_url_list'] != []:
-        node_list = [Node(
-            content=[Text("小的找的图片如下，请君过目喵")])]
-        for pic_url in json_linking['pic_url_list']:
-            node_list.append(Node(content=[Image(file=await download_img(pic_url,'data/pictures/cache/', proxy=proxy))]))
-        await bot.send(event, node_list)
+        send_context = "小的找的图片如下，请君过目喵"
+        node_list = [Node(content=[Text(send_context)])]
+        if len(json_linking['pic_url_list']) == 1:
+            await bot.send(event, [f'{send_context}\n', Image(file=json_linking['pic_url_list'][0])])
+        else:
+            for pic_url in json_linking['pic_url_list']:
+                node_list.append(Node(content=[Image(file=await download_img(pic_url,'data/pictures/cache/', proxy=proxy))]))
+            await bot.send(event, node_list)
 
 
 def main(bot, config):
@@ -169,7 +172,7 @@ def main(bot, config):
             context = event.get("text")[0].strip()
             if not context.startswith(('下载视频','下载图片')): return
             event_obj = await bot.get_msg(int(event.get("reply")[0]["id"]))
-            if event_obj.message[0]['type'] == 'forward': return
+            #if event_obj.message[0]['type'] == 'forward': return
             if event_obj.message_chain.has(Json):
                 url = event_obj.message_chain.get(Json)[0].data
             elif event_obj.message_chain.has(Text):
@@ -181,7 +184,7 @@ def main(bot, config):
             if 'http' in context: url = context
             else: return
         else: return
-        info = await link_prising(url, type='no_draw')
+        info = await link_prising(url, type='no_draw',credential_bili=config.streaming_media.config["bili_dynamic"]["is_download_high_quality"])
         if info['status']:
             teamlist[event.group_id] = {'data': info, 'expire_at': time() + 600}
             if context.startswith('下载视频'):

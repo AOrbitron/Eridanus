@@ -14,29 +14,28 @@ import aiohttp
 import httpx
 from apscheduler.triggers.cron import CronTrigger
 
-from framework_common.utils.install_and_import import install_and_import
-try:
-    qzone_api=install_and_import("qzone-api","qzone_api")
-    from qzone_api import QzoneApi
-    from qzone_api.login import QzoneLogin
-except:
-    traceback.print_exc()
-    print("请自行搜索安装：Microsoft Visual C++ 2013 Redistributable Package")
-    print("请自行搜索安装：Microsoft Visual C++ 2013 Redistributable Package")
-    print("请自行搜索安装：Microsoft Visual C++ 2013 Redistributable Package")
-
-from developTools.event.events import LifecycleMetaEvent, GroupMessageEvent, PrivateMessageEvent
-from developTools.message.message_components import Text, Image, Mface
+# from framework_common.utils.install_and_import import install_and_import
+# try:
+#     qzone_api=install_and_import("qzone-api","qzone_api")
+#     from qzone_api import QzoneApi
+#     from qzone_api.login import QzoneLogin
+# except:
+#     traceback.print_exc()
+#     print("请自行搜索安装：Microsoft Visual C++ 2013 Redistributable Package")
+#     print("请自行搜索安装：Microsoft Visual C++ 2013 Redistributable Package")
+#     print("请自行搜索安装：Microsoft Visual C++ 2013 Redistributable Package")
+#
+# from developTools.event.events import LifecycleMetaEvent, GroupMessageEvent, PrivateMessageEvent
+# from developTools.message.message_components import Text, Image, Mface
+# from framework_common.utils.utils import download_img, get_img
+# from run.ai_generated_art.aiDraw import call_text2img1
+# from run.ai_generated_art.service.simple_text2img import simple_call_text2img1
+# from run.ai_llm.service.aiReplyCore import aiReplyCore
+# from run.qq_zone.service.QzoneApiFixed import QzoneApiFixed
 from framework_common.framework_util.websocket_fix import ExtendBot
 from framework_common.framework_util.yamlLoader import YAMLManager
-from framework_common.utils.utils import download_img, get_img
-from run.ai_generated_art.aiDraw import call_text2img1
-from run.ai_generated_art.service.simple_text2img import simple_call_text2img1
-from run.ai_llm.service.aiReplyCore import aiReplyCore
-from run.qq_zone.service.QzoneApiFixed import QzoneApiFixed
-
-
 def main(bot: ExtendBot,config: YAMLManager):
+    return
     qzone_login = QzoneLogin()
     login_result = None
     login_task = None

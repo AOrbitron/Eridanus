@@ -2,6 +2,9 @@ import asyncio
 import random
 import shutil
 import traceback
+import pprint
+from framework_common.utils.install_and_import import install_and_import
+import subprocess
 from concurrent.futures.thread import ThreadPoolExecutor
 
 from developTools.event.events import GroupMessageEvent, LifecycleMetaEvent
@@ -14,8 +17,8 @@ from run.resource_collector.service.asmr.asmr100 import random_asmr_100, latest_
     choose_from_hotest_asmr_100
 from run.resource_collector.service.jmComic.jmComic import (
     JM_search, JM_search_week, JM_search_month,
-    JM_ranking_week, JM_ranking_today,
-    download_covers_concurrent,
+    JM_ranking_week, JM_ranking_today,get_jm_name,
+    download_covers_concurrent,OpenListClient,check_jm_multiple,
     downloadComic, downloadALLAndToPdf, JM_search_id, JM_search_with_covers,
 )
 from run.resource_collector.service.zLibrary.zLib import search_book, download_book
@@ -386,6 +389,11 @@ async def jm_download(bot,event,config,comic_id):
         try:
             msg = await bot.send(event, "已启用线程,请等待下载完成", True)
             await delay_recall(bot, msg)
+            #新增一个判断，当下载的本子有多个时直接拒绝
+            if await check_jm_multiple(comic_id):
+                msg = await bot.send(event, "检测到该jm包含多个本子，拒绝下载喵", True)
+                #await delay_recall(bot, msg)
+                return
 
             loop = asyncio.get_running_loop()
             with ThreadPoolExecutor() as executor:
@@ -399,63 +407,124 @@ async def jm_download(bot,event,config,comic_id):
         except Exception as e:
             bot.logger.error(e)
             await bot.send(event, "下载失败", True)
-        finally:
-            try:
-                if config.resource_collector.config['JMComic']["autoEncrypt"]:
-                    encryptor = AsyncPDFEncryptor()
-                    try:
-                        await encryptor.encrypt_pdf_file(
-                            f"{config.resource_collector.config['JMComic']['savePath']}/{comic_id}.pdf",
-                            f"{config.resource_collector.config['JMComic']['savePath']}/{comic_id}_encrypted.pdf",
-                            f"{comic_id}",
-                        )
-                        pdf_path = f"{config.resource_collector.config['JMComic']['savePath']}/{comic_id}_encrypted.pdf"
-                    except Exception as e:
-                        bot.logger.error(f"encrypt_pdf_file error:{e}")
-                        traceback.print_exc()
-                        pdf_path = f"{config.resource_collector.config['JMComic']['savePath']}/{comic_id}.pdf"
-                else:
+        try:
+            if config.resource_collector.config['JMComic']["autoEncrypt"]:
+                encryptor = AsyncPDFEncryptor()
+                try:
+                    await encryptor.encrypt_pdf_file(
+                        f"{config.resource_collector.config['JMComic']['savePath']}/{comic_id}.pdf",
+                        f"{config.resource_collector.config['JMComic']['savePath']}/{comic_id}_encrypted.pdf",
+                        f"{comic_id}",
+                    )
+                    pdf_path = f"{config.resource_collector.config['JMComic']['savePath']}/{comic_id}_encrypted.pdf"
+                except Exception as e:
+                    bot.logger.error(f"encrypt_pdf_file error:{e}")
+                    traceback.print_exc()
                     pdf_path = f"{config.resource_collector.config['JMComic']['savePath']}/{comic_id}.pdf"
+            else:
+                pdf_path = f"{config.resource_collector.config['JMComic']['savePath']}/{comic_id}.pdf"
 
-                msg_pdf = f"加密成功喵，密码：{comic_id}"
-                if os.path.exists('/mnt/video_disk/temp/JM'):
-                    pdf_path_org = f"{config.resource_collector.config['JMComic']['savePath']}/{comic_id}.pdf"
-                    JM_name = await JM_search_id(comic_id)
-                    copy_path = f'/mnt/video_disk/temp/JM/{comic_id}_{JM_name}.pdf'
-                    pdf_url = f"https://openlist.manshuo.ink/JM"
-                    shutil.copy(pdf_path_org, copy_path)
-                    msg_pdf = f"请前往此网址查看：\n{pdf_url}"
+            msg_pdf = f"加密成功喵，密码：{comic_id}"
+            # 这里压缩PDF，以免过大
+            if config.resource_collector.config["JMComic"]["pdg_compress"] is True:
+                # 首先检查该库有无正确安装
+                Ghostscript_installed_check = False
+                cmds = ['gs', 'gswin64c', 'gswin32c']  # 常见Ghostscript命令
+                for cmd in cmds:
+                    try:
+                        result = subprocess.run([cmd, '--version'], capture_output=True, text=True)
+                        if result.returncode == 0:
+                            bot.logger.info(f"Ghostscript 已安装，版本号: {result.stdout.strip()}，命令: {cmd}")
+                            Ghostscript_installed_check = True
+                    except FileNotFoundError:
+                        pass
+                if Ghostscript_installed_check:
+                    bot.logger.info('开始压缩下载的pdf文件')
+                    pdf_path_cache = f"{config.resource_collector.config['JMComic']['savePath']}/{comic_id}_cache.pdf"
+                    dpi = 72
+                    cmd = [
+                        'gs',
+                        '-sDEVICE=pdfwrite',
+                        '-dCompatibilityLevel=1.4',
+                        '-dPDFSETTINGS=/screen',
+                        '-dNOPAUSE',
+                        '-dQUIET',
+                        '-dBATCH',
+                        '-dDownsampleColorImages=true',
+                        f'-dColorImageResolution={dpi}',
+                        '-dDownsampleGrayImages=true',
+                        f'-dGrayImageResolution={dpi}',
+                        '-dDownsampleMonoImages=true',
+                        f'-dMonoImageResolution={dpi}',
+                        f'-sOutputFile={pdf_path_cache}',
+                        pdf_path
+                    ]
+                    subprocess.run(cmd, check=True)
+                    pdf_path = pdf_path_cache
+                else:
+                    bot.logger.error("Ghostscript 未安装或命令未添加到环境变量。")
+            # #重命名文件
+            if config.resource_collector.config["JMComic"]["is_rename"] is True:
+                bot.logger.info('开始重命名本子')
+                jm_name = await get_jm_name(comic_id)
+                pdf_path_rename = f"{config.resource_collector.config['JMComic']['savePath']}/{comic_id}_{jm_name}.pdf"
+                shutil.copy(pdf_path, pdf_path_rename)
+                pdf_path = pdf_path_rename
 
-                for group_id in operating[comic_id]:
-                    event.group_id = group_id
+            # 新增Openlist上传方式
+            for group_id in operating[comic_id]:
+                event.group_id = group_id
+                if config.resource_collector.config["JMComic"]["openlist"]["enable"] is True:
+                    bot.logger.info('使用Openlist上传喵')
+                    OpenList = OpenListClient(
+                        config.resource_collector.config["JMComic"]["openlist"]["base_url"],
+                        config.resource_collector.config["JMComic"]["openlist"]["username"],
+                        config.resource_collector.config["JMComic"]["openlist"]["password"])
+                    info = await OpenList.login()
+                    bot.logger.info('Openlist登录成功，开始上传')
+                    if info['status'] is False:
+                        await bot.send(event, info['msg'])
+                        return
+                    info = await OpenList.upload_file(pdf_path,
+                                                      config.resource_collector.config["JMComic"]["openlist"][
+                                                          "upload_dir"])
+                    if info['status'] is False:
+                        await bot.send(event, info['msg'])
+                        return
+                    base_url = config.resource_collector.config["JMComic"]["openlist"]["base_url"] + \
+                               config.resource_collector.config["JMComic"]["openlist"]["upload_dir"]
+                    msg_pdf = f"请前往此网址查看：\n{base_url}"
+                    await bot.send(event, msg_pdf)
+                    await OpenList.logout()
+                else:
                     msg = await bot.send(event, "下载完成了( >ρ< )。请等待上传完成。")
                     if not os.path.exists('/mnt/video_disk/temp/JM'):
                         await bot.send(event, File(file=pdf_path))
                     if config.resource_collector.config["JMComic"]["autoEncrypt"]:
                         await bot.send(event, msg_pdf)
                     await delay_recall(bot, msg)
-                bot.logger.info("移除预览缓存")
-                operating.pop(comic_id)
-                if config.resource_collector.config['JMComic']["autoClearPDF"]:
+            bot.logger.info("移除预览缓存")
+            operating.pop(comic_id)
+            if config.resource_collector.config['JMComic']["autoClearPDF"]:
+                await wait_and_delete_file(
+                    bot,
+                    file_path=f"{config.resource_collector.config['JMComic']['savePath']}/{comic_id}.pdf",
+                )
+                if config.resource_collector.config['JMComic']["autoEncrypt"]:
                     await wait_and_delete_file(
                         bot,
-                        file_path=f"{config.resource_collector.config['JMComic']['savePath']}/{comic_id}.pdf",
+                        file_path=f"{config.resource_collector.config['JMComic']['savePath']}/{comic_id}_encrypted.pdf",
                     )
-                    if config.resource_collector.config['JMComic']["autoEncrypt"]:
-                        await wait_and_delete_file(
-                            bot,
-                            file_path=f"{config.resource_collector.config['JMComic']['savePath']}/{comic_id}_encrypted.pdf",
-                        )
-            except Exception as e:
-                bot.logger.error(e)
-            finally:
-                if comic_id in operating:
-                    operating.pop(comic_id)
+        except Exception as e:
+            bot.logger.error(e)
+        finally:
+            if comic_id in operating:
+                operating.pop(comic_id)
 
 
     asyncio.create_task(_call_download())
     return {"status": "running", "message": "任务已在后台启动，请耐心等待结果"}
-async def jm_preview(bot, event, config, comic_id=607279):
+async def jm_preview(bot, event, config, comic_id=607279,mode_check='preview'):
     async def _call_jm():
         global operating
         if comic_id in config.resource_collector.config["JMComic"]["jm_ban"]:
@@ -476,13 +545,17 @@ async def jm_preview(bot, event, config, comic_id=607279):
         event.group_id = temp_id
         operating[comic_id] = [event.group_id]
         bot.logger.info(f"JM验车 {comic_id}")
-        msg = await bot.send(event, "下载中...稍等喵", True)
-        await delay_recall(bot, msg)
-        # 主bot接入公开平台需对图片脱敏；副bot(webui/live2d 等内部通道)无需，直接返回原图。
-        anti_nsfw = config.resource_collector.config["JMComic"]["anti_nsfw"]
-        if getattr(event, "from_secondary", False):
-            anti_nsfw = "no_censor"
-            bot.logger.info("JM预览：来源为副bot，跳过图片混淆，返回原图")
+        if mode_check in ['preview']:
+            msg = await bot.send(event, "下载中...稍等喵", True)
+            await delay_recall(bot, msg)
+        if config.resource_collector.config["JMComic"]["openlist"]["enable"] is True:
+            anti_nsfw = 'no_censor'
+        else:
+            # 主bot接入公开平台需对图片脱敏；副bot(webui/live2d 等内部通道)无需，直接返回原图。
+            anti_nsfw = config.resource_collector.config["JMComic"]["anti_nsfw"]
+            if getattr(event, "from_secondary", False):
+                anti_nsfw = "no_censor"
+                bot.logger.info("JM预览：来源为副bot，跳过图片混淆，返回原图")
         try:
             loop = asyncio.get_running_loop()
             with ThreadPoolExecutor() as executor:
@@ -497,18 +570,42 @@ async def jm_preview(bot, event, config, comic_id=607279):
             await bot.send(event, "下载失败", True)
             operating.pop(comic_id)
             return
-        cmList = []
-        bot.logger.info(png_files)
-        cmList.append(Node(content=[Text(
-            f"车牌号：{comic_id} \nbot仅提供本子部分页面预览。\n图片已经过处理，但不保证百分百不被吞。预览是黑色是正常的，点进去查看"
-        )]))
-        shutil.rmtree(f"data/pictures/benzi/temp{comic_id}")
+        if config.resource_collector.config["JMComic"]["openlist"]["enable"] is True:
+            bot.logger.info('使用Openlist上传喵')
+            OpenList = OpenListClient(
+                config.resource_collector.config["JMComic"]["openlist"]["base_url"],
+                config.resource_collector.config["JMComic"]["openlist"]["username"],
+                config.resource_collector.config["JMComic"]["openlist"]["password"])
+            info = await OpenList.login()
+            bot.logger.info('Openlist登录成功，开始上传')
+            if info['status'] is False:
+                await bot.send(event, info['msg'])
+                return
+            # msg = await bot.send(event, "下载完成了，请等待上传完成喵。")
+            folder_path = config.resource_collector.config["JMComic"]["openlist"]["upload_dir"] + f'/cache/{comic_id}'
+            for img_path in png_files:
+                info = await OpenList.upload_file(img_path, folder_path)
+                if info['status'] is False:
+                    await bot.send(event, info['msg'])
+                    return
+            base_url = config.resource_collector.config["JMComic"]["openlist"]["base_url"] + folder_path
+            msg_pdf = f"请前往此网址查看：\n{base_url}"
+            await bot.send(event, msg_pdf)
+            # await delay_recall(bot, msg)
+            await OpenList.logout()
+        else:
+            cmList = []
+            bot.logger.info(png_files)
+            cmList.append(Node(content=[Text(
+                f"车牌号：{comic_id} \nbot仅提供本子部分页面预览。\n图片已经过处理，但不保证百分百不被吞。预览是黑色是正常的，点进去查看"
+            )]))
+            shutil.rmtree(f"data/pictures/benzi/temp{comic_id}")
 
-        for path in png_files:
-            cmList.append(Node(content=[Image(file=path)]))
-        for group_id in operating[comic_id]:
-            event.group_id = group_id
-            await bot.send(event, cmList)
+            for path in png_files:
+                cmList.append(Node(content=[Image(file=path)]))
+            for group_id in operating[comic_id]:
+                event.group_id = group_id
+                await bot.send(event, cmList)
         operating.pop(comic_id)
 
 
@@ -652,6 +749,7 @@ def main(bot, config):
             if user_info.permission < config.resource_collector.config["jmcomic"]["jm_comic_random_level"]:
                 await bot.send(event, "你没有权限使用该功能")
                 return
+            mode_check = 'preview'
             try:
                 if event.pure_text.startswith("验车"):
                     comic_id = int(event.pure_text.replace("验车", ""))
@@ -663,11 +761,12 @@ def main(bot, config):
                     await bot.send(event, random.choice(context))
                     context = JM_search_month()
                     comic_id = context[random.randint(1, len(context)) - 1]
+                    mode_check = 'random'
             except Exception as e:
                 logger.error(e)
                 await bot.send(event, "无效输入 int，指令格式如下\n验车【车牌号】\n如：验车604142", True)
                 return
-            await jm_preview(bot,event,config,comic_id)
+            await jm_preview(bot,event,config,comic_id,mode_check)
             #await jm_search(bot, event, config, comic_id)
             #await call_jm(bot, event, config, mode="preview", comic_id=comic_id)
 

@@ -10,8 +10,10 @@ llm:
       - xxx
     model: gemini-2.5-pro
     base_url: http://api.apollodorus.xyz/v1   #可以去我们的开发群1050663831获取免费apikey。
+    no_extra_paramters: False #启用后下边的参数都不会传入。适配各种中转
     temperature: 1.1
-    max_tokens: 1024
+    max_tokens: 1024   #openai新版用的是max_completion_tokens，当max_completion_tokens配置项不为0时，自动使用max_completion_tokens
+    max_completion_tokens: 0
     enable_official_sdk: false   # false=直接发post，true=用openai sdk
 
   gemini:

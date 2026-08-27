@@ -30,8 +30,10 @@ async def xiaohongshu(url,filepath=None,type_check=None):
     json_check['status'] = True
     if filepath is None: filepath = filepath_init
     introduce=None
-    msg_url = re.search(r"(http:|https:)\/\/(xhslink|(www\.)xiaohongshu).com\/[A-Za-z\d._?%&+\-=\/#@]*",
-                        str(url).replace("&amp;", "&").strip())[0]
+    match = re.search(r"(http:|https:)\/\/(xhslink|(www\.)xiaohongshu).com\/[A-Za-z\d._?%&+\-=\/#@]*",
+                        str(url).replace("&amp;", "&").strip())
+    if match:msg_url = match[0]
+    else:msg_url = url
     # 如果没有设置xhs的ck就结束，因为获取不到
     xhs_ck=ini_login_Link_Prising(type=3)
     if xhs_ck == "" or xhs_ck is None:

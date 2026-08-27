@@ -130,7 +130,7 @@ async def download_b_file(url, full_file_name, progress_callback=None,proxy=None
         'referer': 'https://www.bilibili.com',
     }
     async with httpx.AsyncClient(transport=httpx.AsyncHTTPTransport(local_address="0.0.0.0"),proxy=proxy) as client:
-        async with client.stream("GET", url, headers=BILIBILI_HEADER,timeout=120) as resp:
+        async with client.stream("GET", url, headers=BILIBILI_HEADER, timeout=60) as resp:
             current_len = 0
             total_len = int(resp.headers.get('content-length', 0))
             #print(total_len)

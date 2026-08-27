@@ -9,6 +9,7 @@ setu:
   download: true #关掉的话就是直接发送url，灰度图不生效。
   gray_layer: true #是否开启灰度图功能
   setu_operate_level: 0    #色图功能所需等级
+  custom_pic_source: 'https://api.lolicon.app/setu/v2'     #自定义图源，目前只兼容了lolicon图源：https://api.lolicon.app/setu/v2
   today_img_list:       #此处为今日系列触发词，比如 今日 巨乳/贫乳/黑丝 等，你填了什么就会搜索什么
     - '巨乳'
     - '贫乳'

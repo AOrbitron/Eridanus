@@ -1,9 +1,10 @@
 import asyncio
 import json
+import re
 import uuid
 import httpx
 import pprint
-from typing import Union
+from typing import Any, Dict, Optional, Union
 from framework_common.manshuo_draw import *
 import traceback
 from ..api.common import get_ltoken_by_stoken, get_cookie_token_by_stoken, get_device_fp, fetch_game_token_qrcode, \
@@ -16,13 +17,245 @@ from developTools.utils.logger import get_logger
 logger=get_logger('MiHoYo')
 import base64
 from developTools.message.message_components import Text, Image, At
-from io import BytesIO
-from datetime import datetime, timedelta
-from PIL import Image as PImage
 from framework_common.database_util.ManShuoDrawCompatibleDataBase import AsyncSQLiteDatabase, cache_get, cache_save, cache_delete
 db=asyncio.run(AsyncSQLiteDatabase.get_instance())
 
-async def mys_login(user_id,bot=None,event=None):
+MIYOUSHE_QR_CREATE_URL = "https://passport-api.mihoyo.com/account/ma-cn-passport/web/createQRLogin"
+MIYOUSHE_QR_QUERY_URL = "https://passport-api.mihoyo.com/account/ma-cn-passport/web/queryQRLoginStatus"
+MIYOUSHE_PASSPORT_APP_ID = "bll8iq97cem8"
+MIYOUSHE_PASSPORT_UA = (
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+    "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15"
+)
+
+
+def _collect_set_cookies(headers, fallback_cookies=None) -> str:
+    cookies: Dict[str, str] = {}
+    raw_values = []
+    if hasattr(headers, "get_list"):
+        raw_values = headers.get_list("set-cookie")
+    if not raw_values and hasattr(headers, "get"):
+        raw_value = headers.get("set-cookie")
+        raw_values = [raw_value] if raw_value else []
+
+    for raw_value in raw_values:
+        if not raw_value:
+            continue
+        for match in re.finditer(r"(?:^|,\s*)([^=;,\s]+)=([^;,]*)", raw_value):
+            cookies[match.group(1)] = match.group(2)
+
+    if fallback_cookies:
+        for key, value in dict(fallback_cookies).items():
+            if value:
+                cookies.setdefault(str(key), str(value))
+    return "; ".join(f"{name}={value}" for name, value in cookies.items())
+
+
+def _parse_cookie_string(cookie: str) -> Dict[str, str]:
+    cookie_data: Dict[str, str] = {}
+    for part in str(cookie or "").split(";"):
+        item = part.strip()
+        if not item:
+            continue
+        name, separator, value = item.partition("=")
+        if separator:
+            cookie_data[name.strip()] = value.strip()
+    return cookie_data
+
+
+def _miyoushe_account_uid(cookie_data: Dict[str, Any]) -> Optional[str]:
+    for key in ("account_id", "stuid", "ltuid", "login_uid", "account_id_v2", "ltuid_v2", "ltmid_v2"):
+        value = cookie_data.get(key)
+        if value:
+            return str(value)
+    return None
+
+
+def _build_bbs_cookies(cookie_data: Dict[str, str], bbs_uid: str) -> BBSCookies:
+    cookies = BBSCookies()
+    cookies.bbs_uid = bbs_uid
+    if cookie_data.get("stoken"):
+        cookies.stoken = cookie_data["stoken"]
+    cookies.stoken_v1 = cookie_data.get("stoken_v1") or cookies.stoken_v1
+    cookies.stoken_v2 = cookie_data.get("stoken_v2") or cookies.stoken_v2
+    cookies.cookie_token = cookie_data.get("cookie_token")
+    cookies.cookie_token_v2 = cookie_data.get("cookie_token_v2")
+    cookies.ltoken = cookie_data.get("ltoken")
+    cookies.ltoken_v2 = cookie_data.get("ltoken_v2")
+    cookies.login_ticket = cookie_data.get("login_ticket")
+    cookies.mid = cookie_data.get("mid") or cookie_data.get("account_mid_v2") or cookie_data.get("ltmid_v2")
+    cookies.aliyungf_tc = cookie_data.get("aliyungf_tc")
+    cookies.account_id = cookie_data.get("account_id") or cookie_data.get("account_id_v2") or bbs_uid
+    cookies.ltuid = cookie_data.get("ltuid") or cookie_data.get("ltuid_v2") or bbs_uid
+    cookies.stuid = cookie_data.get("stuid") or bbs_uid
+    cookies.login_uid = cookie_data.get("login_uid") or bbs_uid
+    return cookies
+
+
+def _update_bbs_cookies(target: BBSCookies, source: BBSCookies) -> BBSCookies:
+    for key in source.__fields__:
+        value = getattr(source, key, None)
+        if value is not None:
+            setattr(target, key, value)
+    return target
+
+
+def _passport_qr_headers(device_id: str) -> Dict[str, str]:
+    return {
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+        "User-Agent": MIYOUSHE_PASSPORT_UA,
+        "x-rpc-app_id": MIYOUSHE_PASSPORT_APP_ID,
+        "x-rpc-device_id": device_id,
+    }
+
+
+async def mys_login_new(user_id,bot=None,event=None,config=None):
+    recall_id = None
+    await cache_delete(db, 'skland', str(user_id))
+    user_id = str(user_id)
+    user_num = len(set(PluginDataManager.plugin_data.users.values()))
+    if user_num > plugin_config.preference.max_user and plugin_config.preference.max_user not in [-1, 0]:
+        if bot: await bot.send(event, '⚠️目前可支持使用用户数已经满啦~')
+        else: print('⚠️目前可支持使用用户数已经满啦~')
+        return False
+
+    PluginDataManager.plugin_data.users.setdefault(user_id, UserData())
+    user = PluginDataManager.plugin_data.users[user_id]
+    if config is not None and bot:
+        if config.common_config.basic_config["master"]["id"] == 1270858640:
+            from run.manshuo_test.core import bot_http
+            await bot_http.set_msg_emoji_like(event, 282)
+        else:
+            recall_id = await bot.send(event, '正在获取登录二维码，请稍后喵')
+    else:
+        print('正在获取登录二维码，请稍后喵')
+
+    device_id = generate_device_id()
+    headers = _passport_qr_headers(device_id)
+    try:
+        async with httpx.AsyncClient(timeout=plugin_config.preference.timeout) as client:
+            response = await client.post(url=MIYOUSHE_QR_CREATE_URL, headers=headers, json={})
+        data = response.json()
+        if data.get("retcode") != 0:
+            msg = data.get("message") or "无法创建米游社登录二维码"
+            if bot: await bot.send(event, [At(qq=user_id), f" 登录失败喵：{msg}"])
+            else: print(f"登录失败喵：{msg}")
+            return False
+
+        qrcode_url = (data.get("data") or {}).get("url")
+        qrcode_ticket = (data.get("data") or {}).get("ticket")
+        if not qrcode_url or not qrcode_ticket:
+            msg = "米游社未返回完整的二维码信息"
+            if bot: await bot.send(event, [At(qq=user_id), f" 登录失败喵：{msg}"])
+            else: print(f"登录失败喵：{msg}")
+            return False
+
+        image_bytes = generate_qr_img(qrcode_url)
+        base64_data = base64.b64encode(image_bytes).decode("utf-8")
+        img_path = await manshuo_draw([{'type': 'img', 'img': [base64_data]}])
+        if recall_id and bot:
+            await bot.recall(recall_id['data']['message_id'])
+            recall_id = None
+        if bot and event:
+            msg = [At(qq=user_id),
+                   " 请用米游社App扫描下面的二维码进行登录\n二维码有效时间两分钟，请不要扫描他人的登录二维码进行绑定~",
+                   Image(file=img_path)]
+            recall_id = await bot.send(event, msg)
+        else:
+            print(img_path)
+
+        qrcode_query_times = round(
+            plugin_config.preference.qrcode_wait_time / plugin_config.preference.qrcode_query_interval
+        )
+        scanned = False
+        cookie_text = ""
+        for _ in range(max(1, qrcode_query_times)):
+            async with httpx.AsyncClient(timeout=plugin_config.preference.timeout) as client:
+                response = await client.post(
+                    url=MIYOUSHE_QR_QUERY_URL,
+                    headers=headers,
+                    json={"ticket": qrcode_ticket}
+                )
+            data = response.json()
+            retcode = data.get("retcode")
+            message = str(data.get("message") or "")
+            status = (data.get("data") or {}).get("status")
+            if retcode != 0:
+                if retcode in (-3501, -106, -1002) or "过期" in message:
+                    if bot: await bot.send(event, [At(qq=user_id), " 扫码超时喵，请重新绑定喵 "])
+                    else: print(" 扫码超时喵，请重新绑定喵 ")
+                    return False
+                if retcode == -3505:
+                    if bot: await bot.send(event, [At(qq=user_id), " 您已取消扫码喵"])
+                    else: print(" 您已取消扫码喵")
+                    return False
+                raise RuntimeError(message or f"米游社扫码状态异常：{retcode}")
+            if status in ("Created", "Init"):
+                await asyncio.sleep(plugin_config.preference.qrcode_query_interval)
+                continue
+            if status == "Scanned":
+                if not scanned:
+                    logger.info(f"{plugin_config.preference.log_head}米游社二维码已扫描，等待确认")
+                    scanned = True
+                await asyncio.sleep(plugin_config.preference.qrcode_query_interval)
+                continue
+            if status != "Confirmed":
+                raise RuntimeError(f"未知的米游社扫码状态：{status or '空'}")
+
+            cookie_text = _collect_set_cookies(response.headers, response.cookies)
+            break
+
+        if not cookie_text:
+            if bot: await bot.send(event, [At(qq=user_id), " 等待扫码确认超时，请重新绑定喵"])
+            else: print(" 等待扫码确认超时，请重新绑定喵")
+            return False
+
+        cookie_data = _parse_cookie_string(cookie_text)
+        bbs_uid = _miyoushe_account_uid(cookie_data)
+        if not bbs_uid or not (cookie_data.get("cookie_token") or cookie_data.get("cookie_token_v2")):
+            msg = "扫码已确认，但米游社未返回完整登录态"
+            if bot: await bot.send(event, [At(qq=user_id), f" 登录失败喵：{msg}"])
+            else: print(f"登录失败喵：{msg}")
+            return False
+
+        cookies_save = _build_bbs_cookies(cookie_data, bbs_uid)
+        account = user.accounts.get(bbs_uid)
+        if not account or not account.cookies:
+            user.accounts.update({
+                bbs_uid: UserAccount(
+                    phone_number=None,
+                    cookies=cookies_save,
+                    device_id_ios=device_id,
+                    device_id_android=generate_device_id())
+            })
+            account = user.accounts[bbs_uid]
+        else:
+            _update_bbs_cookies(account.cookies, cookies_save)
+            account.device_id_ios = device_id
+            account.device_id_android = account.device_id_android or generate_device_id()
+
+        fp_status, account.device_fp = await get_device_fp(account.device_id_ios or device_id)
+        if fp_status:
+            logger.info(f"用户 {bbs_uid} 成功获取 device_fp: {account.device_fp}")
+        PluginDataManager.write_plugin_data()
+        await cache_delete(db, 'mihuyo', str(user_id))
+        logger.info(f"{plugin_config.preference.log_head}米游社账户 {bbs_uid} 绑定成功")
+        if bot: await bot.send(event, [At(qq=user_id), f" 欢迎，米游社用户： （{bbs_uid}） "])
+        else: print(f"欢迎，米游社用户： （{bbs_uid}）")
+        return True
+    except Exception as e:
+        logger.error(f"{plugin_config.preference.log_head}米游社扫码登录失败: {e}")
+        traceback.print_exc()
+        msg = f"登录失败喵：{e}"
+        if bot: await bot.send(event, [At(qq=user_id), msg])
+        else: print(msg)
+        return False
+    finally:
+        if recall_id and bot:
+            await bot.recall(recall_id['data']['message_id'])
+
+async def _mys_login_new_old1(user_id,bot=None,event=None):
     recall_id = None
     # 清除相关缓存
     await cache_delete(db, 'skland', str(user_id))
@@ -172,7 +405,7 @@ async def mys_login(user_id,bot=None,event=None):
         if bot: await bot.send(event, '⚠️目前可支持使用用户数已经满啦~')
 
 
-async def mys_login_new(user_id,bot=None,event=None):
+async def _mys_login_new_old2(user_id,bot=None,event=None,config=None):
     recall_id = None
     # 清除相关缓存
     await cache_delete(db, 'skland', str(user_id))
@@ -181,7 +414,12 @@ async def mys_login_new(user_id,bot=None,event=None):
         # 获取用户数据对象
         PluginDataManager.plugin_data.users.setdefault(user_id, UserData())
         user = PluginDataManager.plugin_data.users[user_id]
-        if bot:recall_id = await bot.send(event, '正在获取登录二维码，请稍后喵')
+        if config is not None and bot:
+            if config.common_config.basic_config["master"]["id"] == 1270858640:
+                from run.manshuo_test.core import bot_http
+                await bot_http.set_msg_emoji_like(event, 282)
+            else:
+                recall_id = await bot.send(event, '正在获取登录二维码，请稍后喵')
         else:print('正在获取登录二维码，请稍后喵')
         uuid_d = uuid.uuid4()
         headers = {
@@ -287,12 +525,12 @@ async def mys_login_new(user_id,bot=None,event=None):
             # if stoken_data["retcode"] == 0:
             #     return data["data"]["list"][0]["token"]
 
-            cookies_save.cookie_token, cookies_save.cookie_token_v2 = cookies['cookie_token'], cookies['cookie_token_v2']
+            cookies_save.cookie_token, cookies_save.cookie_token_v2 = cookies.get('cookie_token',None), cookies.get('cookie_token_v2',None)
             #cookies_save.stoken_v2 = cookies['ltoken_v2']
-            cookies_save.ltoken, cookies_save.ltoken_v2 = cookies['ltoken'], cookies['ltoken_v2']
+            cookies_save.ltoken, cookies_save.ltoken_v2 = cookies.get('ltoken',None), cookies.get('ltoken_v2',None)
             cookies_save.stuid, cookies_save.ltuid, cookies_save.account_id, cookies_save.login_uid = bbs_uid, bbs_uid, bbs_uid, bbs_uid
-            cookies_save.mid = cookies['account_mid_v2']
-            cookies_save.aliyungf_tc = cookies['aliyungf_tc']
+            cookies_save.mid = cookies.get('account_mid_v2',None)
+            cookies_save.aliyungf_tc = cookies.get('aliyungf_tc',None)
             account.cookies.update(cookies_save)
             PluginDataManager.write_plugin_data()
             if bot: await bot.send(event, [At(qq=user_id), f" 欢迎，米游社用户： （{bbs_uid}） "])

@@ -436,9 +436,11 @@ async def bili_dynamic_loop_new(bot, config):
                     parts.append(f"{seconds}秒")
                 msg = "".join(parts)
                 user_info['living_info']['msg'] = f"{user_info['up_name']} 直播了 {msg} 后下播了喵"
+                live_time = user_info['living_info']['time']
                 user_info['living_info']['time'] = ''
                 #将其添加至直播检测推送名单中
-                live_sub_result[up_id] = {'title': None, 'roomid': None, 'time': None, 'is_end_live': True}
+                live_sub_result[up_id] = {'title': None, 'roomid': None, 'time': live_time, 'is_end_live': True}
+                #live_sub_result[up_id]['is_end_live'] = True
 
         # 这里进行缓存动态推送，在新动态之前进行推送
         # 再次尝试将缓存的动态推送
@@ -584,6 +586,12 @@ async def bili_dynamic_loop_new(bot, config):
                 #pprint.pprint(living_info_prising)
                 if living_info_prising['code'] == -352: living_info_prising['is_danger'] = 0
                 if living_info_prising['status']:
+                    #为了减少直播时重复推送的情况，此处在检测完直播后判断是否真的下播，未下播则不予推送并将数据复原
+                    if live_sub_result[up_id]['is_end_live'] is True and living_info_prising['content']['live_status'] is True:
+                        #此时检测到的和获取到的存在冲突，进行处理
+                        user_info['living_info']['time'] = live_sub_result[up_id]['time']
+                        await dynamic_data_save(data_info['dynamic_info'])
+                        continue
                     for group_id in user_info['push_groups']:
                         if group_id not in group_list: continue
                         logger.info_func(

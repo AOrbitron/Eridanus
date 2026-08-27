@@ -48,7 +48,7 @@ async def get_dominant_color(img_url,absorb_color=False, k=4, image_resize=(100,
                        'avatar_shadow_max_alpha':120, 'avatar_shadow_intensity': 1,
                        'label_color':(251,114,153,255)}
         return return_json
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(timeout=30) as client:
         resp = await client.get(img_url)
         resp.raise_for_status()
     image = PilImage.open(BytesIO(resp.content))
@@ -162,7 +162,7 @@ async def bilibili(url,filepath=None,is_twice=None,type=None,credential_bili=Non
     if "b23.tv" in url or "bili2233.cn" in url or "QQ小程序" in url :
         b_short_url = re.search(b_short_rex, url.replace("\\", ""))[0]
         #logger.info(f'b_short_url:{b_short_url}')
-        resp = httpx.get(b_short_url, headers=BILIBILI_HEADER, follow_redirects=True)
+        resp = httpx.get(b_short_url, follow_redirects=True)
         url: str = str(resp.url)
         #print(f'url:{url}')
     # AV/BV处理
@@ -404,9 +404,9 @@ async def bilibili(url,filepath=None,is_twice=None,type=None,credential_bili=Non
         context += f'[title]{title}[/title]\n[des]{parent_area_name} {area_name}[/des]'
 
         if f'{room_info["live_status"]}' == '1':
-            live_status, live_start_time = room_info['live_status'], room_info['live_start_time']
+            live_status, live_start_time = True, room_info['live_start_time']
             pub_time = datetime.fromtimestamp(live_start_time).astimezone().strftime("%Y-%m-%d %H:%M:%S")
-        else:pub_time='暂未开启直播'
+        else:pub_time, live_status ='暂未开启直播', False
         #是否获取头图
         if up_info_get:
             u = user.User(room_info['uid'])
@@ -428,7 +428,7 @@ async def bilibili(url,filepath=None,is_twice=None,type=None,credential_bili=Non
             if type not in no_draw_type:
                 json_check['pic_path'] = await manshuo_draw(manshuo_draw_json)
             json_check['pic_url_list'].append(cover)
-            json_check['content'] = {'text': context, 'type':'live'}
+            json_check['content'] = {'text': context, 'type':'live','live_status':live_status}
             return json_check
         return manshuo_draw_json
     # 专栏识别
@@ -570,7 +570,7 @@ async def download_video_link_prising(json,filepath=None,proxy=None):
         video_type='video'
     elif file_size_in_mb < 80:
         video_type='video_bigger'
-    elif file_size_in_mb < 150:
+    elif file_size_in_mb < 300:
         video_type='file'
     else:
         video_type = 'too_big'

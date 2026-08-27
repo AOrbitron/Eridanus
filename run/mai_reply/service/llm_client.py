@@ -37,8 +37,10 @@ class LLMClient:
         self._oa_keys: List[str] = oa.get("api_keys",[])
         self._oa_model: str = oa.get("model", "gpt-3.5-turbo")
         self._oa_base_url: str = oa.get("base_url", "https://api.openai.com").rstrip("/")
+        self.no_extra_paramters: bool =oa.get("no_extra_paramters",False)
         self._oa_temperature: float = float(oa.get("temperature", 1.0))
-        self._oa_max_tokens: int = int(oa.get("max_tokens", 1024))
+        self._oa_max_tokens: int = int(oa.get("max_tokens", 1024)) if not oa.get("max_completion_tokens") else None
+        self._oa_max_completion_tokens=int(oa.get("max_completion_tokens")) if oa.get("max_completion_tokens") else None
 
         # --- Gemini 配置
         gm = lcfg.get("gemini", {})
@@ -123,13 +125,19 @@ class LLMClient:
             payload = {
                 "model": self._oa_model if not model else model,
                 "messages": full_messages,
-                "temperature": self._oa_temperature,
-                "max_tokens": self._oa_max_tokens,
+
+                #"max_tokens": self._oa_max_tokens,
                 "stream": True
             }
-            if tool_defs:
-                payload["tools"] = tool_defs
-                payload["tool_choice"] = "auto"
+            if not self.no_extra_paramters:
+                payload["temperature"]=self._oa_temperature
+                if self._oa_max_completion_tokens:
+                    payload["max_completion_tokens"]=self._oa_max_completion_tokens
+                elif self._oa_max_tokens:
+                    payload["max_tokens"]=self._oa_max_tokens
+                if tool_defs:
+                    payload["tools"] = tool_defs
+                    payload["tool_choice"] = "auto"
 
             http = await self._get_http()
             #print(full_messages)
@@ -289,11 +297,17 @@ class LLMClient:
         for _round in range(self.max_tool_rounds):
             payload: Dict[str, Any] = {
                 "model": temp_model, "messages": full_messages,
-                "temperature": self._oa_temperature, "max_tokens": self._oa_max_tokens,
+                #"max_tokens": self._oa_max_tokens,
             }
-            if tool_defs:
-                payload["tools"] = tool_defs
-                payload["tool_choice"] = "auto"
+            if not self.no_extra_paramters:
+                payload["temperature"]=self._oa_temperature
+                if self._oa_max_completion_tokens:
+                    payload["max_completion_tokens"]=self._oa_max_completion_tokens
+                elif self._oa_max_tokens:
+                    payload["max_tokens"]=self._oa_max_tokens
+                if tool_defs:
+                    payload["tools"] = tool_defs
+                    payload["tool_choice"] = "auto"
 
             http = await self._get_http()
             resp = await http.post(url, json=payload, headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},timeout=360)

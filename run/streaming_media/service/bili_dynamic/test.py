@@ -7,9 +7,11 @@ from bilibili_api.user import create_subscribe_group, set_subscribe_group
 from framework_common.manshuo_draw import *
 
 async def test():
+    data_info = await data_init()
+    pprint.pprint(data_info['cookies'])
     #await data_delete(7071924)
-    await bili_login()
-    info = await data_init()
+    # await bili_login()
+    # info = await data_init()
 
     #pprint.pprint(info)
     # print(await check_credential())

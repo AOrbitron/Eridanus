@@ -9,6 +9,7 @@ from developTools.utils.logger import get_logger
 import pprint
 from run.streaming_media.service.Link_parsing.core import *
 import os
+
 try:
     from bilibili_api import select_client
     select_client("httpx")
@@ -155,8 +156,12 @@ async def link_prising(url,filepath=None,proxy=None,type=None,credential_bili=No
 
 
 async def test(url_check):
-    link_info = await link_prising(url_check,absorb_color=True,up_info_get=True,credential_bili=True,type='no_draw')
+    from run.streaming_media.service.Link_parsing.core.bili import download_b
+    link_info = await link_prising(url_check,absorb_color=True,up_info_get=True,credential_bili=True)
     pprint.pprint(link_info)
+
+    # video_path = await download_b(link_info['video_url'], link_info['audio_url'], int(time.time()), filepath='data/pictures/cache/')
+    # pprint.pprint(video_path)
 
 #draw_video_thumbnail()
 if __name__ == "__main__":#测试用，不用管
@@ -183,6 +188,10 @@ if __name__ == "__main__":#测试用，不用管
     url = 'https://www.bilibili.com/video/BV1vvjR6REyP'
     url = '【那你的梦呢 仪玄？-哔哩哔哩】 https://b23.tv/SFkYzoC'
     url = 'https://b23.tv/rtvclYR'
+    #url = 'https://live.bilibili.com/9576151'
+    #url = 'http://xhslink.cn/o/4DZvlOLnu8q'
+    #url = 'https://v.douyin.com/cZUlzDmvtok/ 09/15 :7pm oQk:/ N@J.VY '
+
     #url = '】 https://b23.tv/N4yiTRP'
     #url = '【挽昼麻麻-哔哩哔哩】 https://b23.tv/IjyAnfu'
     # data_info = await data_init()

@@ -444,8 +444,9 @@ class OpenListClient:
         return_json['status'], return_json['msg'] = True, '上传成功'
         return return_json
 
-async def get_jm_name(jm_id):
-    client = JmOption.default().new_jm_client()
+async def get_jm_name(jm_id,client=None):
+    if client is None:
+        client = JmOption.default().new_jm_client()
     Detail = client.get_album_detail(jm_id)
     pprint.pprint(Detail)
     #print(Detail.name)
@@ -456,7 +457,40 @@ async def get_jm_name(jm_id):
     Detail.name = Detail.name.strip('_')
     return Detail.name
 
-async def test():
+async def check_jm_multiple(jm_id,client=None):
+    if client is None:
+        client = JmOption.default().new_jm_client()
+    Detail = client.get_album_detail(jm_id)
+    if len(Detail.episode_list) > 1: return True
+    else: return False
+
+async def test(jm_id=592082):
+    headers = { "Content-Type": "application/json" }
+    data = {
+        "provider": "kuro",
+        "qq_id": "1270858640"
+    }
+    async with httpx.AsyncClient(timeout=60.0) as client:  # 这里timeout单位是秒，30秒等待时间
+        response = await client.post('http://127.0.0.1:5000/api/game_checkin/checkin', json=data, headers=headers)
+    if response.status_code == 200:
+        pprint.pprint(response.json())
+        #today_wife_url_path = response.json()['data']['relative_url']
+
+
+
+    return
+    client = JmOption.default().new_jm_client()
+    Detail = client.get_album_detail(jm_id)
+    pprint.pprint(Detail)
+    pprint.pprint(Detail.episode_list)
+    print(len(Detail.episode_list))
+    print(Detail.name)
+    Detail.name = Detail.name.replace('–', '-')
+    Detail.name = re.sub(r'[\\/:*?"<>|]', '_', Detail.name)
+    Detail.name = Detail.name.replace('[', '(').replace(']', ')')
+    Detail.name = re.sub(r'\s+', '_', Detail.name)
+    Detail.name = Detail.name.strip('_')
+    return
     base_url = ""  # 替换成实际地址
     username = ""
     password = ""
@@ -474,4 +508,5 @@ async def test():
 if __name__ == '__main__':
     pass
     #JM_search_month()
-    asyncio.run(test())
+    info = asyncio.run(test(1336828))
+    pprint.pprint(info)
