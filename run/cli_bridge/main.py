@@ -101,7 +101,7 @@ async def run_cli_tool(bot, event, config, provider: str, prompt: str):
                   "\nasync def example_tool(bot, event, config, text: str):"
                   "\n    user = await get_user(event.user_id)"
                   "\n    if user.permission < 1: return '权限不足'"
-                  "\n    return text"
+                  "\n    return {'msg': text}"
                   "\nDo not put function_declarations into func_map directly; build_tool_map resolves dynamic_imports to callables, and llm_client converts declarations for the provider."
                   "\nUse async handlers, enforce permission checks for user-facing operations, and avoid shell=True."
                   "\nAfter writing files, verify Python syntax and ensure the new plugin is discoverable by the run/ scanner.")
