@@ -256,17 +256,14 @@ class TriggerChecker:
     def _remove_at_segments(event, text: str, bot_name: str, bot_self_id: int) -> str:
         # Rebuild from every segment so multiple At/Text parts are retained
         # in their original order (the old implementation only used [0]).
-        segments = getattr(event, "message", None) or list(event.message_chain)
+        chain = event.message_chain
         parts = []
-        for seg in segments:
-            seg_type = (getattr(seg, "type", "") or "").lower()
-            if seg_type == "text":
-                parts.append(getattr(seg, "text", None) or getattr(seg, "data", {}).get("text", ""))
-            elif seg_type == "at":
-                qq = getattr(seg, "qq", None)
-                data = getattr(seg, "data", {}) or {}
-                qq = qq if qq is not None else data.get("qq") or data.get("user_id")
-                name = getattr(seg, "name", None) or data.get("name") or str(qq or "")
+        for seg in chain:
+            if isinstance(seg, Text):
+                parts.append(seg.text)
+            elif isinstance(seg, At):
+                qq = seg.qq
+                name = getattr(seg, "name", None) or str(qq or "")
                 if str(qq) in {str(bot_self_id), "1000000"}:
                     logger.info(f"[TriggerChecker] 消息中包含@机器人自己的At，已替换为 '@{bot_name}'")
                     continue
@@ -274,7 +271,7 @@ class TriggerChecker:
                     parts.append(f"[@{name}，QQ: {qq}]")
         if parts:
             text = "".join(parts)
-        if not event.message_chain.has(Text) and not event.message_chain.has(At):
+        if not chain.has(Text) and not chain.has(At):
             logger.warning(f"[TriggerChecker] 无法提取文本内容，消息链中既没有 Text 也没有 At，原始消息链: {event.message_chain}")
             return None
         return text
