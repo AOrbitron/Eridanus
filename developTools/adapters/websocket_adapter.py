@@ -120,14 +120,16 @@ class EventBus:
             if self.enable_monitoring:
                 # 监控模式
                 for handler in handlers:
-                    asyncio.create_task(
+                    task = asyncio.create_task(
                         self._execute_handler_with_monitoring(handler, event_instance),
                         name=f"handler-{handler.__name__ if hasattr(handler, '__name__') else 'unknown'}"
                     )
+                    task.add_done_callback(lambda t: t.exception() if not t.cancelled() else None)
             else:
                 # 原版模式（零开销）
                 for handler in handlers:
-                    asyncio.create_task(handler(event_instance))
+                    task = asyncio.create_task(handler(event_instance))
+                    task.add_done_callback(lambda t: t.exception() if not t.cancelled() else None)
         else:
             pass
 

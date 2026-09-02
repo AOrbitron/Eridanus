@@ -198,6 +198,19 @@ def main(bot: ExtendBot, config: YAMLManager):
             return False
         return int(event.message_chain.get(At)[0].qq) != 0
 
+    def context_text(event, fallback: str = "") -> str:
+        """保留群聊中的 @ 目标，避免 pure_text 把所有人都当成对 bot 说话。"""
+        parts = []
+        chain = getattr(event, "message_chain", None)
+        if chain:
+            for component in chain:
+                if isinstance(component, Text):
+                    parts.append(component.text)
+                elif isinstance(component, At):
+                    target = "全体成员" if int(component.qq) == 0 else f"用户{component.name}"
+                    parts.append(f"[@{target}]")
+        return "".join(parts).strip() or fallback.strip()
+
     def command_matches(text: str, command: str, has_at_target: bool) -> bool:
         if text == command or text.startswith(command + " "):
             return True
@@ -274,6 +287,7 @@ def main(bot: ExtendBot, config: YAMLManager):
     @bot.on(GroupMessageEvent)
     async def handle_group(event: GroupMessageEvent):
         text = event.pure_text or ""
+        message_context_text = context_text(event, text)
 
         # 清理指令
         if await handle_clear_command(event, is_group=True):
@@ -306,7 +320,7 @@ def main(bot: ExtendBot, config: YAMLManager):
                     engine.context.push_group_window(
                         event.group_id,
                         user_name,
-                        clean_text,
+                        message_context_text,
                         user_id=event.user_id,  # ← 传入 user_id
                     )
                     # 群印象计数 tick（即便不回复，也感知气氛）
