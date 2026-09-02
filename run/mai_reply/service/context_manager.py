@@ -363,7 +363,15 @@ class ContextManager:
         for item in window:
             sender = item.get("sender", "?")
             text   = item.get("text", "")
-            lines.append(f"你说：{text}" if sender == bot_name else f"{sender}：{text}")
+            if sender == bot_name:
+                lines.append(f"你说：{text}")
+                continue
+            # Include the stable account identifier when available.  Older
+            # persisted entries may not have user_id, so keep their nickname
+            # rendering unchanged.
+            user_id = item.get("user_id")
+            sender_label = f"{sender}（用户ID: {user_id}）" if user_id is not None else sender
+            lines.append(f"{sender_label}：{text}")
         return "【群里最近的聊天记录】\n" + "\n".join(lines)
 
     # ------------------------------------------------------------------ 用户印象

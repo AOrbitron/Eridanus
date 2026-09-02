@@ -212,7 +212,9 @@ class ImpressionUpdater:
             for item in recent:
                 sender = item.get("sender", "?")
                 text = str(item.get("text", ""))[:150]
-                lines.append(f"{sender}：{text}")
+                user_id = item.get("user_id")
+                sender_label = f"{sender}（用户ID: {user_id}）" if user_id is not None else sender
+                lines.append(f"{sender_label}：{text}")
             window_text = "\n".join(lines)
 
             old_impression = self._ctx.get_group_impression(group_id) or ""
