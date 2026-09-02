@@ -18,7 +18,8 @@ async def _run_cli(command: str, prompt: str, timeout: float) -> str:
         raise FileNotFoundError(f"CLI executable not found: {args[0]}")
     args[0] = executable
     if os.name == "nt" and executable.lower().endswith((".cmd", ".bat")):
-        command_line = " ".join(shlex.quote(x) for x in args + [prompt])
+        # cmd.exe 不支持 Unix 单引号；使用 Windows 原生 argv 转义规则。
+        command_line = subprocess.list2cmdline(args + [prompt])
         args = [os.environ.get("COMSPEC", "cmd.exe"), "/d", "/s", "/c", command_line]
     else:
         args.append(prompt)
