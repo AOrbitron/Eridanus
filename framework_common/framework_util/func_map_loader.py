@@ -114,22 +114,6 @@ def build_tool_map():
             logger.error(f"❌ 处理模块 {module_name} 时出错: {e}")
             traceback.print_exc()
 
-    # 兼容由 agent 生成、仅在 __init__.py 声明 function_declarations 的插件。
-    # 声明本身不是 callable，按约定从插件包及常见实现模块中补齐函数。
-    declared_names = {d.get("name") for d in all_function_declarations if isinstance(d, dict)}
-    for name in declared_names - set(tools):
-        for module_name in (f"run.{name}", f"run.{name}.func_collection", f"run.{name}.main"):
-            try:
-                module = importlib.import_module(module_name)
-                func = getattr(module, name, None)
-                if callable(func):
-                    tools[name] = func
-                    logger.info(f"[func_map] auto-discovered tool {name} from {module_name}")
-                    break
-            except Exception:
-                continue
-        if name not in tools:
-            logger.warning(f"[func_map] declaration found without callable: {name}; add dynamic_imports")
     return tools
 
 
