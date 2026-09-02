@@ -2,6 +2,7 @@ import asyncio
 import os
 import shlex
 import shutil
+import subprocess
 
 from developTools.event.events import GroupMessageEvent, PrivateMessageEvent
 from developTools.message.message_components import Node, Text
@@ -21,16 +22,15 @@ async def _run_cli(command: str, prompt: str, timeout: float) -> str:
         args = [os.environ.get("COMSPEC", "cmd.exe"), "/d", "/s", "/c", command_line]
     else:
         args.append(prompt)
-    proc = await asyncio.create_subprocess_exec(
-        *args, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT
-    )
+    def invoke():
+        return subprocess.run(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                              timeout=timeout, cwd=os.getcwd())
     try:
-        output, _ = await asyncio.wait_for(proc.communicate(), timeout=timeout)
-    except asyncio.TimeoutError:
-        proc.kill()
-        await proc.communicate()
+        completed = await asyncio.to_thread(invoke)
+    except subprocess.TimeoutExpired:
         return "CLI execution timed out"
-    return output.decode("utf-8", errors="replace").strip() or f"CLI exited ({proc.returncode})"
+    output = completed.stdout or b""
+    return output.decode("utf-8", errors="replace").strip() or f"CLI exited ({completed.returncode})"
 
 
 async def run_cli_tool(bot, event, config, provider: str, prompt: str):
