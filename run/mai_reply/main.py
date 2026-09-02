@@ -249,7 +249,7 @@ def main(bot: ExtendBot, config: YAMLManager):
                     parts.append(component.text)
                 elif isinstance(component, At):
                     target = "全体成员" if int(component.qq) == 0 else f"用户{component.name}"
-                    parts.append(f"[@{target}]")
+                    parts.append(f"[@{target}]({component.qq})")
         return "".join(parts).strip() or fallback.strip()
 
     def command_matches(text: str, command: str, has_at_target: bool) -> bool:
