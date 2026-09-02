@@ -82,7 +82,21 @@ async def run_cli_tool(bot, event, config, provider: str, prompt: str):
     if not command:
         return f"CLI not configured: {provider}"
     key = f"{event.user_id}:{getattr(event, 'group_id', None)}:{provider}"
-    return (await _run_cli(command, prompt, float(cfg.get("timeout", 300)), provider, key))[:12000]
+    if provider == "codex":
+        prompt = (prompt + "\n\n[Eridanus plugin instructions]"
+                  "\nWhen creating or modifying an Eridanus plugin, follow the existing plugin conventions."
+                  "\nThe plugin must have a valid run/<plugin_name>/__init__.py with plugin_description."
+                  "\nFor MaiReply function calling, export callable tools through dynamic_imports and provide matching function_declarations."
+                  "\nUse async handlers, enforce permission checks for user-facing operations, and avoid shell=True."
+                  "\nAfter writing files, verify Python syntax and ensure the new plugin is discoverable by the run/ scanner.")
+    result = (await _run_cli(command, prompt, float(cfg.get("timeout", 300)), provider, key))[:8000]
+    # Codex/Claude 可能刚刚生成了带 function calling 的插件；执行后立即重扫。
+    try:
+        from run.mai_reply.service.reply_engine import refresh_tools
+        refresh_tools()
+    except Exception:
+        pass
+    return result
 
 
 def main(bot, config):
@@ -118,7 +132,12 @@ def main(bot, config):
             provider = selected[1:]
             key = f"{event.user_id}:{getattr(event, 'group_id', None)}:{provider}"
             result = await _run_cli(prefixes[selected], prompt, timeout, provider, key)
-            nodes = [Node(user_id=str(bot.id), nickname=selected[1:], content=[Text(result[i:i + 3800])]) for i in range(0, len(result), 3800)]
+            try:
+                from run.mai_reply.service.reply_engine import refresh_tools
+                refresh_tools()
+            except Exception:
+                pass
+            nodes = [Node(user_id=str(bot.id), nickname=selected[1:], content=[Text(result[i:i + 1200])]) for i in range(0, len(result), 1200)]
             await bot.send(event, nodes or [Node(user_id=str(bot.id), nickname=selected[1:], content=[Text("")])])
         except Exception as exc:
             bot.logger.error("CLI bridge error", exc_info=True)
