@@ -430,6 +430,7 @@ async def get_game_record(account: UserAccount, retry: bool = True) -> Tuple[Bas
                     res = await client.get(URL_GAME_RECORD.format(account.bbs_uid), headers=HEADERS_GAME_RECORD,
                                            cookies=account.cookies.dict(v2_stoken=True, cookie_type=True),
                                            timeout=plugin_config.preference.timeout)
+                #pprint.pprint(res.json())
                 api_result = ApiResultHandler(res.json())
                 if api_result.login_expired:
                     logger.info(

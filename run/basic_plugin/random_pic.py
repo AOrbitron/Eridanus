@@ -137,15 +137,16 @@ def main(bot: ExtendBot, config: YAMLManager):
                 if number > 5:
                     await bot.send(event, '岚岚不干了喵！')
                     return
-                info = await random_img_search(target,number)
+                info = await random_img_search(target,number,config.basic_plugin.config["setu"]["custom_pic_source"])
                 if info['status'] is not True:
                     await bot.send(event, '获取失败了喵')
                     return
                 for img_path in info['img']:cmList.append(Node(content=[Image(file=img_path)]))
             if cmList:await bot.send(event, cmList)
         else:
-            info = await random_img_search(target,1)
+            info = await random_img_search(target,1,config.basic_plugin.config["setu"]["custom_pic_source"])
             if info['status'] is not True:
+
                 await bot.send(event, '获取失败了喵')
                 return
             img_path = info['img'][0]

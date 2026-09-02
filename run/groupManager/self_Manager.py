@@ -266,8 +266,8 @@ async def garbage_collection(bot, event, config):
 
 
 async def report_to_master(bot: ExtendBot, event, config,msg):
-    if bot.id ==3552663628 or bot.id==3377428814:
-        await bot.send_group_message(1050663831, f"用户：{event.user_id}\n{msg}")
+    #if bot.id ==3552663628 or bot.id==3377428814:
+        #await bot.send_group_message(1050663831, f"用户：{event.user_id}\n{msg}")
         #群u爱看
     await bot.send_friend_message(config.common_config.basic_config["master"]['id'],msg)
 

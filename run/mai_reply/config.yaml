@@ -42,8 +42,8 @@ trigger_llm:   #ai判断是否触发
   ignore_prefixes:  # 以这些字符串开头的消息将跳过 trigger_llm 判断，不触发AI回复流程
     - "/"
     - "#"
-  reply_max_chars: 25 #插嘴最多回复字数
-  reply_max_segments: 2 #插嘴最多回几句
+  reply_max_chars: 150 #插嘴最多回复字数
+  reply_max_segments: 4 #插嘴最多回几句
 
 persona:  # 人设
   name: ""  # 角色名（可选，留空则读取默认配置

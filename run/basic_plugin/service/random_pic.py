@@ -15,12 +15,12 @@ import pprint
 from framework_common.utils.utils import download_img
 
 
-async def random_img_search(target,num=1):
+async def random_img_search(target,num=1,custom_url=None):
     info = {'status':False}
     if target in ['龙图']:info = await random_long(num)
     elif target in ['神乐七奈','狗妈']: info = await random_shenyueqinai(num)
     elif target in ['配色']: info = await random_color(num)
-    else: info = await random_today_pic(num, target)
+    else: info = await random_today_pic(num, target,custom_url)
     return info
 
 async def save_img(resp=None,url=None):
@@ -34,27 +34,31 @@ async def save_img(resp=None,url=None):
         pass
     return img_path
 
-async def random_today_pic(num = 1, tag = '贫乳'):
+async def random_today_pic(num = 1, tag = '贫乳',custom_url=None):
     info_json = {'status':False, 'img':[]}
-    data = {"tag": tag, "num": num, "r18": 0, "size": "regular"}
-    url = "https://api.lolicon.app/setu/v2"
+    data = {"tag": tag, "num": num, "r18": 0, "size": "regular",'format':'json'}
     try:
         async with httpx.AsyncClient(timeout=100) as client:
-            r = await client.get(url, params=data)
+            r = await client.get(custom_url, params=data)
             img_info = r.json()["data"]
         #pprint.pprint(img_info)
-        for item in img_info:
-            img_url = item['urls']['regular']
-            try:
-                proxy_url = img_url.replace("https://i.pixiv.re/", "https://i.yuki.sh/")
-                #print(proxy_url)
-                img_path = await download_img(proxy_url)
-            except:
-                #print(img_url)
-                img_path = await download_img(img_url, proxy="http://127.0.0.1:7890")
-                pass
+        if 'items' in img_info:
+            for item in img_info['items']:
+                img_path = item['full_url']
+                info_json['img'].append(img_path)
+        else:
+            for item in img_info:
+                img_url = item['urls']['regular']
+                try:
+                    proxy_url = img_url.replace("https://i.pixiv.re/", "https://i.yuki.sh/")
+                    #print(proxy_url)
+                    img_path = await download_img(proxy_url)
+                except:
+                    #print(img_url)
+                    img_path = await download_img(img_url, proxy="http://127.0.0.1:7890")
+                    pass
 
-            info_json['img'].append(img_path)
+                info_json['img'].append(img_path)
 
     except Exception as e:
         traceback.print_exc()
@@ -170,4 +174,4 @@ async def random_long(num = 1):
 if __name__ == '__main__':
     pass
     #main()
-    asyncio.run(random_today_pic(1))
+    asyncio.run(random_today_pic(2))
