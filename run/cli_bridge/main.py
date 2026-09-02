@@ -3,13 +3,30 @@ import os
 import shlex
 import shutil
 import subprocess
+import json
+import re
 
 from developTools.event.events import GroupMessageEvent, PrivateMessageEvent
 from developTools.message.message_components import Node, Text
 from framework_common.database_util.User import get_user
 
 
-async def _run_cli(command: str, prompt: str, timeout: float) -> str:
+SESSION_FILE = os.path.join("data", "cli_bridge_sessions.json")
+
+def _load_sessions():
+    try:
+        with open(SESSION_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return {}
+
+def _save_session(key, session_id):
+    sessions = _load_sessions(); sessions[key] = session_id
+    os.makedirs(os.path.dirname(SESSION_FILE), exist_ok=True)
+    with open(SESSION_FILE, "w", encoding="utf-8") as f:
+        json.dump(sessions, f, ensure_ascii=False, indent=2)
+
+async def _run_cli(command: str, prompt: str, timeout: float, provider: str = "", session_key: str = "") -> str:
     args = shlex.split(command, posix=os.name != "nt")
     if not args:
         raise ValueError("CLI command is empty")
@@ -17,6 +34,12 @@ async def _run_cli(command: str, prompt: str, timeout: float) -> str:
     if not executable:
         raise FileNotFoundError(f"CLI executable not found: {args[0]}")
     args[0] = executable
+    session_id = _load_sessions().get(session_key) if session_key else None
+    if session_id and provider == "codex":
+        args.insert(2, session_id)
+        args.insert(2, "resume")
+    elif session_id and provider == "claude":
+        args.extend(["--resume", session_id])
     if os.name == "nt" and executable.lower().endswith((".cmd", ".bat")):
         # cmd.exe 不支持 Unix 单引号；使用 Windows 原生 argv 转义规则。
         command_line = subprocess.list2cmdline(args + [prompt])
@@ -36,7 +59,12 @@ async def _run_cli(command: str, prompt: str, timeout: float) -> str:
         decoded = output.decode("utf-8")
     except UnicodeDecodeError:
         decoded = output.decode("mbcs" if os.name == "nt" else "gbk", errors="replace")
-    return decoded.strip() or f"CLI exited ({completed.returncode})"
+    decoded = decoded.strip()
+    # Codex/Claude 通常会在输出中给出 session id；保存后供下次 resume。
+    found = re.findall(r"[0-9a-fA-F]{8}-[0-9a-fA-F-]{27,}", decoded)
+    if found and session_key:
+        _save_session(session_key, found[-1])
+    return decoded or f"CLI exited ({completed.returncode})"
 
 
 async def run_cli_tool(bot, event, config, provider: str, prompt: str):
@@ -48,7 +76,8 @@ async def run_cli_tool(bot, event, config, provider: str, prompt: str):
     command = cfg.get("commands", {}).get(provider)
     if not command:
         return f"CLI not configured: {provider}"
-    return (await _run_cli(command, prompt, float(cfg.get("timeout", 300))))[:12000]
+    key = f"{event.user_id}:{getattr(event, 'group_id', None)}:{provider}"
+    return (await _run_cli(command, prompt, float(cfg.get("timeout", 300)), provider, key))[:12000]
 
 
 def main(bot, config):
@@ -81,7 +110,9 @@ def main(bot, config):
         running.add(key)
         try:
             await bot.send(event, f"Calling {selected[1:]} CLI, please wait...")
-            result = await _run_cli(prefixes[selected], prompt, timeout)
+            provider = selected[1:]
+            key = f"{event.user_id}:{getattr(event, 'group_id', None)}:{provider}"
+            result = await _run_cli(prefixes[selected], prompt, timeout, provider, key)
             nodes = [Node(user_id=str(bot.id), nickname=selected[1:], content=[Text(result[i:i + 3800])]) for i in range(0, len(result), 3800)]
             await bot.send(event, nodes or [Node(user_id=str(bot.id), nickname=selected[1:], content=[Text("")])])
         except Exception as exc:
