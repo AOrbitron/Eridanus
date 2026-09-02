@@ -541,6 +541,8 @@ def main(bot: ExtendBot, config):
                 if task_name!="jm每日推送":
                     continue
                 await task_executor(task_name, task_info)
+        if event.pure_text=="测试晚安问候":
+            await task_executor("晚安问候","")
 
     @bot.on(GroupMessageEvent)
     async def _cron_add(event: GroupMessageEvent):
