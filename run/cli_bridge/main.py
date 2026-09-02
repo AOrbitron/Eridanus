@@ -30,7 +30,12 @@ async def _run_cli(command: str, prompt: str, timeout: float) -> str:
     except subprocess.TimeoutExpired:
         return "CLI execution timed out"
     output = completed.stdout or b""
-    return output.decode("utf-8", errors="replace").strip() or f"CLI exited ({completed.returncode})"
+    # Windows CLI 可能使用 UTF-8、系统代码页或混合输出；避免直接以 UTF-8 替换造成乱码。
+    try:
+        decoded = output.decode("utf-8")
+    except UnicodeDecodeError:
+        decoded = output.decode("mbcs" if os.name == "nt" else "gbk", errors="replace")
+    return decoded.strip() or f"CLI exited ({completed.returncode})"
 
 
 async def run_cli_tool(bot, event, config, provider: str, prompt: str):
