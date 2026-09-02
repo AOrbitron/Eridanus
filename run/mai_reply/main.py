@@ -252,7 +252,7 @@ def main(bot: ExtendBot, config: YAMLManager):
                     at_index += 1
                     qq = int(component.qq)
                     name = getattr(component, "name", None) or ("全体成员" if qq == 0 else str(qq))
-                    parts.append(f"[@{name}，QQ: {qq}，艾特序号: {at_index}]")
+                    parts.append(f"[@{name}( id:{qq})]")
         return "".join(parts).strip() or fallback.strip()
 
     def command_matches(text: str, command: str, has_at_target: bool) -> bool:
