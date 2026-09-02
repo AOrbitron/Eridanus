@@ -34,7 +34,7 @@ from run.mai_reply.service.proactive import build_proactive_prompt, should_proac
 
 from PIL import Image as PILImage
 
-from developTools.event.events import GroupMessageEvent, PrivateMessageEvent
+from developTools.event.events import GroupMessageEvent, PrivateMessageEvent, LifecycleMetaEvent
 from developTools.message.message_components import Text, Image, Mface, At, Reply
 from framework_common.framework_util.websocket_fix import ExtendBot
 from framework_common.framework_util.yamlLoader import YAMLManager
@@ -196,7 +196,13 @@ def main(bot: ExtendBot, config: YAMLManager):
         finally:
             proactive_running = False
 
-    asyncio.create_task(proactive_loop(), name="mai-reply-proactive")
+    proactive_task = None
+
+    @bot.on(LifecycleMetaEvent)
+    async def start_proactive_loop(_event):
+        nonlocal proactive_task
+        if proactive_task is None or proactive_task.done():
+            proactive_task = asyncio.create_task(proactive_loop(), name="mai-reply-proactive")
 
     bot.logger.info("[MaiReply] 高拟人化AI回复插件已加载")
 
