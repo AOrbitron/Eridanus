@@ -241,8 +241,9 @@ class ContextManager:
     ) -> None:
         key = self._group_key(group_id, user_id) if group_id else self._private_key(user_id)
         history = self._load_history(key)
-        history.append({"role": "user",      "content": user_message})
-        history.append({"role": "assistant", "content": assistant_message})
+        now = int(time.time())
+        history.append({"role": "user", "content": user_message, "ts": now, "hour": time.localtime(now).tm_hour})
+        history.append({"role": "assistant", "content": assistant_message, "ts": int(time.time())})
         self._save_history(key, history)
 
     def clear_session(self, group_id: Optional[int], user_id: int) -> None:

@@ -1,0 +1,12 @@
+enable: false
+permission_level: 1
+max_idle_days: 7
+base_probability: 2
+preferred_period_probability: 12
+adaptive_probability: 25
+scan_interval_minutes: 60
+interval_minutes: 30
+periods:
+  morning: [7, 10]
+  after_work: [17, 20]
+  late_night: [22, 2]

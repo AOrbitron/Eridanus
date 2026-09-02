@@ -29,6 +29,8 @@ import base64
 import io
 import re
 import uuid
+from framework_common.database_util.User import get_users_with_permission_above
+from run.mai_reply.service.proactive import build_proactive_prompt, should_proactively_message
 
 from PIL import Image as PILImage
 
@@ -162,6 +164,39 @@ def main(bot: ExtendBot, config: YAMLManager):
         return
     engine = ReplyEngine(config)
     trigger = TriggerChecker(config, engine.context, engine.emotion)
+    proactive_cfg = getattr(config.mai_reply, "proactive", {})
+    if not isinstance(proactive_cfg, dict):
+        proactive_cfg = config.mai_reply.config.get("proactive", {})
+    proactive_running = False
+
+    async def proactive_loop():
+        nonlocal proactive_running
+        if proactive_running:
+            return
+        proactive_running = True
+        try:
+            while True:
+                cfg = proactive_cfg
+                if cfg.get("enable", False):
+                    hour = __import__("datetime").datetime.now().hour
+                    users = await get_users_with_permission_above(int(cfg.get("permission_level", 1)) - 1)
+                    for uid in users:
+                        history = engine.context.get_session_history(None, uid)
+                        if should_proactively_message(history, hour, cfg):
+                            prompt = build_proactive_prompt(engine.context, uid, "用户通常空闲的时段", int(cfg.get("max_idle_days", 7)))
+                            if prompt:
+                                event = type("ProactiveEvent", (), {"user_id": uid, "group_id": None})()
+                                await engine.handle(bot, event, prompt)
+                                await asyncio.sleep(6)
+                await asyncio.sleep(int(cfg.get("interval_minutes", 30)) * 60)
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            bot.logger.error(f"MaiReply proactive loop stopped: {exc}", exc_info=True)
+        finally:
+            proactive_running = False
+
+    asyncio.create_task(proactive_loop(), name="mai-reply-proactive")
 
     bot.logger.info("[MaiReply] 高拟人化AI回复插件已加载")
 

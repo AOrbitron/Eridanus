@@ -62,6 +62,7 @@ async def initialize_db():
                 ai_token_record INTEGER DEFAULT 0,
                 user_portrait TEXT DEFAULT '',
                 portrait_update_time TEXT DEFAULT ''
+                ,intimacy INTEGER DEFAULT 0
             )
             """)
 
@@ -77,6 +78,7 @@ async def initialize_db():
                 'ai_token_record': 'INTEGER DEFAULT 0',
                 'user_portrait': 'TEXT DEFAULT ""',
                 'portrait_update_time': 'TEXT DEFAULT ""'
+                ,'intimacy': 'INTEGER DEFAULT 0'
             }
 
             async with db.execute("PRAGMA table_info(users);") as cursor:
@@ -102,7 +104,7 @@ async def initialize_db():
 # User 类
 class User:
     def __init__(self, user_id, nickname, card, sex, age, city, permission, signed_days, registration_date,
-                 ai_token_record, user_portrait="", portrait_update_time=""):
+                 ai_token_record, user_portrait="", portrait_update_time="", intimacy=0):
         self.user_id = user_id
         self.nickname = nickname
         self.card = card
@@ -115,6 +117,7 @@ class User:
         self.ai_token_record = ai_token_record
         self.user_portrait = user_portrait
         self.portrait_update_time = portrait_update_time
+        self.intimacy = intimacy or 0
 
     def __repr__(self):
         return (f"User(user_id={self.user_id}, nickname={self.nickname}, card={self.card}, "
@@ -202,6 +205,7 @@ async def get_user(user_id, nickname="", times=1) -> User:
             'ai_token_record': 0,
             "user_portrait": "",
             "portrait_update_time": ""
+            ,"intimacy": 0
         }
 
         async with aiosqlite.connect(dbpath) as db:
@@ -226,19 +230,20 @@ async def get_user(user_id, nickname="", times=1) -> User:
                         existing_user['registration_date'],
                         existing_user['ai_token_record'],
                         existing_user.get('user_portrait', ""),
-                        existing_user.get('portrait_update_time', "")
+                        existing_user.get('portrait_update_time', ""),
+                        existing_user.get('intimacy', 0)
                     )
                 else:
                     # 用户不存在，创建新用户
                     await db.execute("""
                     INSERT INTO users (user_id, nickname, card, sex, age, city, permission, signed_days, 
-                                     registration_date, ai_token_record, user_portrait, portrait_update_time)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                     registration_date, ai_token_record, user_portrait, portrait_update_time, intimacy)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """, (user_id, default_user["nickname"], default_user["card"], default_user["sex"],
                           default_user["age"], default_user["city"], default_user["permission"],
                           default_user["signed_days"], default_user["registration_date"],
                           default_user["ai_token_record"], default_user["user_portrait"],
-                          default_user["portrait_update_time"]))
+                          default_user["portrait_update_time"], default_user["intimacy"]))
                     await db.commit()
                     logger.info(f"用户 {user_id} 不在数据库中，已创建默认用户。")
 
@@ -254,7 +259,7 @@ async def get_user(user_id, nickname="", times=1) -> User:
                         default_user['registration_date'],
                         default_user['ai_token_record'],
                         default_user['user_portrait'],
-                        default_user['portrait_update_time']
+                        default_user['portrait_update_time'], default_user['intimacy']
                     )
 
                 # 使用新的缓存管理器存储到缓存（使用JSON而不是pickle）
@@ -272,6 +277,7 @@ async def get_user(user_id, nickname="", times=1) -> User:
                         'ai_token_record': user_obj.ai_token_record,
                         'user_portrait': user_obj.user_portrait,
                         'portrait_update_time': user_obj.portrait_update_time
+                        ,'intimacy': user_obj.intimacy
                     }
                     redis_cache_manager.set(cache_key, user_data)
 
