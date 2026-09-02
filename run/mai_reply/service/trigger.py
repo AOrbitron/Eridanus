@@ -274,4 +274,5 @@ class TriggerChecker:
         if not chain.has(Text) and not chain.has(At):
             logger.warning(f"[TriggerChecker] 无法提取文本内容，消息链中既没有 Text 也没有 At，原始消息链: {event.message_chain}")
             return None
+        logger.info(f"清洗后的text: {text}")
         return text
