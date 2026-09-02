@@ -2,5 +2,5 @@ enable: true
 permission_level: 10
 timeout: 3000
 commands:
-  codex: codex
-  claude: claude
+  codex: codex exec
+  claude: claude -p
