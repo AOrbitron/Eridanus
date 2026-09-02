@@ -240,16 +240,19 @@ def main(bot: ExtendBot, config: YAMLManager):
         return int(event.message_chain.get(At)[0].qq) != 0
 
     def context_text(event, fallback: str = "") -> str:
-        """保留群聊中的 @ 目标，避免 pure_text 把所有人都当成对 bot 说话。"""
+        """构建当前消息的结构化文本，明确保留每个 @ 的昵称和 QQ 号。"""
         parts = []
+        at_index = 0
         chain = getattr(event, "message_chain", None)
         if chain:
             for component in chain:
                 if isinstance(component, Text):
                     parts.append(component.text)
                 elif isinstance(component, At):
-                    target = "全体成员" if int(component.qq) == 0 else f"用户{component.name}"
-                    parts.append(f"[@{target}]({component.qq})")
+                    at_index += 1
+                    qq = int(component.qq)
+                    name = getattr(component, "name", None) or ("全体成员" if qq == 0 else str(qq))
+                    parts.append(f"[@{name}，QQ: {qq}，艾特序号: {at_index}]")
         return "".join(parts).strip() or fallback.strip()
 
     def command_matches(text: str, command: str, has_at_target: bool) -> bool:

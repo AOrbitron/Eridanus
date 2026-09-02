@@ -20,6 +20,7 @@ async def mute_group_user(
     sender_role = getattr(sender, "role", "member")
     master_id = int(config.common_config.basic_config["master"]["id"])
     operator_id = int(event.user_id)
+
     if sender_role not in {"owner", "admin"} and operator_id != master_id and target_user_id!=event.user_id:
         return {"msg": "操作失败：只有群主、群管理员或 bot 主人可以禁言用户。"}
 
