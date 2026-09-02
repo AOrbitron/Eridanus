@@ -271,7 +271,7 @@ class TriggerChecker:
                     logger.info(f"[TriggerChecker] 消息中包含@机器人自己的At，已替换为 '@{bot_name}'")
                     parts.append(f"@{bot_name}")
                 else:
-                    parts.append(f"@{name}")
+                    parts.append(f"@{name}({qq})")
         if parts:
             text = "".join(parts)
         if not event.message_chain.has(Text) and not event.message_chain.has(At):
