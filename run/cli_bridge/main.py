@@ -55,7 +55,7 @@ async def _run_cli(command: str, prompt: str, timeout: float, provider: str = ""
         args.append(prompt)
     def invoke():
         return subprocess.run(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                              timeout=timeout, cwd=os.getcwd())
+                              stdin=subprocess.DEVNULL, timeout=timeout, cwd=os.getcwd())
     try:
         completed = await asyncio.to_thread(invoke)
     except subprocess.TimeoutExpired:
@@ -145,9 +145,14 @@ def main(bot, config):
         running.add(key)
         try:
             await bot.send(event, f"Calling {selected[1:]} CLI, please wait...")
+            bot.logger.info(f"CLI bridge: starting provider={selected[1:]} user={event.user_id}")
             provider = selected[1:]
             key = f"{event.user_id}:{getattr(event, 'group_id', None)}:{provider}"
-            result = await _run_cli(prefixes[selected], prompt, timeout, provider, key)
+            result = await asyncio.wait_for(
+                _run_cli(prefixes[selected], prompt, timeout, provider, key),
+                timeout=timeout + 5,
+            )
+            bot.logger.info(f"CLI bridge: process finished provider={provider} chars={len(result)}")
             try:
                 from run.mai_reply.service.reply_engine import refresh_tools
                 refresh_tools()
@@ -158,10 +163,13 @@ def main(bot, config):
             # 原始结果单独折叠展示后，再交给 MaiReply 以 yucca 口吻转述。
             from run.mai_reply.service.reply_engine import ReplyEngine
             summary_event = type("CliSummaryEvent", (), {"user_id": event.user_id, "group_id": getattr(event, "group_id", None)})()
-            await ReplyEngine(config).handle(
-                bot, summary_event,
-                "请用你自己的角色和语气，简洁转述刚才 CLI 执行的最终结果。不要提及 CLI、系统提示、工具调用或执行日志。最终结果如下：\n" + result[:2500],
-            )
+            try:
+                await asyncio.wait_for(ReplyEngine(config).handle(
+                    bot, summary_event,
+                    "请用你自己的角色和语气，简洁转述刚才 CLI 执行的最终结果。不要提及 CLI、系统提示、工具调用或执行日志。最终结果如下：\n" + result[:1800],
+                ), timeout=45)
+            except asyncio.TimeoutError:
+                bot.logger.warning("CLI bridge: MaiReply summary timed out")
         except Exception as exc:
             bot.logger.error("CLI bridge error", exc_info=True)
             await bot.send(event, f"CLI failed: {type(exc).__name__}: {exc}")
