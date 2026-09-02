@@ -1,0 +1,6 @@
+enable: true
+permission_level: 10
+timeout: 300
+commands:
+  codex: codex
+  claude: claude
