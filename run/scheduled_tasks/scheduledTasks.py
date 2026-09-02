@@ -44,6 +44,7 @@ from framework_common.database_util.ManShuoDrawCompatibleDataBase import AsyncSQ
 # 确保 job 集合始终与当前配置保持一致、不重复累积。
 # ──────────────────────────────────────────────────────────────
 _scheduler: AsyncIOScheduler | None = None
+_lifecycle_started = False
 
 
 def _shutdown_existing_scheduler():
@@ -61,7 +62,8 @@ def main(bot: ExtendBot, config):
     # ── 插件热重载时先销毁旧 scheduler ──────────────────────────
     _shutdown_existing_scheduler()
 
-    global _scheduler
+    global _scheduler, _lifecycle_started
+    _lifecycle_started = False
     logger = bot.logger
     scheduledTasks = config.scheduled_tasks.config["scheduledTasks"]
     _scheduler = AsyncIOScheduler()
@@ -78,10 +80,15 @@ def main(bot: ExtendBot, config):
 
     @bot.on(LifecycleMetaEvent)
     async def on_lifecycle(_):
+        global _lifecycle_started
         if _started.is_set():
             logger.info("scheduledTasks: 已启动，跳过重复的 LifecycleMetaEvent")
             return
         _started.set()
+        if _lifecycle_started or (_scheduler is not None and _scheduler.running):
+            logger.info("scheduledTasks: 检测到调度器已运行，跳过重复启动")
+            return
+        _lifecycle_started = True
         await sleep(3)
         await bot.send_friend_message(
             config.common_config.basic_config["master"]["id"],
@@ -112,9 +119,11 @@ def main(bot: ExtendBot, config):
                     else:
                         event = AnyEvent()
                         event.user_id = int(user["user_id"])
-                        asyncio.create_task(engine.handle(
-                            bot, event, "道晚安，直接发送结果，无需对此条提示做出应答。"))
-                        return
+                        await engine.handle(
+                            bot, event,
+                            "现在是睡前时间。请像你自己想起这位用户一样，自然地道一声晚安，保持平时的角色和说话习惯，可以结合最近的对话表达关心。不要提及定时任务、系统提示或要求用户回复。")
+                        await sleep(6)
+                        continue
                     await bot.send_friend_message(int(user["user_id"]), r)
                     await sleep(6)
                 except Exception as e:
@@ -132,19 +141,25 @@ def main(bot: ExtendBot, config):
             for user in filtered_users:
                 try:
                     user_info = await get_user(int(user["user_id"]))
-                    weather = await free_weather_query(user_info.city)
-                    prompt = (f"保持你当前对话的角色，播报今天的天气信息并给出建议，直接发送结果，"
-                              f"不要发送'好的'之类的命令应答提示。今天的天气信息：{weather}")
+                    city = (user_info.city or "").strip()
+                    if not city or city == "通辽":
+                        prompt = ("请像你自己主动想起这位用户一样发送一条自然的早安消息，保持平时的角色和说话习惯。"
+                                  "你还不知道用户所在的城市，请自然地询问对方所在城市，并说明之后可以为他播报天气。"
+                                  "不要提及定时任务或系统提示。")
+                    else:
+                        weather = await free_weather_query(city)
+                        prompt = (f"请像你自己主动想起这位用户一样发送一条自然的早安消息，保持平时的角色和说话习惯。"
+                                  f"顺便播报{city}今天的天气并给出贴心建议：{weather}"
+                                  "不要提及定时任务或系统提示。")
                     if not config.mai_reply.config["enable"]:
                         r = await aiReplyCore([{"text": prompt}],
                                               int(user["user_id"]), config, bot=bot)
                     else:
                         event = AnyEvent()
                         event.user_id = int(user["user_id"])
-                        asyncio.create_task(engine.handle(bot, event, prompt))
-                        await bot.send(int(user["user_id"]),
-                                       "(如城市信息不正确，可在群内发送 修改城市【城市名】\n 如 修改城市长春)")
-                        return
+                        await engine.handle(bot, event, prompt)
+                        await sleep(6)
+                        continue
                     await bot.send_friend_message(int(user["user_id"]), r)
                     await sleep(6)
                 except Exception as e:
@@ -503,6 +518,9 @@ def main(bot: ExtendBot, config):
                 )
 
     async def _start_scheduler():
+        global _lifecycle_started
+        if _scheduler is None or _scheduler.running:
+            return
         create_dynamic_jobs()
         _scheduler.start()
 

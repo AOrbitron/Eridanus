@@ -26,6 +26,11 @@ def _save_session(key, session_id):
     with open(SESSION_FILE, "w", encoding="utf-8") as f:
         json.dump(sessions, f, ensure_ascii=False, indent=2)
 
+def _clean_cli_output(text: str) -> str:
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    noise = ("tokens used", "sandbox:", "planning", "codex", "claude")
+    return "\n".join(line for line in lines if not any(line.lower().startswith(n) for n in noise))
+
 async def _run_cli(command: str, prompt: str, timeout: float, provider: str = "", session_key: str = "") -> str:
     args = shlex.split(command, posix=os.name != "nt")
     if not args:
@@ -59,7 +64,7 @@ async def _run_cli(command: str, prompt: str, timeout: float, provider: str = ""
         decoded = output.decode("utf-8")
     except UnicodeDecodeError:
         decoded = output.decode("mbcs" if os.name == "nt" else "gbk", errors="replace")
-    decoded = decoded.strip()
+    decoded = _clean_cli_output(decoded)
     # Codex/Claude 通常会在输出中给出 session id；保存后供下次 resume。
     found = re.findall(r"[0-9a-fA-F]{8}-[0-9a-fA-F-]{27,}", decoded)
     if found and session_key:
