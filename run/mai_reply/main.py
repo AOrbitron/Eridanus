@@ -128,6 +128,12 @@ async def extract_message_content(event, bot) -> tuple:
             continue  # 已在上方处理
         if isinstance(msg, Text):
             text_parts.append(msg.text)
+        elif isinstance(msg, At):
+            # Preserve every mention in the multimodal text passed to
+            # TriggerChecker/LLM, including its stable QQ identifier.
+            qq = int(msg.qq)
+            name = getattr(msg, "name", None) or ("全体成员" if qq == 0 else str(qq))
+            text_parts.append(f"[@{name}，QQ: {qq}]")
         elif isinstance(msg, (Image, Mface)):
             try:
                 url = await get_img(event, bot)
