@@ -9,7 +9,7 @@ import traceback
 class ApiBaseFixed:
     async def _make_post_request(self, url: str, data: Dict[str, Any], cookies: str,
                                  content_type: str = 'application/x-www-form-urlencoded') -> Optional[Dict[str, Any]]:
-        """通用POST请求方法"""
+        """通用POST请求方法，显式 trust_env=False 避免受本机梯子/系统代理干扰超时"""
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
             "Cookie": cookies,
@@ -20,12 +20,12 @@ class ApiBaseFixed:
         }
 
         try:
-            async with aiohttp.ClientSession() as session:
+            timeout = aiohttp.ClientTimeout(total=20)
+            async with aiohttp.ClientSession(trust_env=False, timeout=timeout) as session:
                 async with session.post(url, data=data, headers=headers) as response:
                     if response.status == 200:
                         content = await response.text()
                         logger.debug(f"POST响应内容: {content[:100]}")
-                        print(response.cookies)
                         if 'text/html' in response.headers.get('Content-Type', ''):
                             match = re.search(r'({.*})', content)
                             if match:
@@ -47,9 +47,8 @@ class ApiBaseFixed:
             logger.error(f"请求异常: {e}")
             raise Exception(f"请求异常: {e}")
 
-
     async def _make_get_request(self, url: str, params: Dict[str, Any], cookies: str) -> Optional[Dict[str, Any]]:
-        """通用GET请求方法"""
+        """通用GET请求方法，显式 trust_env=False 避免代理干扰"""
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
             "Cookie": cookies,
@@ -57,7 +56,8 @@ class ApiBaseFixed:
         }
 
         try:
-            async with aiohttp.ClientSession() as session:
+            timeout = aiohttp.ClientTimeout(total=15)
+            async with aiohttp.ClientSession(trust_env=False, timeout=timeout) as session:
                 async with session.get(url, params=params, headers=headers) as response:
                     if response.status == 200:
                         content = await response.text()
