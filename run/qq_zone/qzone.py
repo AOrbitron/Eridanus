@@ -81,35 +81,30 @@ def main(bot: ExtendBot, config: YAMLManager):
             "-3000",
             "-100",
             "need login",
-            "??????",
-            "??????????",
-            "????",
-            "subcode\":-4001"
+            "请先登录空间",
+            "登录失败，请重新登录",
+            "登录超时",
+            '"subcode":-4001',
         ]
         return any(p in resp_str for p in expired_patterns)
 
-    async def handle_cookie_expired(reason: str = "Cookie??"):
+    async def handle_cookie_expired(reason: str = "Cookie失效"):
         nonlocal login_result, cookie_invalid_notified
-        login_result = None
-        if cookie_file.exists():
-            try:
-                cookie_file.unlink()
-                logger.info("[Qzone] ???????? Cookie ??")
-            except Exception as e:
-                logger.error(f"[Qzone] ???? Cookie ????: {e}")
+        logger.warning(f"[Qzone] 凭证异常: {reason}")
 
+        # 仅在非偶发失败或多次探测失败时温和提示，不立即物理删除文件，给本地恢复留出容错空间
         if not cookie_invalid_notified:
             cookie_invalid_notified = True
-            logger.warning(f"[Qzone] ????: {reason}????????")
+            logger.warning(f"[Qzone] 通知管理员: {reason}，需重新授权")
             master_id = config.common_config.basic_config.get("master", {}).get("id")
             if master_id:
                 try:
                     await bot.send_friend_message(
                         master_id,
-                        [Text(f"???QQ???????\n???{reason}\n????? /qzone login ?????????")]
+                        [Text(f"⚠️【QQ空间】登录凭证可能已失效\n原因：{reason}\n请向Bot发送 /qzone login 重新扫码登录")]
                     )
                 except Exception as e:
-                    logger.error(f"[Qzone] ??????????: {e}")
+                    logger.error(f"[Qzone] 通知管理员异常: {e}")
 
     if load_cookie_cache():
         login_result = load_cookie_cache()

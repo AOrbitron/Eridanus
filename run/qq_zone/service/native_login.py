@@ -1,8 +1,8 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 """
 native_login.py
 原生的 QQ 空间扫码登录与 Cookie 获取实现，零依赖 pyzbar/libzbar/libiconv。
-完全基于 aiohttp/httpx/requests 异步网络请求，通过发送图片消息直接让管理员扫码登录。
+完全基于 aiohttp/requests 异步网络请求，通过发送图片消息直接让管理员扫码登录。
 """
 import asyncio
 import re
@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Optional, Dict, Any
 
 import aiohttp
+import requests
 from developTools.utils.logger import get_logger
 
 logger = get_logger("QzoneNativeLogin")
@@ -32,6 +33,28 @@ def ptqrToken(qrsig: str) -> int:
         e += (e << 5) + ord(qrsig[i])
         i += 1
     return 2147483647 & e
+
+
+def _exchange_check_sig_sync(check_sig_url: str, initial_cookies: dict) -> dict:
+    """使用 requests.Session 完整处理重定向链并获取跨域 cookies (包含 .qzone.qq.com 域下的 p_skey/p_uin)"""
+    session = requests.Session()
+    session.headers.update({
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Referer": "https://xui.ptlogin2.qq.com/",
+    })
+    for k, v in initial_cookies.items():
+        session.cookies.set(k, v)
+
+    final_cookies = initial_cookies.copy()
+    try:
+        resp = session.get(check_sig_url, allow_redirects=True, timeout=15)
+        # 从 session.cookies 中提取所有域名下的 cookie
+        for c in session.cookies:
+            final_cookies[c.name] = c.value
+    except Exception as e:
+        logger.warning(f"[Qzone Login] requests 跟随跳转换取 Cookie 异常: {e}")
+
+    return final_cookies
 
 
 class NativeQzoneLogin:
@@ -93,12 +116,12 @@ class NativeQzoneLogin:
                             continue
 
                         if "二维码已失效" in text or "用户取消登录" in text:
-                            logger.warning(f"[Qzone Login] 二维码已失效或用户取消")
+                            logger.warning("[Qzone Login] 二维码已失效或用户取消")
                             return {"code": -2, "msg": "二维码已失效或已取消"}
 
                         if "登录成功" in text:
                             logger.info("[Qzone Login] 扫码成功，正在换取空间凭证...")
-                            # 提取登录凭证 Cookies
+                            # 提取第一阶段登录凭证 Cookies
                             res_cookies = {k: v.value for k, v in resp.cookies.items()}
                             uin = res_cookies.get("uin", "")
 
@@ -114,36 +137,53 @@ class NativeQzoneLogin:
                                 f"&pt_aid=0&pt_aaid=16&pt_light=0&pt_3rd_aid=0"
                             )
 
-                            async with aiohttp.ClientSession(trust_env=False, timeout=timeout, cookies=res_cookies) as sig_session:
-                                # ???? check_sig ??????????? (qzone.qq.com) ??? p_skey ? p_uin
+                            # 方案1: 采用 aiohttp.ClientSession(cookie_jar=CookieJar(unsafe=True))
+                            jar = aiohttp.CookieJar(unsafe=True)
+                            final_cookies = res_cookies.copy()
+                            async with aiohttp.ClientSession(trust_env=False, timeout=timeout, cookie_jar=jar, cookies=res_cookies) as sig_session:
                                 current_url = check_sig_url
-                                final_cookies = res_cookies.copy()
-                                for _ in range(5):
+                                for _ in range(6):
                                     async with sig_session.get(current_url, allow_redirects=False) as sig_resp:
-                                        for k, v in sig_resp.cookies.items():
-                                            final_cookies[k] = v.value
                                         if sig_resp.status in (301, 302, 303, 307):
                                             current_url = sig_resp.headers.get("Location", "")
                                             if not current_url:
                                                 break
-                                            if current_url.startswith("/"): 
+                                            if current_url.startswith("/"):
                                                 current_url = f"https://ptlogin2.qzone.qq.com{current_url}"
                                         else:
                                             break
 
-                                p_skey = final_cookies.get("p_skey", "")
-                                skey = final_cookies.get("skey", "")
-                                calc_bkn = bkn(p_skey) if p_skey else (bkn(skey) if skey else None)
-                                target_qq = uin.replace("o", "")
+                                for cookie in jar:
+                                    final_cookies[cookie.key] = cookie.value
 
-                                return {
-                                    "code": 0,
-                                    "msg": "????",
-                                    "cookies": final_cookies,
-                                    "skey": skey,
-                                    "qq": target_qq,
-                                    "bkn": calc_bkn,
-                                }
+                            # 方案2保障: 若 p_skey 仍未提取到，使用 requests.Session 在独立线程中完整跟随换取
+                            if not final_cookies.get("p_skey"):
+                                logger.info("[Qzone Login] aiohttp 未能提取到 p_skey，启用 session 补全跨域 Cookie...")
+                                loop = asyncio.get_running_loop()
+                                req_cookies = await loop.run_in_executor(
+                                    None, _exchange_check_sig_sync, check_sig_url, res_cookies
+                                )
+                                final_cookies.update(req_cookies)
+
+                            p_skey = final_cookies.get("p_skey", "")
+                            skey = final_cookies.get("skey", "")
+                            calc_bkn = bkn(p_skey) if p_skey else (bkn(skey) if skey else None)
+                            target_qq = uin.replace("o", "")
+
+                            if not p_skey:
+                                logger.warning("[Qzone Login] 警告：未能获取到 p_skey，可能影响部分空间接口")
+                            else:
+                                logger.info(f"[Qzone Login] 凭证获取成功，QQ: {target_qq}, bkn: {calc_bkn}")
+
+                            return {
+                                "code": 0,
+                                "msg": "登录成功",
+                                "cookies": final_cookies,
+                                "skey": skey,
+                                "p_skey": p_skey,
+                                "qq": target_qq,
+                                "bkn": calc_bkn,
+                            }
             except Exception as e:
                 logger.debug(f"[Qzone Login] 轮询异常: {e}")
 

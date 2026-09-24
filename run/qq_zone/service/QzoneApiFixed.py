@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 import base64
 import json
 from typing import Optional, Dict, Any
@@ -13,9 +13,27 @@ from run.qq_zone.service.custom_api_base import ApiBaseFixed
 api_base_fixed = ApiBaseFixed()
 
 
+def format_cookies(cookies: Any) -> tuple[dict, str]:
+    """统一将 cookies 转换为 (dict, str)，并确保包含核心 Cookie 字段"""
+    if isinstance(cookies, dict):
+        c_dict = cookies.copy()
+    elif isinstance(cookies, str):
+        c_dict = {}
+        for item in cookies.split(";"):
+            if "=" in item:
+                k, v = item.strip().split("=", 1)
+                c_dict[k.strip()] = v.strip()
+    else:
+        c_dict = {}
+
+    c_str = "; ".join([f"{k}={v}" for k, v in c_dict.items()])
+    return c_dict, c_str
+
+
 class QzoneApiFixed(QzoneApi):
 
-    async def _send_zone(self, target_qq: int, content: str, cookies: str, g_tk: int) -> Optional[Dict[str, Any]]:
+    async def _send_zone(self, target_qq: int, content: str, cookies: Any, g_tk: int) -> Optional[Dict[str, Any]]:
+        _, cookies_str = format_cookies(cookies)
         params = {
             'syn_tweet_verson': 1,
             'paramstr': 1,
@@ -38,12 +56,12 @@ class QzoneApiFixed(QzoneApi):
         }
         try:
             url = f'{self.send_url}?g_tk={g_tk}'
-            return await api_base_fixed._make_post_request(url=url, data=params, cookies=cookies)
+            return await api_base_fixed._make_post_request(url=url, data=params, cookies=cookies_str)
         except Exception as e:
             logger.error(f'发送纯文字说说失败: {e}')
             return None
 
-    async def _send_zone_with_pic(self, target_qq: int, pic_path: str, content: str, cookies: dict, g_tk: int) -> Optional[Dict[str, Any]]:
+    async def _send_zone_with_pic(self, target_qq: int, pic_path: str, content: str, cookies: Any, g_tk: int) -> Optional[Dict[str, Any]]:
         try:
             with open(pic_path, 'rb') as f:
                 image_data = f.read()
@@ -52,8 +70,12 @@ class QzoneApiFixed(QzoneApi):
             logger.error(f'读取图片失败: {e}')
             return None
 
-        skey = cookies.get('skey', '')
-        p_skey = cookies.get('p_skey', '')
+        cookies_dict, cookies_str = format_cookies(cookies)
+
+        skey = cookies_dict.get('skey', '')
+        p_skey = cookies_dict.get('p_skey', '')
+        # 如果 cookies_dict 中包含 p_uin 就使用它，否则使用 target_qq
+        p_uin = cookies_dict.get('p_uin') or f"o{target_qq}"
 
         upload_url = f'https://up.qzone.qq.com/cgi-bin/upload/cgi_upload_image?g_tk={g_tk}'
 
@@ -63,7 +85,7 @@ class QzoneApiFixed(QzoneApi):
             'skey': skey,
             'zzpaneluin': target_qq,
             'zzpanelkey': '',
-            'p_uin': target_qq,
+            'p_uin': p_uin,
             'p_skey': p_skey,
             'qzonetoken': '',
             'uploadtype': '1',
@@ -83,7 +105,7 @@ class QzoneApiFixed(QzoneApi):
             'jsonhtml_callback': 'callback',
             'picfile': base64_image
         }
-        cookies_str = '; '.join([f'{k}={v}' for k, v in cookies.items()])
+        
         response = await api_base_fixed._make_post_request(url=upload_url, data=form_data, cookies=cookies_str)
         richval = QzoneResponseParser.extract_richval(response) if isinstance(response, dict) else ''
         pic_bo = QzoneResponseParser.extract_pic_bo(response) if isinstance(response, dict) else ''
@@ -116,27 +138,30 @@ class QzoneApiFixed(QzoneApi):
             logger.error(f'发送说说失败: {e}')
             return None
 
-    async def _get_zone(self, target_qq: int, g_tk: int, cookies: str, page: int = 1, count: int = 10, begintime: int = 0) -> Optional[Dict[str, Any]]:
+    async def _get_zone(self, target_qq: int, g_tk: int, cookies: Any, page: int = 1, count: int = 10, begintime: int = 0) -> Optional[Dict[str, Any]]:
         try:
+            _, cookies_str = format_cookies(cookies)
             params = get_feeds(target_qq, g_tk, page=page, count=count, begintime=begintime)
-            return await api_base_fixed._make_get_request(self.user_url, params, cookies)
+            return await api_base_fixed._make_get_request(self.user_url, params, cookies_str)
         except Exception as e:
             logger.error(f'获取空间动态失败: {e}')
             return None
 
-    async def _get_messages_list(self, target_qq: int, g_tk: int, cookies: str, pos: int = 0, num: int = 20) -> Optional[Dict[str, Any]]:
+    async def _get_messages_list(self, target_qq: int, g_tk: int, cookies: Any, pos: int = 0, num: int = 20) -> Optional[Dict[str, Any]]:
         try:
+            _, cookies_str = format_cookies(cookies)
             params = get_self_zone(target_qq, g_tk, pos, num)
-            return await api_base_fixed._make_get_request(self.self_url, params, cookies)
+            return await api_base_fixed._make_get_request(self.self_url, params, cookies_str)
         except Exception as e:
             logger.error(f'获取说说列表失败: {e}')
             return None
 
-    async def _send_comments(self, target_qq: int, uin: int, content: str, cookies: str, g_tk: str, fid: str) -> Optional[Dict[str, Any]]:
+    async def _send_comments(self, target_qq: int, uin: int, content: str, cookies: Any, g_tk: str, fid: str) -> Optional[Dict[str, Any]]:
         try:
+            _, cookies_str = format_cookies(cookies)
             params = get_send_comment(target_qq, uin, content, fid)
             url = f'{self.send_comments_url}?g_tk={g_tk}'
-            return await api_base_fixed._make_post_request(url=url, data=params, cookies=cookies)
+            return await api_base_fixed._make_post_request(url=url, data=params, cookies=cookies_str)
         except Exception as e:
             logger.error(f'发送说说评论失败: {e}')
             return None
