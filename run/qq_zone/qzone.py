@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 import asyncio
 import base64
 import datetime
@@ -16,8 +16,7 @@ import httpx
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 
-from qzone_api import QzoneApi
-from qzone_api.login import QzoneLogin
+from run.qq_zone.service.native_login import NativeQzoneLogin
 
 from developTools.event.events import LifecycleMetaEvent, GroupMessageEvent, PrivateMessageEvent
 from developTools.message.message_components import Text, Image, Mface
@@ -30,7 +29,7 @@ from run.qq_zone.service.QzoneApiFixed import QzoneApiFixed
 
 def main(bot: ExtendBot, config: YAMLManager):
     logger = bot.logger
-    qzone_login = QzoneLogin()
+    qzone_login = NativeQzoneLogin()
     login_result = None
     login_task = None
     qzone = QzoneApiFixed()
@@ -90,24 +89,53 @@ def main(bot: ExtendBot, config: YAMLManager):
 
         async def _do_login():
             nonlocal login_result
-            logger.info("[Qzone] 开始生成登录二维码并等待扫码...")
-            res = await qzone_login.login()
+            logger.info("[Qzone] 开始获取登录二维码并等待扫码...")
+            master_id = config.common_config.basic_config.get("master", {}).get("id")
+
+            qr_info = await qzone_login.get_qrcode()
+            if not qr_info:
+                logger.error("[Qzone] 获取登录二维码失败！")
+                if event:
+                    await bot.send(event, [Text("获取 QQ 空间登录二维码失败，请检查网络后重试。")])
+                elif master_id:
+                    try:
+                        await bot.send_friend_message(master_id, [Text("获取 QQ 空间登录二维码失败，请检查网络后重试。")])
+                    except Exception:
+                        pass
+                return
+
+            qrsig, qr_img_path = qr_info
+            # 发送二维码图片给触发者或管理员
+            msg_chain = [Text("【QQ空间登录】请使用手机QQ扫描下方二维码完成空间授权登录（有效期约2分钟）："), Image(file=str(qr_img_path))]
+            if event:
+                await bot.send(event, msg_chain)
+            elif master_id:
+                try:
+                    await bot.send_friend_message(master_id, msg_chain)
+                except Exception as e:
+                    logger.error(f"[Qzone] 发送二维码图片消息异常: {e}")
+
+            res = await qzone_login.wait_for_login(qrsig, timeout_seconds=120)
             if res and res.get("code") == 0:
                 login_result = res
                 save_cookie_cache(res)
                 logger.info("[Qzone] QQ空间扫码登录成功！")
-                master_id = config.common_config.basic_config.get("master", {}).get("id")
-                if master_id:
+                succ_msg = [Text("✅【QQ空间】扫码授权登录成功，凭证已安全持久化！")]
+                if event:
+                    await bot.send(event, succ_msg)
+                elif master_id:
                     try:
-                        await bot.send_friend_message(master_id, [Text("【QQ空间】扫码登录成功，凭证已就绪！")])
+                        await bot.send_friend_message(master_id, succ_msg)
                     except Exception:
                         pass
             else:
+                fail_msg = f"❌【QQ空间】登录未成功: {res.get('msg', '未知原因')}"
                 logger.error(f"[Qzone] QQ空间登录失败: {res}")
-                master_id = config.common_config.basic_config.get("master", {}).get("id")
-                if master_id:
+                if event:
+                    await bot.send(event, [Text(fail_msg)])
+                elif master_id:
                     try:
-                        await bot.send_friend_message(master_id, [Text(f"【QQ空间】登录失败: {res.get('msg', '未知原因')}")])
+                        await bot.send_friend_message(master_id, [Text(fail_msg)])
                     except Exception:
                         pass
 
