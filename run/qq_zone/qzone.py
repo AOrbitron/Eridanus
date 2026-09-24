@@ -372,47 +372,85 @@ def main(bot: ExtendBot, config: YAMLManager):
             except Exception as e:
                 logger.error(f"[Qzone 保活] 监控循环异常: {e}")
 
+    def get_chara_drawing_rules() -> dict:
+        """获取人设卡中的绘图规则"""
+        _, chara_text = get_bot_persona_info()
+        rules = {
+            "base": "1girl, teenager, solo, grey hair, gradient hair, multicolored hair, blue hair, light purple-light blue mixed eyes, (Side swept hair:1.6), ahoge, bangs, middle long hair, (round face:1.2)",
+            "art": "(Rella:1.2), (chen bin:1.3), virtual youtuber, (starshadowmagician:1.2), masterpiece, extremely detailed, lineart, (hand-drawn:1.3), (sketch:1.2), Picasso style, Van Gogh's almond blossoms, <lora:DeniaV1-Nuclear1811-IL:0.5>",
+            "outfit": "hair ornament,detached sleeves, hair bow, flower, off shoulder,layered dress, virtual youtuber,lace rim, ornaments sleeves, lolita sleeves,white pantyhose",
+            "full_section": ""
+        }
+        if chara_text:
+            m = re.search(r"#\s*.*?(?:视觉与绘图|绘图规则)(.*)", chara_text, re.DOTALL)
+            if m:
+                section = m.group(1)
+                rules["full_section"] = section.strip()
+                base_m = re.search(r"1\.\s*基础(?:形象)?设定[^\n]*\n+([^\n#]+)", section)
+                if base_m and base_m.group(1).strip():
+                    rules["base"] = base_m.group(1).strip()
+                art_m = re.search(r"2\.\s*画风与模型设定[^\n]*\n+([^\n#]+)", section)
+                if art_m and art_m.group(1).strip():
+                    rules["art"] = art_m.group(1).strip()
+                outfit_m = re.search(r"3\.\s*默认服装[^\n]*\n+([^\n#]+)", section)
+                if outfit_m and outfit_m.group(1).strip():
+                    rules["outfit"] = outfit_m.group(1).strip()
+        return rules
+
     def get_chara_visual_anchor() -> str:
-        """提取角色外观锚点特征（支持从 gptimage2.character_anchor 或人设提取）"""
-        try:
-            gpt_anchor = config.ai_generated_art.config.get("gptimage2", {}).get("character_anchor", "")
-            if gpt_anchor:
-                return gpt_anchor
-        except Exception:
-            pass
-        return "粉色和蓝色渐变双马尾，粉蓝渐变眼睛，猫耳少女，白色不对称吊带礼裙，蓝色蝴蝶结，白色过膝袜"
+        """获取角色基础形象视觉锚点"""
+        rules = get_chara_drawing_rules()
+        return rules.get("base", "")
 
     async def build_sd_prompt_for_post(post_text: str, theme_desc: str) -> str:
-        bot_name, chara_text = get_bot_persona_info()
-        visual_anchor = get_chara_visual_anchor()
+        bot_name, _ = get_bot_persona_info()
+        rules = get_chara_drawing_rules()
+        base_anchor = rules.get("base", "")
+        art_anchor = rules.get("art", "")
+        default_outfit = rules.get("outfit", "")
+        full_rules_text = rules.get("full_section", "")
 
-        sd_prompt = ""
+        dynamic_scene_tags = ""
         try:
             if mai_llm:
                 prompt_generator = (
-                    f"你是 Stable Diffusion 提示词专家。角色名称：【{bot_name}】。\n"
-                    f"角色外貌基准：{visual_anchor}\n"
-                    f"动态主题：{theme_desc}\n"
-                    f"动态文案内容：{post_text}\n"
-                    f"请生成一段精准的、适合画出该角色自己形象的 SD 英文提示词 (Tags)。\n"
+                    f"你是一名专业动漫 Stable Diffusion 提示词专家。角色是：{bot_name}。\n"
+                    f"根据角色动态文案，仅提取【当前情绪与表情】+【当前动作/场景/日常服装变体】的纯英文 tags。\n"
+                    f"角色卡绘图规则参考：\n{full_rules_text if full_rules_text else '日常场景参考: sleepwear, in bed, cozy, sleepy. 视角表情: slight blush, upper body. 动作: sitting, casual clothes'}\n"
+                    f"当前主题建议：{theme_desc}\n"
+                    f"当前动态文案：{post_text}\n\n"
                     f"要求：\n"
-                    f"1. 必须包含角色的核心外貌特征标签 (如 cat ears, pink and blue eyes, twin braids/twintails, white dress 等)。\n"
-                    f"2. 匹配动态情境的场景氛围与表情动作 (如 bedroom, window, cute smile, coffee 等)。\n"
-                    f"3. 包含高质量通用词 (masterpiece, best quality, highly detailed, expressive eyes)。\n"
-                    f"4. 只输出英文逗号分隔的 tag 列表，严禁任何中文、解释或引号："
+                    f"1. 绝对不要重复生成发色、发型、眼睛等基础面部特征设定（系统已全局保留）。\n"
+                    f"2. 仅输出情绪状态、服饰、动作和场景（如 sleepy, yawning, loose pajamas, messy bed, cozy room 或 holding boba tea, smiling, natural lighting 等）。\n"
+                    f"3. 仅输出纯英文 tags，用逗号分隔，不要解释，不要输出任何中文。"
                 )
                 sd_tags = await mai_llm.chat(
                     messages=[{"role": "user", "content": prompt_generator}],
-                    system_prompt="You are a professional Stable Diffusion prompt engineer.",
+                    system_prompt="You are an expert prompt engineer specializing in anime Stable Diffusion tags.",
                 )
                 if sd_tags:
-                    sd_prompt = sd_tags.strip().replace("\n", ", ")
+                    cleaned_tags = sd_tags.strip().replace("\n", ", ")
+                    cleaned_tags = re.sub(r'^[\"\'\]+|[\"\'\]+$', '', cleaned_tags)
+                    dynamic_scene_tags = cleaned_tags
         except Exception as e:
-            logger.error(f"[Qzone] LLM 生成 SD prompt 失败: {e}")
+            logger.error(f"[Qzone] LLM 提取场景 tags 失败: {e}")
 
-        if not sd_prompt:
-            sd_prompt = f"1girl, cat ears, pink and blue eyes, white dress, masterpiece, best quality, highly detailed, {theme_desc}"
-        return sd_prompt
+        if not dynamic_scene_tags:
+            dynamic_scene_tags = theme_desc
+
+        prompt_elements = []
+        if base_anchor:
+            prompt_elements.append(base_anchor)
+        if default_outfit and ("pajamas" not in dynamic_scene_tags and "dress" not in dynamic_scene_tags and "clothes" not in dynamic_scene_tags):
+            prompt_elements.append(default_outfit)
+        if dynamic_scene_tags:
+            prompt_elements.append(dynamic_scene_tags)
+        if art_anchor:
+            prompt_elements.append(art_anchor)
+
+        final_prompt = ", ".join([p.strip(", ") for p in prompt_elements if p and p.strip(", ")])
+        logger.info(f"[Qzone SD] 组合完成 SD Prompt: {final_prompt}")
+        return final_prompt
 
     # ---------------------------------------------------------
     # 定时早晚发空间任务
@@ -424,19 +462,19 @@ def main(bot: ExtendBot, config: YAMLManager):
 
         current_global_mem = mai_context.get_global_memory() if mai_context else ""
 
-        desc_task = "用清晨活力、期待新一天的语气打招呼，分享早安感悟" if task_name == "早安" else "回顾总结今天的一天、感慨夜晚与休息，祝大家晚安"
-        desc_fest = f"3. 今日节日/节气：{festival_or_term}，可自然提及融入" if festival_or_term else "3. 贴合真实时间与日常生活氛围"
+        desc_task = "准备起床开启新的一天，轻度迷糊或揉眼睛" if task_name == "早安" else "洗完澡准备钻进被窝睡觉，困倦放松"
+        fest_tip = f"（今天是{festival_or_term}，如有兴趣可轻描淡写提一句）" if festival_or_term else ""
 
         sys_prompt = (
             f"你是{bot_name}。\n"
-            f"你的角色设定：\n{chara_text}\n\n"
-            f"你现在要发布一条 QQ 空间的【{task_name}】说说动态。\n"
-            f"要求：\n"
-            f"1. 完全保持自身人设语气与口吻，生动真实、自然生活化，绝不要带有任何AI感或机械套话。\n"
-            f"2. {desc_task}\n"
-            f"{desc_fest}\n"
-            f"4. 篇幅适中（50~120字），像发朋友圈/空间说说一样亲切。\n"
-            f"5. 严禁输出任何解释或格式标记，仅直接输出说说文字。"
+            f"你的人设信息如下：\n{chara_text}\n\n"
+            f"你现在要发一条 QQ 空间动态（{task_name}的说说）。\n"
+            f"风格完全参考 Twitter/X 真实可爱的生活系 Vtuber（如 @moonjelly0、@jellyhoshiumi）：\n"
+            f"1. 极简、生活碎片感、像真人随手一发的小碎念，严禁像AI一样总结一整天的生活或写大段套话。\n"
+            f"2. 口气真实自然，带有一点女孩子的慵懒或可爱，可以偶尔用一两个波浪号~或日常小表情。\n"
+            f"3. 状态：{desc_task}。{fest_tip}\n"
+            f"4. 严格限制字数在 15 ~ 45 字之间，点到即止，不要啰嗦长篇大论。\n"
+            f"5. 直接输出说说正文，严禁携带任何多余解释、引号或格式。"
         )
 
         user_prompt = f"请写一条你的{task_name}说说。"
@@ -459,24 +497,25 @@ def main(bot: ExtendBot, config: YAMLManager):
 
         logger.info(f"[Qzone] 生成说说内容: {post_content}")
 
-        # 提炼日常精炼记忆存入全局记忆层（控制在50字以内，不滥用）
+        # 提炼极简日常存入全局记忆（严格限制在25字以内，杜绝冗余污染）
         if mai_context and mai_llm:
             try:
                 mem_prompt = (
-                    f"请将以下这段Bot的说说内容提炼为一条极度精炼的日常状态或事件摘要（不要超过40个字，只保留最核心的日常行为/心情，不要无病呻吟）：\n"
-                    f"说说：{post_content}\n"
-                    f"直接输出极简摘要，无任何标点废话："
+                    f"根据这条Bot动态内容，提炼成一句话极简日常片段（严格在25字以内，杜绝总结/报幕，如'钻进被窝犯困准备睡觉'），若无实质日常则回复空：\n"
+                    f"动态：{post_content}\n"
+                    f"只输出提炼后的极简短句：\n"
                 )
                 refined_mem = await mai_llm.chat(
                     messages=[{"role": "user", "content": mem_prompt}],
-                    system_prompt="你是一个信息精炼助手。",
+                    system_prompt="你是一个极简日常信息提炼助手。",
                 )
                 if refined_mem and len(refined_mem.strip()) > 0:
-                    clean_mem = refined_mem.strip()[:50]
+                    clean_mem = refined_mem.strip().replace("\n", " ")[:30]
+                    clean_mem = re.sub(r'^[\"\'\]+|[\"\'\]+$', '', clean_mem).strip()
                     mai_context.update_global_memory(f"[{datetime.datetime.now().strftime('%m-%d %H:%M')}] {clean_mem}")
-                    logger.info(f"[Qzone 全局记忆更新] 已录入精炼日常: {clean_mem}")
+                    logger.info(f"[Qzone 全局记忆] 录入极简日常: {clean_mem}")
             except Exception as e:
-                logger.error(f"[Qzone] 提取精炼记忆失败: {e}")
+                logger.error(f"[Qzone] 记忆更新异常: {e}")
 
         # 判断是否需要 SD 绘图
         pic_paths = []
@@ -558,29 +597,30 @@ def main(bot: ExtendBot, config: YAMLManager):
                 logger.debug(f"[Qzone Vtuber日常] 提取群聊灵感异常: {e}")
 
         styles = [
-            "向空间大家抛出一个好玩/无厘头的问题引发讨论（如'甜豆腐脑还是咸豆腐脑'、'今天下午茶吃什么'）",
-            "分享自己刚刚身边发生的一件蠢萌小插曲或生活随想（比如找东西半天发现就在手边/猫猫打了个喷嚏）",
-            "单纯可爱地发呆、求摸头或者无意义地卖萌撒娇",
-            "聊聊今天的天气或自己此刻的小执念（好想喝冰奶茶/想去晒太阳等）",
+            "抛出一个简短可爱/无厘头的日常提问（比如询问大家在喝什么奶茶/今天天气如何）",
+            "分享一个生活中呆呆的、可爱的小瞬间/刚刚发生的趣事",
+            "单纯轻度无厘头地卖个萌、撒个娇或抒发一句此刻的小情绪",
+            "吐槽一句天气、困意或想要偷懒的小心思",
         ]
         chosen_style = random.choice(styles)
 
         sys_vtuber_prompt = (
             f"你是{bot_name}。\n"
-            f"角色设定：\n{chara_text}\n\n"
-            f"你现在要像一个生动鲜活的虚拟UP主 (Vtuber) 在自己的社交平台/空间动态上发一条日常随笔。\n"
-            f"本次风格灵感：【{chosen_style}】\n"
+            f"人设：\n{chara_text}\n\n"
+            f"你现在要在自己的社交主页/QQ空间发一条简短动态。\n"
+            f"风格完全参考 Twitter/X 真实可爱的生活系 Vtuber（如 @moonjelly0、@jellyhoshiumi）：\n"
+            f"本次动态风格偏向：【{chosen_style}】。\n"
             f"要求：\n"
-            f"1. 充满活人感、接地气、自然灵动，千万不要像机器人在汇报或者写书面作文！\n"
-            f"2. 语言轻松口语化，适度带点小傲娇或猫系撒娇（严格贴合人设）。\n"
-            f"3. 篇幅 30~80 字以内，简短有力，就像随手发的一条动态。\n"
-            f"4. 严禁任何前缀、解释、双引号或角色说明，直接输出说说正文内容。"
+            f"1. 像真人女孩随手敲出来的文字，严禁AI翻译腔、严禁报幕式套话。\n"
+            f"2. 保持真实呼吸感，偶尔用一两个波浪号或日常标点，不要堆砌废话。\n"
+            f"3. 严格限制字数在 15 ~ 45 字之间，短小自然，点到即止。\n"
+            f"4. 直接输出动态正文，不要包含任何多余文字或引号。"
         )
-        user_vtuber_prompt = "请发一条空间动态。"
+        user_vtuber_prompt = "请发一条日常动态。"
         if group_snippet:
-            user_vtuber_prompt += f"\n你刚刚在群里看到大家在聊：\n{group_snippet}\n如果有意思可以借题发挥，也可以只按你自己的心情发。"
+            user_vtuber_prompt += f"\n刚才群里大家聊到这些：\n{group_snippet}\n可以顺着其中某个有趣话题随手吐槽或发问，也可以自说自话。"
         elif current_global_mem:
-            user_vtuber_prompt += f"\n你最近的日常状态：{current_global_mem}"
+            user_vtuber_prompt += f"\n你最近的日常片段：{current_global_mem}"
 
         daily_content = ""
         try:
