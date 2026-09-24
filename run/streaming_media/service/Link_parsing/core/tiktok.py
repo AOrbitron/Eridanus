@@ -47,6 +47,10 @@ DY_TOUTIAO_INFO = "https://aweme.snssdk.com/aweme/v1/play/?video_id={}&ratio=108
 tiktok视频信息
 """
 TIKTOK_VIDEO = "https://api22-normal-c-alisg.tiktokv.com/aweme/v1/feed/"
+
+# 抖音详情接口。仅传递作品 ID 和 aid，避免依赖已经失效的固定版本参数
+# 及 A-Bogus 签名；调用方式与参考解析器保持一致。
+DOUYIN_DETAIL = "https://www.douyin.com/aweme/v1/web/aweme/detail/"
 """
 通用请求头
 """
@@ -126,6 +130,142 @@ async def dou_transfer_other(dou_url):
 
 
 
+def _extract_douyin_url(message):
+    """从消息中提取抖音 URL。"""
+    message = str(message or "").replace("&amp;", "&").replace("\\/", "/")
+    match = re.search(
+        r"https?://(?:v|jx)\.douyin\.com/[^\s\]）)>,，。！？!！]+"
+        r"|https?://(?:www\.)?douyin\.com/[^\s\]）)>,，。！？!！]+"
+        r"|https?://m\.douyin\.com/[^\s\]）)>,，。！？!！]+"
+        r"|https?://jingxuan\.douyin\.com/[^\s\]）)>,，。！？!！]+"
+        r"|https?://(?:www\.)?iesdouyin\.com/[^\s\]）)>,，。！？!！]+",
+        message,
+        re.IGNORECASE,
+    )
+    if not match:
+        return None
+    return match.group(0).rstrip("./,;:!?！？。，、\"'")
+
+
+def _extract_aweme_id(url):
+    """从抖音页面 URL 中提取作品 ID。"""
+    url = str(url).strip()
+    patterns = (
+        r"(?:^|//)(?:www\.)?douyin\.com/(?:video|note)/(?P<id>\d+)",
+        r"(?:^|//)(?:www\.)?iesdouyin\.com/share/(?:video|note)/(?P<id>\d+)",
+        r"(?:^|//)m\.douyin\.com/share/(?:video|note)/(?P<id>\d+)",
+        r"(?:^|//)jingxuan\.douyin\.com/m/(?:video|note)/(?P<id>\d+)",
+        r"(?:^|//)(?:www\.)?douyin\.com/share/(?:video|note)/(?P<id>\d+)",
+    )
+    for pattern in patterns:
+        match = re.search(pattern, str(url), re.IGNORECASE)
+        if match:
+            return match.group("id")
+    return None
+
+
+def _last_url(value):
+    """返回抖音 URL 列表中通常最稳定的最后一项。"""
+    if isinstance(value, dict):
+        value = value.get("url_list")
+    if isinstance(value, (list, tuple)):
+        for item in reversed(value):
+            if item:
+                return item
+    return value if isinstance(value, str) else ""
+
+
+def _format_time(timestamp):
+    if timestamp in (None, "", 0):
+        return ""
+    try:
+        return (datetime.utcfromtimestamp(int(timestamp)) + timedelta(hours=8)).strftime(
+            "%Y-%m-%d %H:%M:%S"
+        )
+    except (TypeError, ValueError, OverflowError, OSError):
+        return ""
+
+
+def _format_context(text, signature=""):
+    """沿用本项目绘图使用的标签格式整理文案。"""
+    text = str(text or "")
+    if "#" in text:
+        text = text.replace("#", "\n[tag]#", 1)
+        text += "[/tag]"
+    if signature:
+        text += f"\n--------------\n作者简介：\n{signature}"
+    return text
+
+
+async def _resolve_douyin_url(url, headers):
+    """跟随短链重定向并返回最终 URL。"""
+    async with httpx.AsyncClient(
+        headers=headers,
+        timeout=10,
+        # 短链只取 Location，不访问重定向后的页面，避免触发页面反爬。
+        follow_redirects=False,
+        verify=False,
+    ) as client:
+        response = await client.get(url)
+    if getattr(response, "status_code", 200) >= 400:
+        response.raise_for_status()
+    final_url = str(getattr(response, "url", "") or "")
+    if final_url and final_url not in ("None", str(url)):
+        return final_url
+    response_headers = getattr(response, "headers", {}) or {}
+    location = response_headers.get("location") or response_headers.get("Location")
+    if location:
+        return urllib.parse.urljoin(str(url), str(location))
+    return str(final_url or url)
+
+
+async def _fetch_aweme(aweme_id, headers):
+    """按参考插件的参数请求作品详情。"""
+    async with httpx.AsyncClient(
+        headers=headers,
+        timeout=10,
+        follow_redirects=True,
+        verify=False,
+    ) as client:
+        response = await client.get(
+            DOUYIN_DETAIL,
+            params={"aweme_id": aweme_id, "aid": "6383"},
+        )
+    if response.status_code != 200:
+        raise RuntimeError(f"status: {response.status_code}; {getattr(response, 'text', '')}")
+    payload = response.json()
+    if not isinstance(payload, dict) or not isinstance(payload.get("aweme_detail"), dict):
+        raise ValueError("抖音接口未返回 aweme_detail")
+    return payload["aweme_detail"]
+
+
+async def _draw_douyin(json_check, image_urls, avatar_url, owner_name, video_time, context, type_check):
+    """生成项目现有格式的抖音卡片。"""
+    if type_check in no_draw_type or not image_urls:
+        return
+    author_block = {
+        "type": "avatar",
+        "subtype": "common",
+        "img": [avatar_url] if avatar_url else [],
+        "upshift_extra": 20,
+        "content": [f"[name]{owner_name}[/name]\n[time]{video_time}[/time]"],
+        "type_software": "dy",
+    }
+    if len(image_urls) != 1:
+        json_check["pic_path"] = await manshuo_draw(
+            [{"type": "backdrop", "subtype": "one_color"}, author_block,image_urls,[context]],)
+    else:
+        json_check["pic_path"] = await manshuo_draw(
+            [{"type": "backdrop", "subtype": "one_color"}, author_block,
+             {
+                 "type": "img",
+                 "subtype": "common_with_des_right",
+                 "img": image_urls,
+                 "content": [context],
+             },
+             ],)
+
+
 async def dy(url,filepath=None,type_check=None):
     """
         抖音解析
@@ -133,129 +273,101 @@ async def dy(url,filepath=None,type_check=None):
     :param event:
     :return:
     """
-    if filepath is None:filepath = filepath_init
-    contents=[]
-    # 消息
-    msg=url
+    if filepath is None:
+        filepath = filepath_init
     json_check = copy.deepcopy(json_init)
-    json_check['status'] = True
-    json_check['video_url'] = False
-    json_check['soft_type'] = 'dy'
-    #logger.info(msg)
-    # 正则匹配
-    reg = r"(http:|https:)\/\/v.douyin.com\/[A-Za-z\d._?%&+\-=#]*"
-    dou_url = re.search(reg, msg, re.I)[0]
-    dou_url_2 = httpx.get(dou_url).headers.get('location')
-    json_check['url'] = dou_url
-    logger.info(f'dou_url:{dou_url}')
-    logger.info(f'dou_url_2:{dou_url_2}')
+    json_check["status"] = True
+    json_check["video_url"] = False
+    json_check["soft_type"] = "dy"
 
-    # 实况图集临时解决方案，eg.  https://v.douyin.com/iDsVgJKL/
-    if "share/slides" in dou_url_2:
-        cover, author, title, img_context,avatar_url, video_time = await dou_transfer_other(dou_url)
-        # 如果第一个不为None 大概率是成功
-        if author is not None:
-            pass
-            #logger.info(f"{GLOBAL_NICKNAME}识别：【抖音】\n作者：{author}\n标题：{title}")
-            #logger.info(url for url in images)
-            # 截断后续操作
-            title = title.replace('#', '\n[tag]#', 1)
-            if '#' in title: title += '[/tag]'
-            if type_check not in no_draw_type:
-                if len(img_context) != 1:
-                    json_check['pic_path'] = await manshuo_draw([{'type': 'backdrop', 'subtype': 'one_color'},
-                        {'type': 'avatar', 'subtype': 'common', 'img': [avatar_url], 'upshift_extra': 20,
-                         'content': [f"[name]{author}[/name]\n[time]{video_time}[/time]"], 'type_software': 'dy'},
-                        img_context, [title]])
+    dou_url = _extract_douyin_url(url)
+    if not dou_url:
+        json_check["status"] = False
+        json_check["reason"] = "未找到有效的抖音链接"
+        return json_check
+    json_check["url"] = dou_url
+    logger.info(f"dou_url:{dou_url}")
+
+    try:
+        douyin_url = dou_url
+        dou_id = _extract_aweme_id(douyin_url)
+        headers = {
+            "Origin": "https://open.douyin.com",
+            "Referer": "https://open.douyin.com/",
+        } | COMMON_HEADER
+        if not dou_id:
+            douyin_url = await _resolve_douyin_url(dou_url, headers)
+            logger.info(f"dou_url_2:{douyin_url}")
+            dou_id = _extract_aweme_id(douyin_url)
+        if not dou_id:
+            raise ValueError(f"无法从抖音链接中获取作品 ID: {douyin_url}")
+
+        detail = await _fetch_aweme(dou_id, headers)
+        author = detail.get("author") or {}
+        avatar_url = _last_url(author.get("avatar_thumb"))
+        owner_name = author.get("nickname") or ""
+        signature = author.get("signature") or ""
+        video_time = _format_time(detail.get("create_time"))
+
+        share_info = detail.get("share_info") or {}
+        share_text = share_info.get("share_desc_info") or detail.get("desc") or ""
+        share_desc = share_info.get("share_desc")
+        if share_desc:
+            share_text = share_text.replace(f"#{share_desc}#", "", 1)
+        context = _format_context(share_text, signature)
+
+        image_urls = []
+        video = detail.get("video")
+        images = detail.get("images") or []
+        if images:
+            # 图文笔记以及实况图：沿用参考插件的 clip_type 判断。
+            for image in images:
+                if not isinstance(image, dict):
+                    continue
+                if image.get("clip_type") in (None, 2):
+                    image_url = _last_url(image.get("url_list"))
+                    if image_url:
+                        image_urls.append(image_url)
                 else:
-                    json_check['pic_path'] = await manshuo_draw([{'type': 'backdrop', 'subtype': 'one_color'},
-                        {'type': 'avatar', 'subtype': 'common', 'img': [avatar_url], 'upshift_extra': 20,
-                         'content': [f"[name]{author}[/name]\n[time]{video_time}[/time]"], 'type_software': 'dy', },
-                        {'type': 'img', 'subtype': 'common_with_des_right', 'img': img_context, 'content': [title]}])
-            json_check['pic_url_list'] = img_context
-            return json_check
-    # logger.error(dou_url_2)
-    reg2 = r".*(video|note)\/(\d+)\/(.*?)"
-    # 获取到ID
-    dou_id = re.search(reg2, dou_url_2, re.I)[2]
-    douyin_ck=ini_login_Link_Prising(type=2)
-    if douyin_ck is None:
-        logger.warning("无法获取到管理员设置的抖音ck！,启用默认配置，若失效请登录")
-        douyin_ck='odin_tt=xxx;passport_fe_beating_status=xxx;sid_guard=xxx;uid_tt=xxx;uid_tt_ss=xxx;sid_tt=xxx;sessionid=xxx;sessionid_ss=xxx;sid_ucp_v1=xxx;ssid_ucp_v1=xxx;passport_assist_user=xxx;ttwid=1%7CKPNpSlm-sMOACobI2T3-9GpRhKYzXoy07j_S-KjqxBU%7C1737658644%7Cbec487261896df392f3fe61ed66fa449bbf3f6a88866a7185d2cb17bfc2b8397;'
-    # API、一些后续要用到的参数
-    headers = {
-                  'Accept-Language': 'zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2',
-                  'referer': f'https://www.douyin.com/video/{dou_id}',
-                  'cookie': douyin_ck
-              } | COMMON_HEADER
-    api_url = DOUYIN_VIDEO.replace("{}", dou_id)
-    #logger.info(f'api_url: {api_url}')
-    api_url = generate_x_bogus_url(api_url, headers)  # 如果请求失败直接返回
-    async with httpx.AsyncClient(headers=headers, timeout=10) as client:
-        response = await client.get(api_url)
-        # print(response.status_code)
-        # print(response.text)
-        detail=response.json()
-        if detail is None:
-            logger.info(f"{GLOBAL_NICKNAME}识别：抖音，解析失败！")
-            # await douyin.send(Message(f"{GLOBAL_NICKNAME}识别：抖音，解析失败！"))
-            return
-        # 获取信息
+                    image_video = image.get("video") or {}
+                    image_cover = _last_url(image_video.get("cover"))
+                    if image_cover:
+                        image_urls.append(image_cover)
+                    image_play_addr = image_video.get("play_addr") or {}
+                    image_uri = image_play_addr.get("uri")
+                    # json_init 只有一个 video_url 字段，实况图取第一条视频。
+                    if image_uri and not json_check["video_url"]:
+                        json_check["video_url"] = DY_TOUTIAO_INFO.format(image_uri)
+        elif isinstance(video, dict):
+            play_addr = video.get("play_addr") or {}
+            video_uri = play_addr.get("uri")
+            if video_uri:
+                json_check["video_url"] = DY_TOUTIAO_INFO.format(video_uri)
+            # 参考插件优先使用原始封面，接口缺失时回退到普通封面/动态封面。
+            cover = _last_url(video.get("cover_original_scale"))
+            cover = cover or _last_url(video.get("cover"))
+            cover = cover or _last_url(video.get("dynamic_cover"))
+            if cover:
+                image_urls = [cover]
 
-        detail = detail['aweme_detail']
-        formatted_json = json.dumps(detail, indent=4)
-        #print(formatted_json)
-        #print(detail['author']['signature'])
-        # 判断是图片还是视频
-        url_type_code = detail['aweme_type']
-        url_type = URL_TYPE_CODE_DICT.get(url_type_code, 'video')
-        # 根据类型进行发送
-        avatar_url, cover_url = detail['author']['avatar_thumb']['url_list'][0], \
-        detail['author']['cover_url'][0]['url_list'][1]
-        owner_name = detail['author']['nickname']
-        #logger.info(f'avatar_url: {avatar_url}\ncover_url: {cover_url}')
-        video_time = datetime.utcfromtimestamp(detail['create_time']) + timedelta(hours=8)
-        video_time = video_time.strftime('%Y-%m-%d %H:%M:%S')
-
-        if url_type == 'video':
-            # 识别播放地址
-            player_uri = detail.get("video").get("play_addr")['uri']
-            player_real_addr = DY_TOUTIAO_INFO.replace("{}", player_uri)
-            cover_url = detail.get("video").get("dynamic_cover")['url_list'][0]
-            img_context=[cover_url]
-            context = detail.get("desc").replace('#', '\n[tag]#', 1)
-            if '#' in context: context += '[/tag]'
-
-            player_uri = detail.get("video").get("play_addr")['uri']
-            player_real_addr = DY_TOUTIAO_INFO.replace("{}", player_uri)
-            #print(player_real_addr)
-            json_check['video_url'] = player_real_addr
-            #video_path = await download_video(player_real_addr, filepath=filepath)
-
-        elif url_type == 'image':
-            # 无水印图片列表/No watermark image list
-            no_watermark_image_list = []
-            for i in detail['images']:
-                no_watermark_image_list.append(i['url_list'][0])
-            # logger.info(no_watermark_image_list)
-            img_context=no_watermark_image_list
-
-            # await send_forward_both(bot, event, make_node_segment(bot.self_id, no_watermark_image_list))
-            context = detail.get("desc").replace('#', '\n[tag]#', 1)
-            if '#' in context: context += '[/tag]'
-        context += f"\n--------------\n作者简介：\n{detail['author']['signature']}"
-        if type_check not in no_draw_type:
-            if len(img_context) != 1:
-                json_check['pic_path'] = await manshuo_draw([{'type': 'backdrop', 'subtype': 'one_color'},
-                                {'type': 'avatar', 'subtype': 'common', 'img': [avatar_url],'upshift_extra': 20,
-                                 'content': [f"[name]{owner_name}[/name]\n[time]{video_time}[/time]" ], 'type_software': 'dy'},img_context,[context]])
-            else:
-                json_check['pic_path'] = await manshuo_draw([{'type': 'backdrop', 'subtype': 'one_color'},
-                                {'type': 'avatar', 'subtype': 'common', 'img': [avatar_url],'upshift_extra': 20,
-                                 'content': [f"[name]{owner_name}[/name]\n[time]{video_time}[/time]" ], 'type_software': 'dy', },
-                                {'type': 'img', 'subtype': 'common_with_des_right', 'img': img_context, 'content': [context]}])
-            #print(json_check['pic_path'])
-        json_check['pic_url_list'] = img_context
+        json_check["pic_url_list"] = image_urls
+        share_url = detail.get("share_url")
+        if share_url:
+            json_check["url"] = str(share_url).split("?", 1)[0]
+        await _draw_douyin(
+            json_check,
+            image_urls,
+            avatar_url,
+            owner_name,
+            video_time,
+            context,
+            type_check,
+        )
+        return json_check
+    except Exception as exc:
+        json_check["status"] = False
+        json_check["reason"] = str(exc)
+        logger.warning(f"抖音解析失败: {exc}")
         return json_check
 
 

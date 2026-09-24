@@ -187,7 +187,7 @@ if __name__ == "__main__":#测试用，不用管
     url = 'https://t.bilibili.com/1217764206464466978'
     url = 'https://www.bilibili.com/video/BV1vvjR6REyP'
     url = '【那你的梦呢 仪玄？-哔哩哔哩】 https://b23.tv/SFkYzoC'
-    url = 'https://b23.tv/rtvclYR'
+    url = 'https://v.douyin.com/60S0MS-C9DY'
     #url = 'https://live.bilibili.com/9576151'
     #url = 'http://xhslink.cn/o/4DZvlOLnu8q'
     #url = 'https://v.douyin.com/cZUlzDmvtok/ 09/15 :7pm oQk:/ N@J.VY '

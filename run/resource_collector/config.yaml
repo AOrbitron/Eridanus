@@ -44,6 +44,7 @@ JMComic:                  #禁漫相关功能设置
   ranking_limit: 10      # 榜单显示条数，默认 10
   cover_workers: 5       # 封面并发下载线程数，默认 5
   pdg_compress: False     #是否压缩PDF,本功能需要手动安装Ghostscript，请自行百度
+  is_rename: False        #是否重命名成 车牌号 + 名字
   openlist: #下载后的jm本子是否上传至openlist
     enable: False                          #是否启用
     base_url: "" #你的openlist网址
