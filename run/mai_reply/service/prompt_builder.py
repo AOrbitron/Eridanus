@@ -79,6 +79,7 @@ class PromptBuilder:
         group_impression: str = "",
         recent_speaker_impressions: Optional[List[Dict]] = None,
         user_text: str = "",
+        global_memory: str = "",
     ) -> str:
         """
         构建完整 system prompt。
@@ -131,6 +132,10 @@ class PromptBuilder:
                     + "\n".join(lines)
                     + "\n（回复时请根据以上印象自然地调整对不同人的语气和态度）"
                 )
+
+        # ---- Bot 全局记忆（日常大事件/生活记录）----
+        if global_memory:
+            prompt += f"\n\n【你近期的全局记忆与生活记录】\n{global_memory}"
 
         # ---- 当前触发用户的印象 ----
         if user_impression:

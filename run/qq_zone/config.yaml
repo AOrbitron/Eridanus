@@ -1,12 +1,28 @@
+# QQ空间插件配置
+cookie设置:
+  保活: true               # 是否开启保活探测
+  保活间隔_秒: 1800        # 保活探测间隔（建议>=1800秒，温和低频，防止风控）
+  失效通知: true           # cookie失效时私聊通知管理员手动输入/qzone login
+  失效时自动重新登陆: false # 强烈建议保持false，避免循环扫码导致账号风控
+
 定时发空间:
   早安:
     enable: false
-    time: 8/3      #推送时间
-    绘制图片: false  #是否绘制图片
+    time: "8/30"           # 推送时间 (时/分)
+    绘制图片: true         # 是否通过SD绘制配图
   晚安:
     enable: false
-    time: 21/3      #推送时间
-    绘制图片: false  #是否绘制图片
-cookie设置:
-  保活: false  #是否开启保活，目前未经充分测试。
-  失效时自动重新登陆: false  #是否开启失效时自动重新登陆，目前未经充分测试。
+    time: "22/30"          # 推送时间 (时/分)
+    绘制图片: true         # 是否通过SD绘制配图
+
+sd绘画设置:
+  sdUrl: "" # Stable Diffusion API 地址
+  steps: 25              # 采样步数
+  cfg_scale: 7.0         # 提示词引导系数
+  width: 1024            # 图片宽度
+  height: 1024           # 图片高度
+  timeout: 120           # 绘画接口超时时间(秒)
+
+动态互动:
+  enable_comment_reply: true  # 是否自动回复空间好友在Bot动态下的评论
+  check_interval_秒: 180      # 评论巡检轮询间隔(秒)

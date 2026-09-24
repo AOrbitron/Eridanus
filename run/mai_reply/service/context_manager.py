@@ -470,6 +470,20 @@ class ContextManager:
 
     # ------------------------------------------------------------------ 生命周期
 
+
+    def _global_memory_key(self) -> str:
+        return "memory:global"
+
+    def get_global_memory(self) -> str:
+        raw = self._imp_get(self._global_memory_key())
+        return raw if isinstance(raw, str) else ""
+
+    def update_global_memory(self, content: str) -> None:
+        self._imp_set(self._global_memory_key(), content)
+
+    def clear_global_memory(self) -> None:
+        self._imp_delete(self._global_memory_key())
+
     def close(self) -> None:
         self._ctx_sqlite.close()
         self._imp_sqlite.close()

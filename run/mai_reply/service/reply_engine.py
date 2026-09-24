@@ -297,6 +297,7 @@ class ReplyEngine:
                 group_impression=group_impression,
                 recent_speaker_impressions=recent_speaker_impressions,
                 user_text=final_text,
+                global_memory=self.context.get_global_memory(),
             )
 
             max_turns = self.cfg.mai_reply.config.get("context", {}).get("max_turns", 20)
