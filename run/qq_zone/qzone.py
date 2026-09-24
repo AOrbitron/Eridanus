@@ -73,6 +73,44 @@ def main(bot: ExtendBot, config: YAMLManager):
         except Exception as e:
             logger.error(f"[Qzone] 保存本地 Cookie 失败: {e}")
 
+    def check_resp_for_expired(resp: Any) -> bool:
+        if not resp:
+            return False
+        resp_str = str(resp)
+        expired_patterns = [
+            "-3000",
+            "-100",
+            "need login",
+            "??????",
+            "??????????",
+            "????",
+            "subcode\":-4001"
+        ]
+        return any(p in resp_str for p in expired_patterns)
+
+    async def handle_cookie_expired(reason: str = "Cookie??"):
+        nonlocal login_result, cookie_invalid_notified
+        login_result = None
+        if cookie_file.exists():
+            try:
+                cookie_file.unlink()
+                logger.info("[Qzone] ???????? Cookie ??")
+            except Exception as e:
+                logger.error(f"[Qzone] ???? Cookie ????: {e}")
+
+        if not cookie_invalid_notified:
+            cookie_invalid_notified = True
+            logger.warning(f"[Qzone] ????: {reason}????????")
+            master_id = config.common_config.basic_config.get("master", {}).get("id")
+            if master_id:
+                try:
+                    await bot.send_friend_message(
+                        master_id,
+                        [Text(f"???QQ???????\n???{reason}\n????? /qzone login ?????????")]
+                    )
+                except Exception as e:
+                    logger.error(f"[Qzone] ??????????: {e}")
+
     if load_cookie_cache():
         login_result = load_cookie_cache()
         logger.info("[Qzone] 使用本地 Cookie 登录 QQ 空间")

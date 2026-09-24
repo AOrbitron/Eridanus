@@ -115,23 +115,35 @@ class NativeQzoneLogin:
                             )
 
                             async with aiohttp.ClientSession(trust_env=False, timeout=timeout, cookies=res_cookies) as sig_session:
-                                async with sig_session.get(check_sig_url, allow_redirects=False) as sig_resp:
-                                    final_cookies = res_cookies.copy()
-                                    final_cookies.update({k: v.value for k, v in sig_resp.cookies.items()})
+                                # ???? check_sig ??????????? (qzone.qq.com) ??? p_skey ? p_uin
+                                current_url = check_sig_url
+                                final_cookies = res_cookies.copy()
+                                for _ in range(5):
+                                    async with sig_session.get(current_url, allow_redirects=False) as sig_resp:
+                                        for k, v in sig_resp.cookies.items():
+                                            final_cookies[k] = v.value
+                                        if sig_resp.status in (301, 302, 303, 307):
+                                            current_url = sig_resp.headers.get("Location", "")
+                                            if not current_url:
+                                                break
+                                            if current_url.startswith("/"): 
+                                                current_url = f"https://ptlogin2.qzone.qq.com{current_url}"
+                                        else:
+                                            break
 
-                                    p_skey = final_cookies.get("p_skey", "")
-                                    skey = final_cookies.get("skey", "")
-                                    calc_bkn = bkn(p_skey) if p_skey else (bkn(skey) if skey else None)
-                                    target_qq = uin.replace("o", "")
+                                p_skey = final_cookies.get("p_skey", "")
+                                skey = final_cookies.get("skey", "")
+                                calc_bkn = bkn(p_skey) if p_skey else (bkn(skey) if skey else None)
+                                target_qq = uin.replace("o", "")
 
-                                    return {
-                                        "code": 0,
-                                        "msg": "登录成功",
-                                        "cookies": final_cookies,
-                                        "skey": skey,
-                                        "qq": target_qq,
-                                        "bkn": calc_bkn,
-                                    }
+                                return {
+                                    "code": 0,
+                                    "msg": "????",
+                                    "cookies": final_cookies,
+                                    "skey": skey,
+                                    "qq": target_qq,
+                                    "bkn": calc_bkn,
+                                }
             except Exception as e:
                 logger.debug(f"[Qzone Login] 轮询异常: {e}")
 
