@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 """
 native_login.py
 原生的 QQ 空间扫码登录与 Cookie 获取实现，零依赖 pyzbar/libzbar/libiconv。
@@ -119,8 +119,9 @@ class NativeQzoneLogin:
                                     final_cookies = res_cookies.copy()
                                     final_cookies.update({k: v.value for k, v in sig_resp.cookies.items()})
 
-                                    skey = final_cookies.get("p_skey") or final_cookies.get("skey", "")
-                                    calc_bkn = bkn(skey) if skey else None
+                                    p_skey = final_cookies.get("p_skey", "")
+                                    skey = final_cookies.get("skey", "")
+                                    calc_bkn = bkn(p_skey) if p_skey else (bkn(skey) if skey else None)
                                     target_qq = uin.replace("o", "")
 
                                     return {

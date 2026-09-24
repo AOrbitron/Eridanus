@@ -34,6 +34,7 @@ def main(bot: ExtendBot, config: YAMLManager):
     login_task = None
     qzone = QzoneApiFixed()
     qzone_status = False
+    cookie_invalid_notified = False
 
     # ---------------------------------------------------------
     # 尝试加载 mai_reply 的 ContextManager 和 LLMClient
@@ -119,6 +120,7 @@ def main(bot: ExtendBot, config: YAMLManager):
             if res and res.get("code") == 0:
                 login_result = res
                 save_cookie_cache(res)
+                cookie_invalid_notified = False
                 logger.info("[Qzone] QQ空间扫码登录成功！")
                 succ_msg = [Text("✅【QQ空间】扫码授权登录成功，凭证已安全持久化！")]
                 if event:
@@ -151,6 +153,7 @@ def main(bot: ExtendBot, config: YAMLManager):
             login_result = load_cookie_cache()
             if not login_result:
                 logger.error("[Qzone] 无有效登录凭证，请管理员发送 /qzone login 扫码登录")
+                await handle_cookie_expired("无有效登录凭证")
                 return None
 
         target_qq_str = str(login_result.get("qq", "")).replace("o", "")
@@ -163,10 +166,11 @@ def main(bot: ExtendBot, config: YAMLManager):
         g_tk = login_result.get("bkn", "")
 
         content = content or ""
+        res = None
         if pic_paths:
             pic_path = pic_paths[0]
             logger.info(f"[Qzone] 正在发送带图说说: {content[:30]}... 配图: {pic_path}")
-            return await qzone._send_zone_with_pic(
+            res = await qzone._send_zone_with_pic(
                 target_qq=target_qq,
                 pic_path=pic_path,
                 content=content,
@@ -176,12 +180,16 @@ def main(bot: ExtendBot, config: YAMLManager):
         else:
             logger.info(f"[Qzone] 正在发送纯文字说说: {content[:30]}...")
             cookies_str = "; ".join([f"{k}={v}" for k, v in cookies.items()])
-            return await qzone._send_zone(
+            res = await qzone._send_zone(
                 target_qq=target_qq,
                 content=content,
                 cookies=cookies_str,
                 g_tk=g_tk,
             )
+
+        if check_resp_for_expired(res):
+            await handle_cookie_expired(f"发布动态失败，登录凭证失效({str(res)[:60]})")
+        return res
 
     # ---------------------------------------------------------
     # Stable Diffusion 绘画服务端调用
@@ -203,6 +211,7 @@ def main(bot: ExtendBot, config: YAMLManager):
             "n_iter": 1,
         }
         headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
             "Accept-Encoding": "identity",
             "Content-Type": "application/json",
         }
@@ -210,7 +219,7 @@ def main(bot: ExtendBot, config: YAMLManager):
 
         try:
             logger.info(f"[Qzone SD] 请求生图: {txt2img_url}, prompt: {prompt[:60]}...")
-            async with httpx.AsyncClient(timeout=timeout_val, headers=headers) as client:
+            async with httpx.AsyncClient(timeout=timeout_val, headers=headers, trust_env=False) as client:
                 resp = await client.post(txt2img_url, json=payload)
                 if resp.status_code == 200:
                     data = resp.json()
@@ -297,7 +306,7 @@ def main(bot: ExtendBot, config: YAMLManager):
 
         try:
             r = await qzone._get_zone(target_qq=target_qq, g_tk=g_tk, cookies=cookies_str, count=1)
-            if r and '"code":0' in r:
+            if r and '"code":0' in str(r):
                 return True
             logger.warning(f"[Qzone 保活] 探测返回未包含 code:0: {str(r)[:120]}")
             return False
@@ -314,33 +323,63 @@ def main(bot: ExtendBot, config: YAMLManager):
         interval = max(600, int(cookie_cfg.get("保活间隔_秒", 1800)))
         logger.info(f"[Qzone 保活] 启动温和保活监控，轮询间隔: {interval} 秒")
 
-        has_notified = False
         while True:
             await asyncio.sleep(interval)
             try:
                 alive = await check_cookie_alive()
                 if alive:
                     logger.info("[Qzone 保活] Cookie 状态有效，空间在线")
-                    has_notified = False
                 else:
                     logger.warning("[Qzone 保活] 检测到 QQ 空间 Cookie 可能已失效！")
-                    master_id = config.common_config.basic_config.get("master", {}).get("id")
-                    if cookie_cfg.get("失效通知", True) and master_id and not has_notified:
-                        try:
-                            await bot.send_friend_message(
-                                master_id,
-                                [Text("⚠️【QQ空间提醒】空间 Cookie 已失效或探测失败。为避免频繁扫码风控，请在私聊或管理群输入 /qzone login 手动重新扫码登录！")]
-                            )
-                            has_notified = True
-                        except Exception as e:
-                            logger.error(f"[Qzone 保活] 发送失效通知失败: {e}")
+                    await handle_cookie_expired("空间保活探测失效")
 
-                    # 如果配置中强行打开了自动重新登陆（默认关闭防风控）
                     if cookie_cfg.get("失效时自动重新登陆", False):
                         logger.warning("[Qzone 保活] 配置开启了自动重新登陆，尝试拉起登录二维码...")
                         await login_task_wrapper()
             except Exception as e:
                 logger.error(f"[Qzone 保活] 监控循环异常: {e}")
+
+    def get_chara_visual_anchor() -> str:
+        """提取角色外观锚点特征（支持从 gptimage2.character_anchor 或人设提取）"""
+        try:
+            gpt_anchor = config.ai_generated_art.config.get("gptimage2", {}).get("character_anchor", "")
+            if gpt_anchor:
+                return gpt_anchor
+        except Exception:
+            pass
+        return "粉色和蓝色渐变双马尾，粉蓝渐变眼睛，猫耳少女，白色不对称吊带礼裙，蓝色蝴蝶结，白色过膝袜"
+
+    async def build_sd_prompt_for_post(post_text: str, theme_desc: str) -> str:
+        bot_name, chara_text = get_bot_persona_info()
+        visual_anchor = get_chara_visual_anchor()
+
+        sd_prompt = ""
+        try:
+            if mai_llm:
+                prompt_generator = (
+                    f"你是 Stable Diffusion 提示词专家。角色名称：【{bot_name}】。\n"
+                    f"角色外貌基准：{visual_anchor}\n"
+                    f"动态主题：{theme_desc}\n"
+                    f"动态文案内容：{post_text}\n"
+                    f"请生成一段精准的、适合画出该角色自己形象的 SD 英文提示词 (Tags)。\n"
+                    f"要求：\n"
+                    f"1. 必须包含角色的核心外貌特征标签 (如 cat ears, pink and blue eyes, twin braids/twintails, white dress 等)。\n"
+                    f"2. 匹配动态情境的场景氛围与表情动作 (如 bedroom, window, cute smile, coffee 等)。\n"
+                    f"3. 包含高质量通用词 (masterpiece, best quality, highly detailed, expressive eyes)。\n"
+                    f"4. 只输出英文逗号分隔的 tag 列表，严禁任何中文、解释或引号："
+                )
+                sd_tags = await mai_llm.chat(
+                    messages=[{"role": "user", "content": prompt_generator}],
+                    system_prompt="You are a professional Stable Diffusion prompt engineer.",
+                )
+                if sd_tags:
+                    sd_prompt = sd_tags.strip().replace("\n", ", ")
+        except Exception as e:
+            logger.error(f"[Qzone] LLM 生成 SD prompt 失败: {e}")
+
+        if not sd_prompt:
+            sd_prompt = f"1girl, cat ears, pink and blue eyes, white dress, masterpiece, best quality, highly detailed, {theme_desc}"
+        return sd_prompt
 
     # ---------------------------------------------------------
     # 定时早晚发空间任务
@@ -409,30 +448,8 @@ def main(bot: ExtendBot, config: YAMLManager):
         # 判断是否需要 SD 绘图
         pic_paths = []
         if task_info.get("绘制图片", True):
-            sd_prompt = ""
-            try:
-                if mai_llm:
-                    prompt_generator = (
-                        f"你是 Stable Diffusion 提示词专家。根据角色【{bot_name}】的人设与今天的【{task_name}】动态：\n"
-                        f"说说内容：{post_content}\n"
-                        f"角色设定：{chara_text[:300]}\n"
-                        f"请生成一段高质量的适合画出角色自己形象的 SD 英文提示词 (Tags)。\n"
-                        f"包含：1girl/1boy (匹配人设), 角色外观特征(发色、瞳色、服装), 动作姿态, 场景氛围(日出/清晨/夜晚/卧室/窗边), 杰作画质(masterpiece, best quality, ultra-detailed)。\n"
-                        f"只输出英文逗号分隔的 tag 列表，不要有任何多余文字或引号："
-                    )
-                    sd_tags = await mai_llm.chat(
-                        messages=[{"role": "user", "content": prompt_generator}],
-                        system_prompt="You are a prompt engineer for Stable Diffusion.",
-                    )
-                    if sd_tags:
-                        sd_prompt = sd_tags.strip().replace("\n", ", ")
-            except Exception as e:
-                logger.error(f"[Qzone] 生成生图 prompt 失败: {e}")
-
-            if not sd_prompt:
-                theme_tag = "morning, sunrise, window, stretching, gentle smile" if task_name == "早安" else "night, bedroom, moonlight, pajamas, cozy, sleepy"
-                sd_prompt = f"1girl, cute, masterpiece, best quality, highly detailed, {theme_tag}"
-
+            theme_desc = "morning, sunrise, window, warm sunlight, gentle smile" if task_name == "早安" else "night, bedroom, moonlight, pajamas, cozy, sleepy"
+            sd_prompt = await build_sd_prompt_for_post(post_content, theme_desc)
             img_file = await call_sd_generate(sd_prompt)
             if img_file:
                 pic_paths.append(img_file)
@@ -443,6 +460,140 @@ def main(bot: ExtendBot, config: YAMLManager):
             logger.info(f"[Qzone] 发布动态完成: {res}")
         except Exception as e:
             logger.error(f"[Qzone] 发布动态异常: {e}")
+
+    # ---------------------------------------------------------
+    # Vtuber 风格活人感日常互动动态机制
+    # ---------------------------------------------------------
+    vtuber_post_count_today = 0
+    vtuber_last_post_date = datetime.date.today()
+
+    async def vtuber_daily_task():
+        nonlocal vtuber_post_count_today, vtuber_last_post_date
+        today = datetime.date.today()
+        if today != vtuber_last_post_date:
+            vtuber_last_post_date = today
+            vtuber_post_count_today = 0
+
+        vcfg = config.qq_zone.config.get("vtuber日常互动", {})
+        if not vcfg.get("enable", True):
+            return
+
+        max_daily = int(vcfg.get("每日最大发送次数", 3))
+        if vtuber_post_count_today >= max_daily:
+            return
+
+        # 检查时间段
+        active_hours = vcfg.get("活跃时间段", "10-21")
+        try:
+            h_start, h_end = [int(x.strip()) for x in str(active_hours).split("-")]
+        except Exception:
+            h_start, h_end = 10, 21
+        cur_hour = datetime.datetime.now().hour
+        if not (h_start <= cur_hour <= h_end):
+            return
+
+        # 触发概率判断
+        prob = float(vcfg.get("触发概率", 0.35))
+        if random.random() > prob:
+            logger.debug(f"[Qzone Vtuber日常] 巡检未命中触发概率({prob})")
+            return
+
+        logger.info("[Qzone Vtuber日常] 触发条件满足，开始生成日常动态...")
+        bot_name, chara_text = get_bot_persona_info()
+        current_global_mem = mai_context.get_global_memory() if mai_context else ""
+
+        # 提取群聊近期有趣片段或灵感
+        group_snippet = ""
+        if mai_context:
+            try:
+                gkeys = mai_context._ctx_keys("group_window:*")
+                if gkeys:
+                    chosen_key = random.choice(gkeys)
+                    raw = mai_context._ctx_get(chosen_key)
+                    if raw:
+                        w_list = json.loads(raw) if isinstance(raw, str) else raw
+                        if isinstance(w_list, list) and w_list:
+                            lines = []
+                            for it in w_list[-4:]:
+                                s_name = it.get("sender", {}).get("card") or it.get("sender", {}).get("nickname", "群友")
+                                text_msg = it.get("raw_message", "")
+                                if text_msg and len(text_msg) < 60:
+                                    lines.append(f"{s_name}: {text_msg}")
+                            if lines:
+                                group_snippet = "\n".join(lines)
+            except Exception as e:
+                logger.debug(f"[Qzone Vtuber日常] 提取群聊灵感异常: {e}")
+
+        styles = [
+            "向空间大家抛出一个好玩/无厘头的问题引发讨论（如'甜豆腐脑还是咸豆腐脑'、'今天下午茶吃什么'）",
+            "分享自己刚刚身边发生的一件蠢萌小插曲或生活随想（比如找东西半天发现就在手边/猫猫打了个喷嚏）",
+            "单纯可爱地发呆、求摸头或者无意义地卖萌撒娇",
+            "聊聊今天的天气或自己此刻的小执念（好想喝冰奶茶/想去晒太阳等）",
+        ]
+        chosen_style = random.choice(styles)
+
+        sys_vtuber_prompt = (
+            f"你是{bot_name}。\n"
+            f"角色设定：\n{chara_text}\n\n"
+            f"你现在要像一个生动鲜活的虚拟UP主 (Vtuber) 在自己的社交平台/空间动态上发一条日常随笔。\n"
+            f"本次风格灵感：【{chosen_style}】\n"
+            f"要求：\n"
+            f"1. 充满活人感、接地气、自然灵动，千万不要像机器人在汇报或者写书面作文！\n"
+            f"2. 语言轻松口语化，适度带点小傲娇或猫系撒娇（严格贴合人设）。\n"
+            f"3. 篇幅 30~80 字以内，简短有力，就像随手发的一条动态。\n"
+            f"4. 严禁任何前缀、解释、双引号或角色说明，直接输出说说正文内容。"
+        )
+        user_vtuber_prompt = "请发一条空间动态。"
+        if group_snippet:
+            user_vtuber_prompt += f"\n你刚刚在群里看到大家在聊：\n{group_snippet}\n如果有意思可以借题发挥，也可以只按你自己的心情发。"
+        elif current_global_mem:
+            user_vtuber_prompt += f"\n你最近的日常状态：{current_global_mem}"
+
+        daily_content = ""
+        try:
+            if mai_llm:
+                resp = await mai_llm.chat(
+                    messages=[{"role": "user", "content": user_vtuber_prompt}],
+                    system_prompt=sys_vtuber_prompt,
+                )
+                daily_content = resp.strip() if resp else ""
+        except Exception as e:
+            logger.error(f"[Qzone Vtuber日常] 生成动态失败: {e}")
+
+        if not daily_content:
+            daily_content = "今天也是元气满满（但想摸鱼）的一天喵！大家都在干嘛呢？~"
+
+        logger.info(f"[Qzone Vtuber日常] 生成内容: {daily_content}")
+
+        # 概率配图
+        pic_paths = []
+        pic_prob = float(vcfg.get("绘制图片概率", 0.5))
+        if random.random() < pic_prob:
+            sd_prompt = await build_sd_prompt_for_post(daily_content, "casual daily, relaxed posture, cute expression, high quality")
+            img_file = await call_sd_generate(sd_prompt)
+            if img_file:
+                pic_paths.append(img_file)
+
+        # 发送说说
+        try:
+            res = await send_to_qzone(daily_content, pic_paths)
+            logger.info(f"[Qzone Vtuber日常] 发布动态完成: {res}")
+            vtuber_post_count_today += 1
+        except Exception as e:
+            logger.error(f"[Qzone Vtuber日常] 发送说说异常: {e}")
+
+    async def start_vtuber_daily_monitor():
+        vcfg = config.qq_zone.config.get("vtuber日常互动", {})
+        if not vcfg.get("enable", True):
+            return
+        interval_min = max(10, int(vcfg.get("巡检间隔_分钟", 60)))
+        logger.info(f"[Qzone Vtuber日常] 启动日常巡检监控，轮询间隔: {interval_min} 分钟")
+        while True:
+            await asyncio.sleep(interval_min * 60)
+            try:
+                await vtuber_daily_task()
+            except Exception as e:
+                logger.error(f"[Qzone Vtuber日常] 巡检异常: {e}")
 
     # ---------------------------------------------------------
     # 空间好友评论自动拟人化互动回复
@@ -489,7 +640,10 @@ def main(bot: ExtendBot, config: YAMLManager):
             resp_str = await qzone._get_messages_list(target_qq=target_qq, g_tk=g_tk, cookies=cookies_str, pos=0, num=5)
             if not resp_str:
                 return
-            
+            if check_resp_for_expired(resp_str):
+                await handle_cookie_expired(f"评论巡检拉取说说失败，Cookie已失效({str(resp_str)[:60]})")
+                return
+
             clean_str = re.sub(r'^[^(]*\(|\);?\s*$', '', resp_str.strip())
             feed_json = json.loads(clean_str)
             msg_list = feed_json.get("msglist") or []
@@ -588,6 +742,10 @@ def main(bot: ExtendBot, config: YAMLManager):
                         fid=tid,
                     )
                     logger.info(f"[Qzone 评论回复结果]: {res}")
+                    if check_resp_for_expired(res):
+                        await handle_cookie_expired(f"回复评论失败，Cookie已失效({str(res)[:60]})")
+                        return
+
                     replied_comment_ids.add(unique_key)
                     save_replied_comments(replied_comment_ids)
                 except Exception as e:
@@ -644,6 +802,7 @@ def main(bot: ExtendBot, config: YAMLManager):
 
         asyncio.create_task(start_keepalive_monitor())
         asyncio.create_task(start_comment_monitor())
+        asyncio.create_task(start_vtuber_daily_monitor())
 
     @bot.on(LifecycleMetaEvent)
     async def on_lifecycle(event: LifecycleMetaEvent):
@@ -678,6 +837,7 @@ def main(bot: ExtendBot, config: YAMLManager):
             qzone_status = True
         elif qzone_status and is_master:
             qzone_status = False
+            cookie_invalid_notified = False
             await set_cache(event)
         elif event.pure_text in ["测试早安", "发送早安"] and is_master:
             await bot.send(event, [Text("正在测试发送早安说说...")])
@@ -687,6 +847,9 @@ def main(bot: ExtendBot, config: YAMLManager):
             await bot.send(event, [Text("正在测试发送晚安说说...")])
             task_info = scheduledTasks.get("晚安", {"绘制图片": True})
             await task_executor("晚安", task_info)
+        elif event.pure_text in ["测试日常", "发送日常"] and is_master:
+            await bot.send(event, [Text("正在测试生成并发送Vtuber风格日常互动说说...")])
+            await vtuber_daily_task()
         elif event.pure_text == "测试空间互动" and is_master:
             await bot.send(event, [Text("正在立即检查空间评论并回复...")])
             await check_and_reply_comments()
@@ -707,6 +870,7 @@ def main(bot: ExtendBot, config: YAMLManager):
             qzone_status = True
         elif qzone_status and is_master:
             qzone_status = False
+            cookie_invalid_notified = False
             await set_cache(event)
         elif event.pure_text in ["测试早安", "发送早安"] and is_master:
             await bot.send(event, [Text("正在测试发送早安说说...")])
@@ -716,3 +880,6 @@ def main(bot: ExtendBot, config: YAMLManager):
             await bot.send(event, [Text("正在测试发送晚安说说...")])
             task_info = scheduledTasks.get("晚安", {"绘制图片": True})
             await task_executor("晚安", task_info)
+        elif event.pure_text in ["测试日常", "发送日常"] and is_master:
+            await bot.send(event, [Text("正在测试生成并发送Vtuber风格日常互动说说...")])
+            await vtuber_daily_task()

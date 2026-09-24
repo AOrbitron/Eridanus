@@ -7,16 +7,24 @@ cookie设置:
 
 定时发空间:
   早安:
-    enable: false
-    time: "8/30"           # 推送时间 (时/分)
+    enable: true
+    time: 8/30           # 推送时间 (时/分)
     绘制图片: true         # 是否通过SD绘制配图
   晚安:
-    enable: false
-    time: "22/30"          # 推送时间 (时/分)
+    enable: true
+    time: 22/30          # 推送时间 (时/分)
     绘制图片: true         # 是否通过SD绘制配图
 
+vtuber日常互动:
+  enable: true             # 是否开启活人感/Vtuber风格日常动态
+  巡检间隔_分钟: 60        # 每次巡检间隔
+  每日最大发送次数: 3      # 每天最多发送条数
+  触发概率: 0.35           # 巡检满足条件时的触发概率(0.0~1.0)
+  活跃时间段: 10-21      # 仅在白天活跃时段判断触发
+  绘制图片概率: 0.5        # 是否配图的概率
+
 sd绘画设置:
-  sdUrl: "http://apollodorus.xyz:3530" # Stable Diffusion API 地址
+  sdUrl: "" # Stable Diffusion API 地址
   steps: 25              # 采样步数
   cfg_scale: 7.0         # 提示词引导系数
   width: 1024            # 图片宽度

@@ -21,7 +21,7 @@ ai绘画:
   nai_key:
     - ''
   sd画图: true
-  sd默认启动模型: 'miaomiao_1_4.safetensors'
+  sd默认启动模型: 'waiIllustriousSDXL_v170.safetensors'
   反推和审核使用模型: 'wd14-vit-v2-git' # 可填的选项见文档https://eridanus-doc.netlify.app/configuration/ai%E7%BB%98%E7%94%BB/ai%E7%BB%98%E7%94%BB.html#%E5%8F%8D%E6%8E%A8%E4%B8%8E%E5%AE%A1%E6%A0%B8%E7%94%A8%E6%A8%A1%E5%9E%8B%E7%9B%B8%E5%85%B3
   sd图片是否保存到生图端: true   #是否将生成的图片保存在webui的outputs里
   novel_ai画图: false
