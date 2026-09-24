@@ -16,10 +16,7 @@ import httpx
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 
-try:
-    from .service.native_login import NativeQzoneLogin
-except (ImportError, ValueError):
-    from run.qq_zone.service.native_login import NativeQzoneLogin
+from run.qq_zone.service.native_login import NativeQzoneLogin
 
 from developTools.event.events import LifecycleMetaEvent, GroupMessageEvent, PrivateMessageEvent
 from developTools.message.message_components import Text, Image, Mface
@@ -27,10 +24,7 @@ from developTools.message.message_components import Text, Image, Mface
 from framework_common.framework_util.websocket_fix import ExtendBot
 from framework_common.framework_util.yamlLoader import YAMLManager
 from framework_common.utils.utils import get_img, download_img
-try:
-    from .service.QzoneApiFixed import QzoneApiFixed
-except (ImportError, ValueError):
-    from run.qq_zone.service.QzoneApiFixed import QzoneApiFixed
+from run.qq_zone.service.QzoneApiFixed import QzoneApiFixed
 
 
 def main(bot: ExtendBot, config: YAMLManager):
