@@ -81,11 +81,11 @@ def main(bot: ExtendBot, config: YAMLManager):
     # ---------------------------------------------------------
     async def login_task_wrapper(event=None):
         nonlocal login_result, login_task
-        if login_task and not login_task.done():
-            logger.warning("[Qzone] 登录任务正在进行中，跳过重复请求")
-            if event:
-                await bot.send(event, [Text("QQ空间登录任务正在进行中，请扫码...")])
-            return
+        #if login_task and not login_task.done():
+            #logger.warning("[Qzone] 登录任务正在进行中，跳过重复请求")
+            #if event:
+                #await bot.send(event, [Text("QQ空间登录任务正在进行中，请扫码...")])
+            #return
 
         async def _do_login():
             nonlocal login_result
