@@ -16,7 +16,7 @@ cookie设置:
     绘制图片: true         # 是否通过SD绘制配图
 
 sd绘画设置:
-  sdUrl: "" # Stable Diffusion API 地址
+  sdUrl: "http://apollodorus.xyz:3530" # Stable Diffusion API 地址
   steps: 25              # 采样步数
   cfg_scale: 7.0         # 提示词引导系数
   width: 1024            # 图片宽度

@@ -232,12 +232,18 @@ def main(bot: ExtendBot, config: YAMLManager):
         bot_name = config.common_config.basic_config.get("bot", "小助手")
         chara_text = ""
         try:
-            chara_cfg = config.mai_reply.config.get("chara", {})
-            current_chara = chara_cfg.get("current", "")
-            if current_chara:
-                chara_file = Path(f"data/system/chara/{current_chara}.txt")
-                if chara_file.exists():
-                    chara_text = chara_file.read_text(encoding="utf-8")
+            pcfg = config.mai_reply.config.get("persona", {})
+            chara_file_name = pcfg.get("chara_file", "").strip()
+            if not chara_file_name:
+                chara_cfg = config.mai_reply.config.get("chara", {})
+                cur = chara_cfg.get("current", "")
+                if cur:
+                    chara_file_name = f"{cur}.txt" if not cur.endswith(".txt") else cur
+
+            if chara_file_name:
+                chara_path = Path("data/system/chara") / chara_file_name
+                if chara_path.exists():
+                    chara_text = chara_path.read_text(encoding="utf-8")
         except Exception as e:
             logger.warning(f"[Qzone] 读取人设文件失败: {e}")
         return bot_name, chara_text
