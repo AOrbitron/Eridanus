@@ -644,6 +644,7 @@ def main(bot: ExtendBot, config: YAMLManager):
     morning_theme_pool = getattr(qzone_themes, 'MORNING_THEME_POOL', [])
     night_theme_pool = getattr(qzone_themes, 'NIGHT_THEME_POOL', [])
     daily_theme_pool = getattr(qzone_themes, 'DAILY_VTUBER_THEMES', [])
+    theme_mutation_directives = getattr(qzone_themes, 'THEME_MUTATION_DIRECTIVES', [])
 
     def pick_next_theme(task_name: str) -> dict:
         if task_name == "早安":
@@ -674,11 +675,27 @@ def main(bot: ExtendBot, config: YAMLManager):
         current_global_mem = mai_context.get_global_memory() if mai_context else ""
 
         # 智能挑选主题与去重约束
+        # 智能挑选基础主题种子（Seed）与去重约束
         theme_obj = pick_next_theme(task_name)
-        selected_theme = theme_obj["theme"]
+        base_theme = theme_obj["theme"]
         sd_theme_hint = theme_obj["sd_hint"]
         selected_theme_id = theme_obj["id"]
         selected_elements = theme_obj.get("elements", [])
+
+        # 变体衍生机制：将已选主题作为种子(Seed)，每次按概率引入变体引导词发散演绎全新切面（发挥LLM创造力）
+        mutation_hint = ""
+        if theme_mutation_directives and random.random() < 0.60:
+            directive_obj = random.choice(theme_mutation_directives)
+            m_type = directive_obj.get("type", "生活切面发散")
+            m_text = directive_obj.get("directive", "")
+            mutation_hint = (
+                f"\n【动态变体激发（发挥创造力）】（类型：{m_type}）：\n"
+                f"{m_text}\n"
+                f"请以此种子切面为灵感跳板，自由发散演绎出属于你的意料之外的真实小插曲或全新变体，不必死板拘泥于种子原话！"
+            )
+            logger.info(f"[Qzone 变体激发] {task_name} 触发变体衍生: [{m_type}]，基底种子: {base_theme[:30]}")
+        else:
+            logger.info(f"[Qzone 主题选择] {task_name} 采用原始种子切面: {base_theme[:30]}")
 
         _, recent_elements, recent_posts = get_recent_history_constraints(task_name, limit=3)
 
@@ -698,7 +715,7 @@ def main(bot: ExtendBot, config: YAMLManager):
             f"风格完全参考 Twitter/X 真实可爱的生活系 Vtuber（参考 @moonjelly0、@jellyhoshiumi 的生活碎念与手账日记感）：\n"
             f"【核心禁令】：严格杜绝千篇一律的“被窝好软”、“被子封印我”、“赖床”、“钻进被窝”这种套话！严禁让读者感觉每天都在重复过同一天！\n"
             f"{negative_constraints}"
-            f"【本次新的一天微小灵感切入点】：{selected_theme}。{fest_tip}\n"
+            f"【本次新的一天微小灵感种子（Seed）】：{base_theme}。{fest_tip}{mutation_hint}\n"
             f"1. 极简、微小生活碎片感、少女心情日记，像真人女孩子随手敲出来的生活小确幸或真实日常。\n"
             f"2. 口气自然灵动，带一点女孩子的真实俏皮与微小心情，可以偶尔带一两个波浪号~或可爱标点，杜绝AI总结腔。\n"
             f"3. 严格限制字数在 15 ~ 45 字之间，点到即止，短小精炼。\n"
@@ -836,10 +853,25 @@ def main(bot: ExtendBot, config: YAMLManager):
                 logger.debug(f"[Qzone Vtuber日常] 提取群聊灵感异常: {e}")
 
         # 接入多样化日常灵感与少女心情日记库（避免近期重复）
+        # 接入多样化日常灵感与少女心情日记库（避免近期重复），以种子(Seed)驱动发散
         daily_theme_obj = pick_next_theme("日常")
         chosen_cat = daily_theme_obj.get("id", "daily_mood")
         chosen_style = daily_theme_obj.get("theme", "分享少女日常生活中的真实可爱碎片")
         chosen_sd_hint = daily_theme_obj.get("sd_hint", "casual daily, relaxed posture, cute expression, high quality")
+
+        # 日常变体衍生引导词（按 55% 概率触发深度发散，避免特定小趣事话题反复雷同）
+        daily_mutation_hint = ""
+        if theme_mutation_directives and random.random() < 0.55:
+            directive_obj = random.choice(theme_mutation_directives)
+            d_type = directive_obj.get("type", "生活发散")
+            d_text = directive_obj.get("directive", "")
+            daily_mutation_hint = (
+                f"\n【变体衍生发散】（{d_type}）：{d_text}\n"
+                f"请以该种子切面为灵感发散开去，创作出真实生动、具有唯一性的生活小记录，不要死板复现原话题！"
+            )
+            logger.info(f"[Qzone Vtuber日常] 触发变体衍生: [{d_type}]，基底种子: {chosen_style[:30]}")
+        else:
+            logger.info(f"[Qzone Vtuber日常] 采用基础种子: {chosen_style[:30]}")
 
         sys_vtuber_prompt = (
             f"你是{bot_name}。\n"
@@ -847,7 +879,7 @@ def main(bot: ExtendBot, config: YAMLManager):
             f"你现在要在自己的社交主页/QQ空间发一条简短动态。\n"
             f"当前时间：{time_context}\n"
             f"风格完全参考 Twitter/X 真实可爱的生活系 Vtuber（如 @moonjelly0、@jellyhoshiumi）：\n"
-            f"本次动态风格偏向：【{chosen_style}】。\n"
+            f"本次动态微小切入种子（Seed）：【{chosen_style}】。{daily_mutation_hint}\n"
             f"要求：\n"
             f"1. 像真人女孩随手敲出来的文字，体现出当前时段（{time_context}）的鲜活生活感，严禁AI翻译腔、严禁报幕式套话。\n"
             f"2. 保持真实呼吸感，偶尔用一两个波浪号或日常标点，不要堆砌废话。\n"
