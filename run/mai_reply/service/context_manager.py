@@ -476,10 +476,36 @@ class ContextManager:
 
     def get_global_memory(self) -> str:
         raw = self._imp_get(self._global_memory_key())
-        return raw if isinstance(raw, str) else ""
+        if not raw:
+            return ""
+        try:
+            data = json.loads(raw)
+            if isinstance(data, list):
+                return "\n".join(data)
+        except Exception:
+            pass
+        return str(raw)
 
-    def update_global_memory(self, content: str) -> None:
-        self._imp_set(self._global_memory_key(), content)
+    def update_global_memory(self, content: str, max_items: int = 5) -> None:
+        if not content or not content.strip():
+            return
+        raw = self._imp_get(self._global_memory_key())
+        history_items = []
+        if raw:
+            try:
+                parsed = json.loads(raw)
+                if isinstance(parsed, list):
+                    history_items = parsed
+                elif isinstance(parsed, str):
+                    history_items = [parsed]
+            except Exception:
+                history_items = [str(raw)]
+        clean_item = content.strip()
+        if clean_item not in history_items:
+            history_items.append(clean_item)
+        if len(history_items) > max_items:
+            history_items = history_items[-max_items:]
+        self._imp_set(self._global_memory_key(), json.dumps(history_items, ensure_ascii=False))
 
     def clear_global_memory(self) -> None:
         self._imp_delete(self._global_memory_key())

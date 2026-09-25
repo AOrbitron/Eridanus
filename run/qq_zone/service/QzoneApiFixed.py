@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 import base64
 import json
 from typing import Optional, Dict, Any
@@ -163,7 +163,8 @@ class QzoneApiFixed(QzoneApi):
         cookies: Any,
         g_tk: Any,
         fid: str,
-        comment_id: Optional[str] = None
+        comment_id: Optional[str] = None,
+        comment_name: Optional[str] = None
     ) -> Optional[Dict[str, Any]]:
         """
         发送说说评论或楼中楼回复
@@ -171,13 +172,21 @@ class QzoneApiFixed(QzoneApi):
         - uin: 评论者QQ (被回复者QQ)
         - fid: 说说 tid
         - comment_id: 如果是楼中楼回复，传入被回复的那条评论ID (cid)
+        - comment_name: 被回复人的昵称，用于前缀艾特与正文格式化
         """
         try:
             _, cookies_str = format_cookies(cookies)
             
             # QQ空间接口标准：topicId 必须是 hostUin_tid 形式
-            topic_id = f"{target_qq}_{fid}" if "_" not in str(fid) else str(fid)
+            clean_fid = str(fid).split("_")[-1] if "_" in str(fid) else str(fid)
+            topic_id = f"{target_qq}_{clean_fid}"
             
+            final_content = content
+            if comment_id and comment_name:
+                at_prefix = f"@{comment_name} "
+                if not final_content.startswith("@"):
+                    final_content = at_prefix + final_content
+
             params = {
                 "uin": target_qq,          # 当前登录操作者QQ
                 "hostUin": target_qq,      # 说说所属博主QQ
@@ -190,16 +199,19 @@ class QzoneApiFixed(QzoneApi):
                 "platformid": 50,
                 "format": "fs",
                 "ref": "feeds",
-                "content": content,
+                "content": final_content,
                 "qzreferrer": f"https://user.qzone.qq.com/{target_qq}"
             }
 
-            # 如果指定了 comment_id，则是楼中楼回复 (回复具体某条评论)
+            # 楼中楼定向回复必须携带的字段
             if comment_id:
-                params["comment_uin"] = uin
-                params["comment_id"] = comment_id
+                params["comment_uin"] = str(uin)
+                params["comment_id"] = str(comment_id)
+                params["t1_source"] = 1
+                params["t1_uin"] = target_qq
+                params["t1_tid"] = clean_fid
             elif uin and int(uin) != target_qq:
-                params["comment_uin"] = uin
+                params["comment_uin"] = str(uin)
 
             url = f"{self.send_comments_url}?g_tk={g_tk}"
             return await api_base_fixed._make_post_request(url=url, data=params, cookies=cookies_str)

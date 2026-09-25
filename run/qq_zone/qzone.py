@@ -559,9 +559,13 @@ def main(bot: ExtendBot, config: YAMLManager):
             dynamic_scene_tags = theme_desc
 
         prompt_elements = []
+        # 注入高质量与美学通用标签
+        quality_anchor = "rating:general, best quality, very aesthetic, absurdres"
+        prompt_elements.append(quality_anchor)
+
         if base_anchor:
             prompt_elements.append(base_anchor)
-        cloth_keywords = ["pajamas", "dress", "clothes", "hoodie", "shirt", "skirt", "jacket", "outfit", "robe"]
+        cloth_keywords = ["pajamas", "dress", "clothes", "hoodie", "shirt", "skirt", "jacket", "outfit", "robe", "apron", "sweater", "cardigan"]
         if default_outfit and not any(ck in dynamic_scene_tags.lower() for ck in cloth_keywords):
             prompt_elements.append(default_outfit)
         if dynamic_scene_tags:
@@ -583,24 +587,46 @@ def main(bot: ExtendBot, config: YAMLManager):
 
         current_global_mem = mai_context.get_global_memory() if mai_context else ""
 
-        desc_task = "刚醒来揉揉眼睛、赖会儿床或准备开启一天" if task_name == "早安" else "洗完澡钻进被窝、放松困倦准备睡觉"
+        morning_themes = [
+            "厨房早餐微小日常：煎蛋边缘微微焦脆、烤焦的面包片涂草莓果酱、或者冲泡热可可/抹茶牛奶打出绵密奶泡",
+            "晨间清爽感官：推开窗户微凉的晨风吹醒额头、窗台绿植叶尖滚动的露珠、空气里清新的早晨味道",
+            "出门或梳妆小碎念：在镜子前挑选发夹、和头顶翘起来倔强的呆毛搏斗、或者纠结今天穿哪件柔软的大毛衣",
+            "晨光中的片刻放空：坐在窗边捧着热乎乎的马克杯看清晨阳光一点点漫进房间，耳机里单曲循环喜欢的旋律",
+            "元气与今日微小期待：今天打算去书店/文具店淘新贴纸、顺路买刚出炉的黄油可颂、或者期待晚上回家追番",
+        ]
+        night_themes = [
+            "白日可爱见闻偶遇：路过花坛时和一只圆滚滚的野猫对视了三秒、面包房门口闻到刚烤好的黄油香、或者下班/放学时看见粉紫色的晚霞",
+            "便利店夜游觅食：深夜便利店暖黄色的灯光、买到了最后一串热腾腾的关东煮魔芋丝、或者挑了期间限定的布丁",
+            "少女桌面手账与心爱之物：窝在暖光台灯下拆盲盒开到了隐藏款、在手账本上贴满亮晶晶的贴纸和随笔涂鸦",
+            "真实可爱的小牢骚与小心情：小脚趾不小心踢到桌脚委屈哼唧、手机快没电了趴在床边充着电看、感叹时间过得太快今天还有想玩的事情",
+            "深夜神游与心满意足：抱着心爱的大抱枕坐在地毯上发呆神游、房间里点着淡淡的香薰、安安静静享受只属于自己的放松时光",
+        ]
+
+        if task_name == "早安":
+            selected_theme = random.choice(morning_themes)
+            sd_theme_hint = "morning, sunrise, soft sunlight, holding warm mug, kitchen or window, casual cozy clothes, cute expression"
+        else:
+            selected_theme = random.choice(night_themes)
+            sd_theme_hint = "night, warm ambient light, cozy room, relaxed sitting posture, desk or armchair, cute gentle expression"
+
         fest_tip = f"（今天是{festival_or_term}，如有兴趣可轻描淡写提一句）" if festival_or_term else ""
 
         sys_prompt = (
             f"你是{bot_name}。\n"
             f"你的人设信息如下：\n{chara_text}\n\n"
             f"你现在要发一条 QQ 空间动态（{task_name}的说说）。\n"
-            f"风格完全参考 Twitter/X 真实可爱的生活系 Vtuber（如 @moonjelly0、@jellyhoshiumi）：\n"
-            f"1. 极简、生活碎片感、像真人随手一发的小碎念，严禁像AI一样总结一整天的生活或写大段套话。\n"
-            f"2. 口气真实自然，带有一点女孩子的慵懒或可爱，可以偶尔用一两个波浪号~或日常小表情。\n"
-            f"3. 状态：{desc_task}。{fest_tip}\n"
-            f"4. 严格限制字数在 15 ~ 45 字之间，点到即止，不要啰嗦长篇大论。\n"
-            f"5. 直接输出说说正文，严禁携带任何多余解释、引号或格式。"
+            f"风格完全参考 Twitter/X 真实可爱的生活系 Vtuber（参考 @moonjelly0、@jellyhoshiumi 的生活碎念与手账日记感）：\n"
+            f"【核心禁令】：严格杜绝千篇一律的“被窝好软”、“被子封印我”、“赖床”、“钻进被窝”这种套话！\n"
+            f"【本次微小灵感切入点】：{selected_theme}。{fest_tip}\n"
+            f"1. 极简、微小生活碎片感、少女心情日记，像真人女孩子随手敲出来的生活小确幸或真实日常。\n"
+            f"2. 口气自然灵动，带一点女孩子的真实俏皮与微小心情，可以偶尔带一两个波浪号~或可爱标点，杜绝AI总结腔。\n"
+            f"3. 严格限制字数在 15 ~ 45 字之间，点到即止，短小精炼。\n"
+            f"4. 直接输出说说正文，严禁携带任何多余解释、引号或格式。"
         )
 
         user_prompt = f"请写一条你的{task_name}说说。"
         if current_global_mem:
-            user_prompt += f" 你最近的日常片段有：{current_global_mem}"
+            user_prompt += f" 你最近的生活碎片记录（可自然呼应）：\n{current_global_mem}"
 
         post_content = ""
         try:
@@ -615,7 +641,7 @@ def main(bot: ExtendBot, config: YAMLManager):
             logger.error(f"[Qzone] LLM 生成说说文案异常: {e}")
 
         if not post_content:
-            post_content = f"{task_name}！新的一天也要开开心心呀~" if task_name == "早安" else f"{task_name}！今天辛苦啦，早点休息，做个好梦~"
+            post_content = f"{task_name}！窗台上的阳光刚刚好，今天也要打起精神呀~" if task_name == "早安" else f"{task_name}！深夜的便利店热牛奶好治愈，大家也都早点休息做个好梦呀~"
 
         logger.info(f"[Qzone] 生成说说内容: {post_content}")
 
@@ -623,7 +649,7 @@ def main(bot: ExtendBot, config: YAMLManager):
         if mai_context and mai_llm:
             try:
                 mem_prompt = (
-                    f"根据这条Bot动态内容，提炼成一句话极简日常片段（严格在25字以内，杜绝总结/报幕，如'钻进被窝犯困准备睡觉'），若无实质日常则回复空：\n"
+                    f"根据这条Bot动态内容，提炼成一句话极简日常事实（严格在25字以内，杜绝'今天也'等套话，客观记录少女日常行为，如'烤吐司涂果酱吃了美味早餐'或'下班路上偶遇可爱的胖橘猫'），若无实质日常则回复空：\n"
                     f"动态：{post_content}\n"
                     f"只输出提炼后的极简短句：\n"
                 )
@@ -642,7 +668,7 @@ def main(bot: ExtendBot, config: YAMLManager):
         # 判断是否需要 SD 绘图
         pic_paths = []
         if task_info.get("绘制图片", True):
-            theme_desc = "morning, soft morning light, cozy bedroom, natural pose, cute sleepy face" if task_name == "早安" else "night, warm ambient lighting, cozy room, relaxed, soft smile"
+            theme_desc = sd_theme_hint
             sd_prompt = await build_sd_prompt_for_post(post_content, theme_desc)
             img_file = await call_sd_generate(sd_prompt)
             if img_file:
@@ -854,7 +880,7 @@ def main(bot: ExtendBot, config: YAMLManager):
             comments = msg.get("commentlist") or []
 
             for c in comments:
-                cid = c.get("id", "")
+                cid = str(c.get("tid") or c.get("id") or "").strip()
                 comment_uid = c.get("uin", 0)
                 comment_name = c.get("name", "空间好友")
                 comment_content = (c.get("content", "") or "").strip()
@@ -941,7 +967,8 @@ def main(bot: ExtendBot, config: YAMLManager):
                         cookies=cookies_str,
                         g_tk=g_tk,
                         fid=tid,
-                        comment_id=str(cid) if cid else None
+                        comment_id=str(cid) if cid else None,
+                        comment_name=comment_name
                     )
                     logger.info(f"[Qzone 评论回复结果]: {res}")
                     if check_resp_for_expired(res):
