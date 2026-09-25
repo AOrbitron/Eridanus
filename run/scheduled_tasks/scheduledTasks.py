@@ -90,10 +90,7 @@ def main(bot: ExtendBot, config):
             return
         _lifecycle_started = True
         await sleep(3)
-        await bot.send_friend_message(
-            config.common_config.basic_config["master"]["id"],
-            "初次使用请发送\"/clear\"或\"/clearall\"以初始化对话功能"
-        )
+
         await _start_scheduler()
 
     # ──────────────────────────────────────────────────────────
