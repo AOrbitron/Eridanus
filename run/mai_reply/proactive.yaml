@@ -1,11 +1,15 @@
-enable: false
+﻿enable: false
 permission_level: 1
 max_idle_days: 7
-base_probability: 2
-preferred_period_probability: 12
-adaptive_probability: 25
-scan_interval_minutes: 60
-interval_minutes: 30
+min_silence_hours: 3            # 用户上次聊天后至少静默多少小时才主动找，避免刚聊完就打扰
+cooldown_hours: 12              # 对同一个用户两次主动发消息之间的冷却间隔（小时）
+base_probability: 5             # 基础触发概率（%）
+preferred_period_probability: 25 # 在用户常聊时段/设定时段的概率（%）
+adaptive_probability: 40        # 契合度极高时的概率（%）
+scan_interval_minutes: 30       # 巡检循环间隔（分钟）
+interval_minutes: 30            # 兼容旧字段
+enable_search: true             # 是否在关怀时支持联网搜索（如天气、资讯）
+enable_tts: true                # 是否允许主动消息发送语音
 periods:
   morning: [7, 10]
   after_work: [17, 20]

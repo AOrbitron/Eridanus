@@ -30,6 +30,7 @@ import io
 import re
 import uuid
 from framework_common.database_util.User import get_users_with_permission_above
+from run.mai_reply.service.proactive_service import ProactiveService
 from run.mai_reply.service.proactive import build_proactive_prompt, should_proactively_message
 
 from PIL import Image as PILImage
@@ -170,9 +171,7 @@ def main(bot: ExtendBot, config: YAMLManager):
         return
     engine = ReplyEngine(config)
     trigger = TriggerChecker(config, engine.context, engine.emotion)
-    proactive_cfg = getattr(config.mai_reply, "proactive", {})
-    if not isinstance(proactive_cfg, dict):
-        proactive_cfg = config.mai_reply.config.get("proactive", {})
+    proactive_service = ProactiveService(engine)
     proactive_running = False
 
     async def proactive_loop():
@@ -182,41 +181,17 @@ def main(bot: ExtendBot, config: YAMLManager):
         proactive_running = True
         try:
             while True:
-                cfg = proactive_cfg
+                cfg = proactive_service.get_proactive_config()
                 if cfg.get("enable", False):
-                    hour = __import__("datetime").datetime.now().hour
-                    users = await get_users_with_permission_above(int(cfg.get("permission_level", 1)) - 1)
-                    for uid in users:
-                        history = engine.context.get_session_history(None, uid)
-                        if should_proactively_message(history, hour, cfg):
-                            prompt = build_proactive_prompt(engine.context, uid, "用户通常空闲的时段", int(cfg.get("max_idle_days", 7)))
-                            if prompt:
-                                event = PrivateMessageEvent(
-                                    post_type="message",
-                                    sub_type="friend",
-                                    user_id=uid,
-                                    message_type="private",
-                                    message_id=0,
-                                    message=[],
-                                    raw_message="",
-                                    font=0,
-                                    sender=Sender(
-                                        user_id=uid,
-                                        nickname="",
-                                    ),
-                                    to_me=False,
-                                    group_id=None,
-                                )
-                                await engine.handle(bot, event, prompt)
-                                await asyncio.sleep(6)
-                await asyncio.sleep(int(cfg.get("interval_minutes", 30)) * 60)
+                    await proactive_service.run_scan_round(bot)
+                interval_min = int(cfg.get("scan_interval_minutes") or cfg.get("interval_minutes", 30))
+                await asyncio.sleep(max(interval_min, 1) * 60)
         except asyncio.CancelledError:
             raise
         except Exception as exc:
             bot.logger.error(f"MaiReply proactive loop stopped: {exc}", exc_info=True)
         finally:
             proactive_running = False
-
     proactive_task = None
 
     @bot.on(LifecycleMetaEvent)
