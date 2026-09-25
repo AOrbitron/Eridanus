@@ -363,6 +363,9 @@ def main(bot: ExtendBot, config: YAMLManager):
             "Accept-Encoding": "identity",
             "Content-Type": "application/json",
         }
+        apikey = str(sd_cfg.get("apikey", "") or "").strip()
+        if apikey:
+            headers["Authorization"] = f"Bearer {apikey}"
         timeout_val = int(sd_cfg.get("timeout", 120))
 
         try:
@@ -818,6 +821,50 @@ def main(bot: ExtendBot, config: YAMLManager):
     # ---------------------------------------------------------
     # 空间好友评论自动拟人化互动回复
     # ---------------------------------------------------------
+    def is_comment_too_old(comment: dict, max_hours: int = 24) -> bool:
+        """判断评论是否超过指定小时数（默认24小时前），超过则跳过不回复"""
+        import time
+        from datetime import datetime
+        now = time.time()
+        max_seconds = max_hours * 3600
+
+        raw_ts = comment.get("create_time") or comment.get("createTime") or comment.get("time")
+        if raw_ts:
+            try:
+                ts = float(raw_ts)
+                if ts > 1e11:
+                    ts /= 1000.0
+                if (now - ts) > max_seconds:
+                    return True
+                if (now - ts) >= 0:
+                    return False
+            except Exception:
+                pass
+
+        time_str = str(comment.get("createTime2", "")).strip()
+        if time_str:
+            if any(k in time_str for k in ["前天", "天前", "月前", "年前"]):
+                return True
+            now_year = datetime.now().year
+            for y in range(2000, now_year):
+                if str(y) in time_str:
+                    return True
+            try:
+                now_dt = datetime.now()
+                parts = time_str.split("-")
+                if len(parts) == 3:
+                    dt = datetime.strptime(time_str, "%Y-%m-%d %H:%M")
+                    if (now_dt - dt).total_seconds() > max_seconds:
+                        return True
+                elif len(parts) == 2:
+                    dt = datetime.strptime(f"{now_year}-{time_str}", "%Y-%m-%d %H:%M")
+                    if (now_dt - dt).total_seconds() > max_seconds:
+                        return True
+            except Exception:
+                pass
+
+        return False
+
     replied_comments_file = Path("data/qzone_replied_comments.json")
     replied_comments_file.parent.mkdir(parents=True, exist_ok=True)
 
@@ -892,6 +939,13 @@ def main(bot: ExtendBot, config: YAMLManager):
                 if unique_key in replied_comment_ids:
                     continue
 
+                # 过滤超过24小时的古早评论，直接记录已处理，避免反复打扰
+                if is_comment_too_old(c, max_hours=24):
+                    logger.debug(f"[Qzone 评论互动] 评论时间超过24小时(古早评论)，自动跳过: {comment_name} -> {comment_content[:20]}")
+                    replied_comment_ids.add(unique_key)
+                    save_replied_comments(replied_comment_ids)
+                    continue
+
                 # 过滤语音消息或空消息，避免对非文字内容回复
                 if not comment_content or comment_content in ["［语音］", "[语音]", "[图片]", "［图片］"]:
                     replied_comment_ids.add(unique_key)
@@ -936,10 +990,12 @@ def main(bot: ExtendBot, config: YAMLManager):
                     sys_reply_prompt += f"你们近期的对话上下文片段：\n{recent_chat_snippet}\n"
 
                 sys_reply_prompt += (
-                    f"要求：\n"
+                    f"要求与人际分寸感规范：\n"
                     f"1. 结合你的说说主题和对方的评论，自然、亲切地像在空间好友动态下互动一样进行回复。\n"
-                    f"2. 若有对他的印象或聊天经历，自然流露熟络感，不要刻意背诵。\n"
-                    f"3. 长度控制在 15~60 字以内，轻松口语化，不要包含任何系统标记。"
+                    f"2. 【重要分寸感约束】：当前处于所有人可见的公开动态评论区！绝对不要表现得过度亲密、过度撒娇、暧昧或调情（不要叫'老公'、'宝贝'、'主人'或做亲昵身体接触描写等），以免其他用户吃醋或显得你到处和人调情！\n"
+                    f"3. 保持健康、自然、元气可爱的朋友/Vtuber博主互动边界感，风趣机智地回应或友善吐槽即可。\n"
+                    f"4. 若有对他的印象或聊天经历，自然流露熟络感，不要刻意背诵。\n"
+                    f"5. 长度严格控制在 15~50 字以内，轻松口语化，绝对不要包含任何系统标记或多余引号，不要自己在回复开头写@谁（系统会自动添加标准艾特标签）。"
                 )
 
                 reply_text = ""

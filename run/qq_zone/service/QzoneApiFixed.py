@@ -181,11 +181,19 @@ class QzoneApiFixed(QzoneApi):
             clean_fid = str(fid).split("_")[-1] if "_" in str(fid) else str(fid)
             topic_id = f"{target_qq}_{clean_fid}"
             
-            final_content = content
-            if comment_id and comment_name:
-                at_prefix = f"@{comment_name} "
-                if not final_content.startswith("@"):
-                    final_content = at_prefix + final_content
+            # 清理正文可能已自带的普通 @昵称 前缀，替换为 QQ空间标准 UBB @ 标签
+            final_content = content.strip()
+            if comment_name and final_content.startswith(f"@{comment_name}"):
+                final_content = final_content[len(f"@{comment_name}"):].strip()
+            elif final_content.startswith("@"):
+                import re
+                final_content = re.sub(r"^@[^ ]+\s*", "", final_content).strip()
+
+            # QQ空间标准艾特语法格式：@{uin:QQ号,nick:昵称,who:1}
+            # 这种格式在网页端、手机QQ空间中能真正渲染成带链接的高亮艾特，并给被艾特者发送空间提醒
+            if uin and comment_name:
+                ubb_at = f"@{{uin:{uin},nick:{comment_name},who:1}} "
+                final_content = ubb_at + final_content
 
             params = {
                 "uin": target_qq,          # 当前登录操作者QQ
@@ -203,7 +211,7 @@ class QzoneApiFixed(QzoneApi):
                 "qzreferrer": f"https://user.qzone.qq.com/{target_qq}"
             }
 
-            # 楼中楼定向回复必须携带的字段
+            # 楼中楼/定向二级回复必须携带的字段
             if comment_id:
                 params["comment_uin"] = str(uin)
                 params["comment_id"] = str(comment_id)
