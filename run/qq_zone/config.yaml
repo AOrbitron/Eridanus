@@ -1,4 +1,4 @@
-# QQ空间插件配置
+﻿# QQ空间插件配置
 cookie设置:
   保活: true               # 是否开启保活探测
   保活间隔_秒: 1800        # 保活探测间隔（建议>=1800秒，温和低频，防止风控）
@@ -25,8 +25,8 @@ vtuber日常互动:
 
 sd绘画设置:
   sdUrl: "" # Stable Diffusion API 地址
-  steps: 25              # 采样步数
-  cfg_scale: 7.0         # 提示词引导系数
+  steps: 28              # 采样步数
+  cfg_scale: 7.0         # 提示词引导系数(对齐SDXL)
   width: 1024            # 图片宽度
   height: 1024           # 图片高度
   timeout: 120           # 绘画接口超时时间(秒)

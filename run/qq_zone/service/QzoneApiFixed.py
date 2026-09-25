@@ -4,7 +4,7 @@ import json
 from typing import Optional, Dict, Any
 
 from qzone_api import QzoneApi
-from qzone_api.api.api_parms import get_feeds, get_self_zone, get_send_comment
+from qzone_api.api.api_parms import get_feeds, get_self_zone
 
 from run.qq_zone.service.QzoneResponseParser import QzoneResponseParser
 from loguru import logger
@@ -74,7 +74,6 @@ class QzoneApiFixed(QzoneApi):
 
         skey = cookies_dict.get('skey', '')
         p_skey = cookies_dict.get('p_skey', '')
-        # 如果 cookies_dict 中包含 p_uin 就使用它，否则使用 target_qq
         p_uin = cookies_dict.get('p_uin') or f"o{target_qq}"
 
         upload_url = f'https://up.qzone.qq.com/cgi-bin/upload/cgi_upload_image?g_tk={g_tk}'
@@ -156,12 +155,54 @@ class QzoneApiFixed(QzoneApi):
             logger.error(f'获取说说列表失败: {e}')
             return None
 
-    async def _send_comments(self, target_qq: int, uin: int, content: str, cookies: Any, g_tk: str, fid: str) -> Optional[Dict[str, Any]]:
+    async def _send_comments(
+        self,
+        target_qq: int,
+        uin: int,
+        content: str,
+        cookies: Any,
+        g_tk: Any,
+        fid: str,
+        comment_id: Optional[str] = None
+    ) -> Optional[Dict[str, Any]]:
+        """
+        发送说说评论或楼中楼回复
+        - target_qq: 发说说的博主QQ (hostUin)
+        - uin: 评论者QQ (被回复者QQ)
+        - fid: 说说 tid
+        - comment_id: 如果是楼中楼回复，传入被回复的那条评论ID (cid)
+        """
         try:
             _, cookies_str = format_cookies(cookies)
-            params = get_send_comment(target_qq, uin, content, fid)
-            url = f'{self.send_comments_url}?g_tk={g_tk}'
+            
+            # QQ空间接口标准：topicId 必须是 hostUin_tid 形式
+            topic_id = f"{target_qq}_{fid}" if "_" not in str(fid) else str(fid)
+            
+            params = {
+                "uin": target_qq,          # 当前登录操作者QQ
+                "hostUin": target_qq,      # 说说所属博主QQ
+                "feedsType": 100,
+                "inCharset": "utf-8",
+                "outCharset": "utf-8",
+                "topicId": topic_id,
+                "plat": "qzone",
+                "source": "ic",
+                "platformid": 50,
+                "format": "fs",
+                "ref": "feeds",
+                "content": content,
+                "qzreferrer": f"https://user.qzone.qq.com/{target_qq}"
+            }
+
+            # 如果指定了 comment_id，则是楼中楼回复 (回复具体某条评论)
+            if comment_id:
+                params["comment_uin"] = uin
+                params["comment_id"] = comment_id
+            elif uin and int(uin) != target_qq:
+                params["comment_uin"] = uin
+
+            url = f"{self.send_comments_url}?g_tk={g_tk}"
             return await api_base_fixed._make_post_request(url=url, data=params, cookies=cookies_str)
         except Exception as e:
-            logger.error(f'发送说说评论失败: {e}')
+            logger.error(f"发送说说评论失败: {e}")
             return None

@@ -27,6 +27,13 @@ from framework_common.utils.utils import get_img, download_img
 from run.qq_zone.service.QzoneApiFixed import QzoneApiFixed
 
 
+def calc_bkn(p_skey: str) -> int:
+    hash_val = 5381
+    for c in str(p_skey):
+        hash_val += (hash_val << 5) + ord(c)
+    return hash_val & 0x7FFFFFFF
+
+
 def main(bot: ExtendBot, config: YAMLManager):
     logger = bot.logger
     qzone_login = NativeQzoneLogin()
@@ -51,7 +58,7 @@ def main(bot: ExtendBot, config: YAMLManager):
         logger.warning(f"[Qzone] 加载 mai_reply 组件失败: {e}")
 
     # ---------------------------------------------------------
-    # 本地 Cookie 缓存管理
+    # 本地 Cookie 缓存管理与 OneBot 接口无感免密获取
     # ---------------------------------------------------------
     cookie_file = Path("data/qzone_cookie.json")
     cookie_file.parent.mkdir(parents=True, exist_ok=True)
@@ -73,26 +80,91 @@ def main(bot: ExtendBot, config: YAMLManager):
         except Exception as e:
             logger.error(f"[Qzone] 保存本地 Cookie 失败: {e}")
 
+    async def fetch_cookie_from_onebot() -> Optional[Dict[str, Any]]:
+        nonlocal login_result, cookie_invalid_notified
+        try:
+            call_api = getattr(bot, "_call_api", None) or getattr(bot, "call_api", None)
+            if not call_api:
+                logger.warning("[Qzone] bot 未暴露 _call_api 无法直接调用 OneBot 凭证接口")
+                return None
+
+            res = await call_api("get_cookies", {"domain": "qzone.qq.com"})
+            if not res:
+                return None
+
+            data = res.get("data", {}) if isinstance(res, dict) else {}
+            cookie_str = data.get("cookies", "") if isinstance(data, dict) else ""
+            if not cookie_str and isinstance(res, dict) and "cookies" in res:
+                cookie_str = res.get("cookies", "")
+
+            if not cookie_str:
+                logger.warning("[Qzone OneBot] 获取到的 cookies 为空")
+                return None
+
+            cookies_dict = {}
+            for item in cookie_str.split(";"):
+                if "=" in item:
+                    k, v = item.strip().split("=", 1)
+                    cookies_dict[k.strip()] = v.strip()
+
+            uin_str = cookies_dict.get("uin") or cookies_dict.get("p_uin") or ""
+            uin_clean = str(uin_str).replace("o", "").strip()
+            if not uin_clean:
+                bot_qq = getattr(bot, "uin", None) or getattr(bot, "qq", None) or config.common_config.basic_config.get("bot_qq")
+                if bot_qq:
+                    uin_clean = str(bot_qq).replace("o", "").strip()
+
+            p_skey = cookies_dict.get("p_skey") or cookies_dict.get("skey") or ""
+            bkn = calc_bkn(p_skey) if p_skey else 0
+
+            auth_data = {
+                "code": 0,
+                "msg": "success_from_onebot",
+                "qq": uin_clean,
+                "bkn": bkn,
+                "cookies": cookies_dict,
+                "raw_cookie_str": cookie_str,
+                "updated_at": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            }
+            login_result = auth_data
+            save_cookie_cache(auth_data)
+            cookie_invalid_notified = False
+            logger.info(f"[Qzone OneBot] 成功自动同步最新 QQ 空间凭证! QQ: {uin_clean}, bkn: {bkn}")
+            return auth_data
+        except Exception as e:
+            logger.warning(f"[Qzone OneBot] 调用 OneBot get_cookies 异常: {e}")
+            return None
+
     def check_resp_for_expired(resp: Any) -> bool:
         if not resp:
             return False
         resp_str = str(resp)
         expired_patterns = [
             "-3000",
-            "-100",
+            '"code": -3000',
+            '"code":-3000',
+            '"ret": -100',
+            '"ret":-100',
+            "'ret': -100'",
+            "'ret':-100",
             "need login",
             "请先登录空间",
             "登录失败，请重新登录",
             "登录超时",
             '"subcode":-4001',
+            '"subcode": -4001',
         ]
         return any(p in resp_str for p in expired_patterns)
 
     async def handle_cookie_expired(reason: str = "Cookie失效"):
         nonlocal login_result, cookie_invalid_notified
-        logger.warning(f"[Qzone] 凭证异常: {reason}")
+        logger.warning(f"[Qzone] 凭证异常: {reason}，尝试通过 OneBot 重新拉取...")
 
-        # 仅在非偶发失败或多次探测失败时温和提示，不立即物理删除文件，给本地恢复留出容错空间
+        fresh = await fetch_cookie_from_onebot()
+        if fresh:
+            logger.info("[Qzone] 通过 OneBot 成功刷新空间凭据，无需人工介入！")
+            return
+
         if not cookie_invalid_notified:
             cookie_invalid_notified = True
             logger.warning(f"[Qzone] 通知管理员: {reason}，需重新授权")
@@ -115,14 +187,17 @@ def main(bot: ExtendBot, config: YAMLManager):
     # ---------------------------------------------------------
     async def login_task_wrapper(event=None):
         nonlocal login_result, login_task
-        #if login_task and not login_task.done():
-            #logger.warning("[Qzone] 登录任务正在进行中，跳过重复请求")
-            #if event:
-                #await bot.send(event, [Text("QQ空间登录任务正在进行中，请扫码...")])
-            #return
 
         async def _do_login():
             nonlocal login_result
+            logger.info("[Qzone] 优先尝试通过 OneBot 静默获取空间 Cookie...")
+            ob_res = await fetch_cookie_from_onebot()
+            if ob_res:
+                succ_msg = [Text("✅【QQ空间】已成功通过协议免扫码直接拉取空间凭证！")]
+                if event:
+                    await bot.send(event, succ_msg)
+                return
+
             logger.info("[Qzone] 开始获取登录二维码并等待扫码...")
             master_id = config.common_config.basic_config.get("master", {}).get("id")
 
@@ -139,7 +214,6 @@ def main(bot: ExtendBot, config: YAMLManager):
                 return
 
             qrsig, qr_img_path = qr_info
-            # 发送二维码图片给触发者或管理员
             msg_chain = [Text("【QQ空间登录】请使用手机QQ扫描下方二维码完成空间授权登录（有效期约2分钟）："), Image(file=str(qr_img_path))]
             if event:
                 await bot.send(event, msg_chain)
@@ -182,6 +256,8 @@ def main(bot: ExtendBot, config: YAMLManager):
     async def send_to_qzone(content: Optional[str] = None, pic_paths: Optional[list] = None):
         nonlocal login_result
         if not login_result:
+            await fetch_cookie_from_onebot()
+        if not login_result:
             logger.warning("[Qzone] 尚未登录，尝试读取本地 Cookie...")
             login_result = load_cookie_cache()
             if not login_result:
@@ -221,27 +297,66 @@ def main(bot: ExtendBot, config: YAMLManager):
             )
 
         if check_resp_for_expired(res):
-            await handle_cookie_expired(f"发布动态失败，登录凭证失效({str(res)[:60]})")
+            fresh = await fetch_cookie_from_onebot()
+            if fresh:
+                logger.info("[Qzone] 发送说说捕获凭证过期，已通过 OneBot 重新刷新凭证并自动重试一次...")
+                target_qq = int(str(fresh.get("qq", "")).replace("o", ""))
+                cookies = fresh.get("cookies", {})
+                g_tk = fresh.get("bkn", "")
+                if pic_paths:
+                    res = await qzone._send_zone_with_pic(
+                        target_qq=target_qq,
+                        pic_path=pic_paths[0],
+                        content=content,
+                        cookies=cookies,
+                        g_tk=g_tk,
+                    )
+                else:
+                    cookies_str = "; ".join([f"{k}={v}" for k, v in cookies.items()])
+                    res = await qzone._send_zone(
+                        target_qq=target_qq,
+                        content=content,
+                        cookies=cookies_str,
+                        g_tk=g_tk,
+                    )
+            if check_resp_for_expired(res):
+                await handle_cookie_expired(f"发布动态失败，登录凭证失效({str(res)[:60]})")
         return res
-
     # ---------------------------------------------------------
-    # Stable Diffusion 绘画服务端调用
+    # Stable Diffusion 绘画服务端调用 (针对 SDXL 模型调优)
     # ---------------------------------------------------------
     async def call_sd_generate(prompt: str) -> Optional[str]:
         sd_cfg = config.qq_zone.config.get("sd绘画设置", {})
-        base_url = sd_cfg.get("sdUrl", "http://apollodorus.xyz:3530").rstrip("/")
+        base_url = sd_cfg.get("sdUrl", "http://apollodorus.xyz:3530")
+        if not base_url:
+            base_url = "http://apollodorus.xyz:3530"
+        base_url = base_url.rstrip("/")
         txt2img_url = f"{base_url}/sdapi/v1/txt2img"
+
+        steps = int(sd_cfg.get("steps", 28))
+        cfg_scale = float(sd_cfg.get("cfg_scale", 4.5))
+        width = int(sd_cfg.get("width", 1024))
+        height = int(sd_cfg.get("height", 1024))
+        sampler_name = sd_cfg.get("sampler_name", "Euler a")
+        scheduler = sd_cfg.get("scheduler", "Automatic")
+        negative_prompt = (
+            "blurry, lowres, error, film grain, scan artifacts, worst quality, bad quality, "
+            "jpeg artifacts, very displeasing, chromatic aberration, logo, dated, signature, "
+            "multiple views, gigantic breasts, nsfw"
+        )
 
         payload = {
             "prompt": prompt,
-            "negative_prompt": "lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry, nsfw",
-            "steps": int(sd_cfg.get("steps", 25)),
-            "cfg_scale": float(sd_cfg.get("cfg_scale", 7.0)),
-            "width": int(sd_cfg.get("width", 1024)),
-            "height": int(sd_cfg.get("height", 1024)),
-            "sampler_name": "Euler a",
+            "negative_prompt": negative_prompt,
+            "steps": steps,
+            "cfg_scale": cfg_scale,
+            "width": width,
+            "height": height,
+            "sampler_name": sampler_name,
+            "scheduler": scheduler,
             "batch_size": 1,
             "n_iter": 1,
+            "save_images": False,
         }
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -251,7 +366,7 @@ def main(bot: ExtendBot, config: YAMLManager):
         timeout_val = int(sd_cfg.get("timeout", 120))
 
         try:
-            logger.info(f"[Qzone SD] 请求生图: {txt2img_url}, prompt: {prompt[:60]}...")
+            logger.info(f"[Qzone SD] 请求生图: {txt2img_url}, prompt: {prompt[:80]}...")
             async with httpx.AsyncClient(timeout=timeout_val, headers=headers, trust_env=False) as client:
                 resp = await client.post(txt2img_url, json=payload)
                 if resp.status_code == 200:
@@ -319,12 +434,14 @@ def main(bot: ExtendBot, config: YAMLManager):
         return bot_name, chara_text
 
     # ---------------------------------------------------------
-    # 重做温和低频保活（防止风控，绝对杜绝循环后台扫码）
+    # 重做温和低频保活（结合 OneBot 静默刷新与空间状态探测）
     # ---------------------------------------------------------
     async def check_cookie_alive() -> bool:
         nonlocal login_result
         if not login_result:
-            login_result = load_cookie_cache()
+            await fetch_cookie_from_onebot()
+            if not login_result:
+                login_result = load_cookie_cache()
             if not login_result:
                 return False
 
@@ -342,6 +459,10 @@ def main(bot: ExtendBot, config: YAMLManager):
             if r and '"code":0' in str(r):
                 return True
             logger.warning(f"[Qzone 保活] 探测返回未包含 code:0: {str(r)[:120]}")
+            # 探测失效时直接调用 OneBot 刷新一次
+            fresh = await fetch_cookie_from_onebot()
+            if fresh:
+                return True
             return False
         except Exception as e:
             logger.error(f"[Qzone 保活] 探测异常: {e}")
@@ -371,7 +492,6 @@ def main(bot: ExtendBot, config: YAMLManager):
                         await login_task_wrapper()
             except Exception as e:
                 logger.error(f"[Qzone 保活] 监控循环异常: {e}")
-
     def get_chara_drawing_rules() -> dict:
         """获取人设卡中的绘图规则"""
         _, chara_text = get_bot_persona_info()
@@ -416,12 +536,12 @@ def main(bot: ExtendBot, config: YAMLManager):
                 prompt_generator = (
                     f"你是一名专业动漫 Stable Diffusion 提示词专家。角色是：{bot_name}。\n"
                     f"根据角色动态文案，仅提取【当前情绪与表情】+【当前动作/场景/日常服装变体】的纯英文 tags。\n"
-                    f"角色卡绘图规则参考：\n{full_rules_text if full_rules_text else '日常场景参考: sleepwear, in bed, cozy, sleepy. 视角表情: slight blush, upper body. 动作: sitting, casual clothes'}\n"
+                    f"角色卡绘图规则参考：\n{full_rules_text if full_rules_text else '日常场景参考: casual clothes, sitting on sofa, cozy room. 视角表情: slight blush, upper body'}\n"
                     f"当前主题建议：{theme_desc}\n"
                     f"当前动态文案：{post_text}\n\n"
                     f"要求：\n"
                     f"1. 绝对不要重复生成发色、发型、眼睛等基础面部特征设定（系统已全局保留）。\n"
-                    f"2. 仅输出情绪状态、服饰、动作和场景（如 sleepy, yawning, loose pajamas, messy bed, cozy room 或 holding boba tea, smiling, natural lighting 等）。\n"
+                    f"2. 仅输出情绪状态、服饰、动作和场景（如 casual clothes, messy room, sleepy, holding mug 或 loose oversized hoodie, soft smile 等）。\n"
                     f"3. 仅输出纯英文 tags，用逗号分隔，不要解释，不要输出任何中文。"
                 )
                 sd_tags = await mai_llm.chat(
@@ -430,7 +550,7 @@ def main(bot: ExtendBot, config: YAMLManager):
                 )
                 if sd_tags:
                     cleaned_tags = sd_tags.strip().replace("\n", ", ")
-                    cleaned_tags = re.sub(r'^[\"\'\]+|[\"\'\]+$', '', cleaned_tags)
+                    cleaned_tags = cleaned_tags.strip("\"'[] \n\r\t")
                     dynamic_scene_tags = cleaned_tags
         except Exception as e:
             logger.error(f"[Qzone] LLM 提取场景 tags 失败: {e}")
@@ -441,7 +561,8 @@ def main(bot: ExtendBot, config: YAMLManager):
         prompt_elements = []
         if base_anchor:
             prompt_elements.append(base_anchor)
-        if default_outfit and ("pajamas" not in dynamic_scene_tags and "dress" not in dynamic_scene_tags and "clothes" not in dynamic_scene_tags):
+        cloth_keywords = ["pajamas", "dress", "clothes", "hoodie", "shirt", "skirt", "jacket", "outfit", "robe"]
+        if default_outfit and not any(ck in dynamic_scene_tags.lower() for ck in cloth_keywords):
             prompt_elements.append(default_outfit)
         if dynamic_scene_tags:
             prompt_elements.append(dynamic_scene_tags)
@@ -462,7 +583,7 @@ def main(bot: ExtendBot, config: YAMLManager):
 
         current_global_mem = mai_context.get_global_memory() if mai_context else ""
 
-        desc_task = "准备起床开启新的一天，轻度迷糊或揉眼睛" if task_name == "早安" else "洗完澡准备钻进被窝睡觉，困倦放松"
+        desc_task = "刚醒来揉揉眼睛、赖会儿床或准备开启一天" if task_name == "早安" else "洗完澡钻进被窝、放松困倦准备睡觉"
         fest_tip = f"（今天是{festival_or_term}，如有兴趣可轻描淡写提一句）" if festival_or_term else ""
 
         sys_prompt = (
@@ -479,7 +600,7 @@ def main(bot: ExtendBot, config: YAMLManager):
 
         user_prompt = f"请写一条你的{task_name}说说。"
         if current_global_mem:
-            user_prompt += f" 你最近的日常记忆有：{current_global_mem}"
+            user_prompt += f" 你最近的日常片段有：{current_global_mem}"
 
         post_content = ""
         try:
@@ -489,6 +610,7 @@ def main(bot: ExtendBot, config: YAMLManager):
                     system_prompt=sys_prompt,
                 )
                 post_content = resp.strip() if resp else ""
+                post_content = post_content.strip("\"'[] \n\r\t")
         except Exception as e:
             logger.error(f"[Qzone] LLM 生成说说文案异常: {e}")
 
@@ -511,7 +633,7 @@ def main(bot: ExtendBot, config: YAMLManager):
                 )
                 if refined_mem and len(refined_mem.strip()) > 0:
                     clean_mem = refined_mem.strip().replace("\n", " ")[:30]
-                    clean_mem = re.sub(r'^[\"\'\]+|[\"\'\]+$', '', clean_mem).strip()
+                    clean_mem = clean_mem.strip("\"'[] \n\r\t")
                     mai_context.update_global_memory(f"[{datetime.datetime.now().strftime('%m-%d %H:%M')}] {clean_mem}")
                     logger.info(f"[Qzone 全局记忆] 录入极简日常: {clean_mem}")
             except Exception as e:
@@ -520,7 +642,7 @@ def main(bot: ExtendBot, config: YAMLManager):
         # 判断是否需要 SD 绘图
         pic_paths = []
         if task_info.get("绘制图片", True):
-            theme_desc = "morning, sunrise, window, warm sunlight, gentle smile" if task_name == "早安" else "night, bedroom, moonlight, pajamas, cozy, sleepy"
+            theme_desc = "morning, soft morning light, cozy bedroom, natural pose, cute sleepy face" if task_name == "早安" else "night, warm ambient lighting, cozy room, relaxed, soft smile"
             sd_prompt = await build_sd_prompt_for_post(post_content, theme_desc)
             img_file = await call_sd_generate(sd_prompt)
             if img_file:
@@ -532,7 +654,6 @@ def main(bot: ExtendBot, config: YAMLManager):
             logger.info(f"[Qzone] 发布动态完成: {res}")
         except Exception as e:
             logger.error(f"[Qzone] 发布动态异常: {e}")
-
     # ---------------------------------------------------------
     # Vtuber 风格活人感日常互动动态机制
     # ---------------------------------------------------------
@@ -574,11 +695,11 @@ def main(bot: ExtendBot, config: YAMLManager):
         bot_name, chara_text = get_bot_persona_info()
         current_global_mem = mai_context.get_global_memory() if mai_context else ""
 
-        # 提取群聊近期有趣片段或灵感
+        # 提取群聊近期有趣片段或灵感 (兼容 ctx:gwin:* 数据格式)
         group_snippet = ""
         if mai_context:
             try:
-                gkeys = mai_context._ctx_keys("group_window:*")
+                gkeys = mai_context._ctx_keys("group_window:*") or mai_context._ctx_keys("ctx:gwin:*")
                 if gkeys:
                     chosen_key = random.choice(gkeys)
                     raw = mai_context._ctx_get(chosen_key)
@@ -587,8 +708,8 @@ def main(bot: ExtendBot, config: YAMLManager):
                         if isinstance(w_list, list) and w_list:
                             lines = []
                             for it in w_list[-4:]:
-                                s_name = it.get("sender", {}).get("card") or it.get("sender", {}).get("nickname", "群友")
-                                text_msg = it.get("raw_message", "")
+                                s_name = it.get("sender", {}).get("card") or it.get("sender", {}).get("nickname") or it.get("sender", "群友")
+                                text_msg = it.get("raw_message") or it.get("text", "")
                                 if text_msg and len(text_msg) < 60:
                                     lines.append(f"{s_name}: {text_msg}")
                             if lines:
@@ -630,11 +751,12 @@ def main(bot: ExtendBot, config: YAMLManager):
                     system_prompt=sys_vtuber_prompt,
                 )
                 daily_content = resp.strip() if resp else ""
+                daily_content = daily_content.strip("\"'[] \n\r\t")
         except Exception as e:
             logger.error(f"[Qzone Vtuber日常] 生成动态失败: {e}")
 
         if not daily_content:
-            daily_content = "今天也是元气满满（但想摸鱼）的一天喵！大家都在干嘛呢？~"
+            daily_content = "今天也是慢吞吞晃过去的一天，大家都在干嘛呢？~"
 
         logger.info(f"[Qzone Vtuber日常] 生成内容: {daily_content}")
 
@@ -653,7 +775,7 @@ def main(bot: ExtendBot, config: YAMLManager):
             logger.info(f"[Qzone Vtuber日常] 发布动态完成: {res}")
             vtuber_post_count_today += 1
         except Exception as e:
-            logger.error(f"[Qzone Vtuber日常] 发送说说异常: {e}")
+            logger.error(f"[Qzone Vtuber日常] 发送异常: {e}")
 
     async def start_vtuber_daily_monitor():
         vcfg = config.qq_zone.config.get("vtuber日常互动", {})
@@ -667,7 +789,6 @@ def main(bot: ExtendBot, config: YAMLManager):
                 await vtuber_daily_task()
             except Exception as e:
                 logger.error(f"[Qzone Vtuber日常] 巡检异常: {e}")
-
     # ---------------------------------------------------------
     # 空间好友评论自动拟人化互动回复
     # ---------------------------------------------------------
@@ -684,7 +805,6 @@ def main(bot: ExtendBot, config: YAMLManager):
 
     def save_replied_comments(s: set):
         try:
-            # 最多保留最新 2000 条
             l = list(s)[-2000:]
             replied_comments_file.write_text(json.dumps(l, ensure_ascii=False, indent=2), encoding="utf-8")
         except Exception as e:
@@ -694,6 +814,8 @@ def main(bot: ExtendBot, config: YAMLManager):
 
     async def check_and_reply_comments():
         nonlocal login_result, replied_comment_ids
+        if not login_result:
+            await fetch_cookie_from_onebot()
         if not login_result:
             login_result = load_cookie_cache()
             if not login_result:
@@ -735,13 +857,19 @@ def main(bot: ExtendBot, config: YAMLManager):
                 cid = c.get("id", "")
                 comment_uid = c.get("uin", 0)
                 comment_name = c.get("name", "空间好友")
-                comment_content = c.get("content", "")
+                comment_content = (c.get("content", "") or "").strip()
 
                 # 排除自己发布的评论和已经回复过的评论
                 if int(comment_uid) == target_qq:
                     continue
                 unique_key = f"{tid}_{cid}"
                 if unique_key in replied_comment_ids:
+                    continue
+
+                # 过滤语音消息或空消息，避免对非文字内容回复
+                if not comment_content or comment_content in ["［语音］", "[语音]", "[图片]", "［图片］"]:
+                    replied_comment_ids.add(unique_key)
+                    save_replied_comments(replied_comment_ids)
                     continue
 
                 logger.info(f"[Qzone 评论互动] 发现新评论 来自: {comment_name}({comment_uid}) -> {comment_content}")
@@ -752,7 +880,6 @@ def main(bot: ExtendBot, config: YAMLManager):
                 if mai_context:
                     try:
                         user_impression = mai_context.get_impression(int(comment_uid))
-                        # 查找历史对话记录
                         pattern = f"*{comment_uid}*"
                         keys = mai_context._ctx_keys(pattern)
                         for k in keys:
@@ -797,13 +924,14 @@ def main(bot: ExtendBot, config: YAMLManager):
                             system_prompt=sys_reply_prompt,
                         )
                         reply_text = res.strip() if res else ""
+                        reply_text = reply_text.strip("\"'[] \n\r\t")
                 except Exception as e:
                     logger.error(f"[Qzone] 生成评论回复失败: {e}")
 
                 if not reply_text:
                     reply_text = f"谢谢{comment_name}的评论！记得天天开心哦~"
 
-                # 发送空间评论回复
+                # 发送空间评论回复 (传递 comment_id 确保楼中楼准确回复)
                 try:
                     logger.info(f"[Qzone 评论回复] 正在回复 {comment_name}: {reply_text}")
                     res = await qzone._send_comments(
@@ -813,6 +941,7 @@ def main(bot: ExtendBot, config: YAMLManager):
                         cookies=cookies_str,
                         g_tk=g_tk,
                         fid=tid,
+                        comment_id=str(cid) if cid else None
                     )
                     logger.info(f"[Qzone 评论回复结果]: {res}")
                     if check_resp_for_expired(res):
@@ -868,6 +997,12 @@ def main(bot: ExtendBot, config: YAMLManager):
         if bg_started:
             return
         bg_started = True
+
+        # 启动时先拉取一次 OneBot 凭据
+        try:
+            await fetch_cookie_from_onebot()
+        except Exception as e:
+            logger.warning(f"[Qzone] 启动同步 OneBot 凭证提示: {e}")
 
         create_dynamic_jobs()
         scheduler.start()
@@ -956,3 +1091,6 @@ def main(bot: ExtendBot, config: YAMLManager):
         elif event.pure_text in ["测试日常", "发送日常"] and is_master:
             await bot.send(event, [Text("正在测试生成并发送Vtuber风格日常互动说说...")])
             await vtuber_daily_task()
+        elif event.pure_text == "测试空间互动" and is_master:
+            await bot.send(event, [Text("正在立即检查空间评论并回复...")])
+            await check_and_reply_comments()

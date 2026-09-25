@@ -506,7 +506,7 @@ async def SdreDraw(prompt, path, config, groupid, b64_in, args):
         "Authorization": auth_header
     }
     
-    async with httpx.AsyncClient(timeout=None, trust_env=False, headers={'User-Agent': 'Mozilla/5.0'}) as client:
+    async with httpx.AsyncClient(timeout=None, trust_env=False, headers={'User-Agent': 'Mozilla/5.0', 'Accept-Encoding': 'identity'}) as client:
         response = await client.post(url=f'{url}/sdapi/v1/img2img', json=payload, headers=headers)
     r = response.json()
     if 'images' not in r or len(r['images']) == 0:
@@ -614,7 +614,7 @@ async def SdDraw0(prompt, path, config, groupid, args):
         headers=eridanus_headers
     #print(payload)
     #print(headers)
-    async with httpx.AsyncClient(timeout=None, trust_env=False, headers={'User-Agent': 'Mozilla/5.0'}) as client:
+    async with httpx.AsyncClient(timeout=None, trust_env=False, headers={'User-Agent': 'Mozilla/5.0', 'Accept-Encoding': 'identity'}) as client:
         response = await client.post(url=f'{url}/sdapi/v1/txt2img', json=payload, headers=headers)
     r = response.json()
 
@@ -646,7 +646,7 @@ async def getloras(config):
     }
 
     url = f'{url}/sdapi/v1/loras'
-    async with httpx.AsyncClient(timeout=None, trust_env=False, headers={'User-Agent': 'Mozilla/5.0'}) as client:
+    async with httpx.AsyncClient(timeout=None, trust_env=False, headers={'User-Agent': 'Mozilla/5.0', 'Accept-Encoding': 'identity'}) as client:
         response = await client.get(url, headers=headers)
         r = response.json()
         result_lines = [f'<lora:{lora.get("name", "未知")}:1.0>,' for lora in r]
@@ -673,7 +673,7 @@ async def getcheckpoints(config):
     }
     url = f'{url}/sdapi/v1/sd-models'
 
-    async with httpx.AsyncClient(timeout=None, trust_env=False, headers={'User-Agent': 'Mozilla/5.0'}) as client:
+    async with httpx.AsyncClient(timeout=None, trust_env=False, headers={'User-Agent': 'Mozilla/5.0', 'Accept-Encoding': 'identity'}) as client:
         response = await client.get(url, headers=headers)
         r = response.json()
         model_lines = [f'{model.get("model_name", "未知")}.safetensors' for model in r]
@@ -1050,7 +1050,7 @@ async def SdmaskDraw(prompt, path, config, groupid, b64_in, args, mask_base64):
         "Accept": "application/json",
         "Authorization": auth_header
     }
-    async with httpx.AsyncClient(timeout=None, trust_env=False, headers={'User-Agent': 'Mozilla/5.0'}) as client:
+    async with httpx.AsyncClient(timeout=None, trust_env=False, headers={'User-Agent': 'Mozilla/5.0', 'Accept-Encoding': 'identity'}) as client:
         response = await client.post(url=f'{url}/sdapi/v1/img2img', json=payload, headers=headers)
     r = response.json()
     if 'images' not in r or len(r['images']) == 0:
@@ -1083,7 +1083,7 @@ async def getsampler(config):
     }
     url = f'{url}/sdapi/v1/samplers'    
 
-    async with httpx.AsyncClient(timeout=None, trust_env=False, headers={'User-Agent': 'Mozilla/5.0'}) as client:
+    async with httpx.AsyncClient(timeout=None, trust_env=False, headers={'User-Agent': 'Mozilla/5.0', 'Accept-Encoding': 'identity'}) as client:
         response = await client.get(url, headers=headers)
         r = response.json()
         try:
@@ -1107,7 +1107,7 @@ async def getscheduler(config):
         "Authorization": auth_header
     }
     url = f'{url}/sdapi/v1/schedulers'
-    async with httpx.AsyncClient(timeout=None, trust_env=False, headers={'User-Agent': 'Mozilla/5.0'}) as client:
+    async with httpx.AsyncClient(timeout=None, trust_env=False, headers={'User-Agent': 'Mozilla/5.0', 'Accept-Encoding': 'identity'}) as client:
         response = await client.get(url, headers=headers)
         r = response.json()
         label_list = [item["label"] for item in r if "label" in item]
@@ -1133,7 +1133,7 @@ async def interrupt(config):
             "114514": "1919810"
         }
         url = f'{url}/sdapi/v1/interrupt'
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(headers={'Accept-Encoding': 'identity'}, trust_env=False) as client:
             response = await client.post(url, json=post_data, headers=headers)
             response.raise_for_status()
             return response.json()
@@ -1163,7 +1163,7 @@ async def skipsd(config):
             "114514": "1919810"
         }
         url = f'{url}/sdapi/v1/skip'
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(headers={'Accept-Encoding': 'identity'}, trust_env=False) as client:
             response = await client.post(url, json=post_data, headers=headers)
             response.raise_for_status()
             return response.json()
@@ -1436,7 +1436,7 @@ async def SdOutpaint(prompt, path, config, groupid, b64_in, args):
         "Authorization": auth_header
     }
 
-    async with httpx.AsyncClient(timeout=None, trust_env=False, headers={'User-Agent': 'Mozilla/5.0'}) as client:
+    async with httpx.AsyncClient(timeout=None, trust_env=False, headers={'User-Agent': 'Mozilla/5.0', 'Accept-Encoding': 'identity'}) as client:
         response = await client.post(url=f'{url}/sdapi/v1/img2img', json=payload, headers=headers)
     
     r = response.json()
@@ -1459,7 +1459,7 @@ async def SdOutpaint(prompt, path, config, groupid, b64_in, args):
     return path
 
 async def get_img_info(base64, api):
-    async with httpx.AsyncClient(timeout=None, trust_env=False, headers={'User-Agent': 'Mozilla/5.0'}) as client:
+    async with httpx.AsyncClient(timeout=None, trust_env=False, headers={'User-Agent': 'Mozilla/5.0', 'Accept-Encoding': 'identity'}) as client:
         api, auth_header = parse_custom_url_auth(api)
 
         headers = {
