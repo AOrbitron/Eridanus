@@ -581,53 +581,246 @@ def main(bot: ExtendBot, config: YAMLManager):
         return final_prompt
 
     # ---------------------------------------------------------
+    # 动态历史与去重记忆管理（防题材重复、强化时间流动感）
+    # ---------------------------------------------------------
+    post_history_file = Path("data/qzone_post_history.json")
+    post_history_file.parent.mkdir(parents=True, exist_ok=True)
+
+    def load_post_history() -> list:
+        if post_history_file.exists():
+            try:
+                data = json.loads(post_history_file.read_text(encoding="utf-8"))
+                if isinstance(data, list):
+                    return data
+            except Exception as e:
+                logger.error(f"[Qzone] 读取动态历史记录失败: {e}")
+        return []
+
+    def record_post_history(entry: dict):
+        try:
+            history = load_post_history()
+            history.append(entry)
+            history = history[-30:]
+            post_history_file.write_text(json.dumps(history, ensure_ascii=False, indent=2), encoding="utf-8")
+        except Exception as e:
+            logger.error(f"[Qzone] 记录动态历史失败: {e}")
+
+    def get_recent_history_constraints(task_type: str, limit: int = 5) -> tuple[set, list, list]:
+        history = load_post_history()
+        recent = [h for h in history if h.get("type") == task_type][-limit:]
+        used_theme_ids = {h.get("theme_id") for h in recent if h.get("theme_id")}
+        recent_elements = []
+        for h in recent:
+            recent_elements.extend(h.get("elements", []))
+        recent_posts = [h.get("content", "") for h in recent if h.get("content")]
+        return used_theme_ids, list(dict.fromkeys(recent_elements)), recent_posts
+
+    def get_current_time_context() -> str:
+        now = datetime.datetime.now()
+        weekday_names = ["星期一", "星期二", "星期三", "星期四", "星期五", "星期六", "星期日"]
+        weekday_str = weekday_names[now.weekday()]
+        hour = now.hour
+        if 5 <= hour < 9:
+            period_str = "清晨刚起不久"
+        elif 9 <= hour < 12:
+            period_str = "上午工作/学习或清闲时光"
+        elif 12 <= hour < 14:
+            period_str = "中午午休或用餐时分"
+        elif 14 <= hour < 18:
+            period_str = "下午茶或慢节奏时光"
+        elif 18 <= hour < 22:
+            period_str = "傍晚回家/夜幕初降"
+        elif 22 <= hour or hour < 2:
+            period_str = "深夜准备洗漱休息时分"
+        else:
+            period_str = "凌晨夜深人静夜猫子时段"
+        return f"{now.strftime('%Y年%m月%d日')} {weekday_str} {now.strftime('%H:%M')}（当前时段：{period_str}）"
+
+    morning_theme_pool = [
+        {
+            "id": "morning_kitchen_toast",
+            "theme": "厨房做早餐：煎蛋边缘滋滋作响微微焦脆，烤得金黄的吐司抹上一层厚厚的草莓果酱",
+            "elements": ["煎蛋", "吐司", "果酱", "早餐", "厨房"],
+            "sd_hint": "morning, kitchen, apron, making breakfast, toasted bread, fried egg, bright morning sunlight, happy gentle smile",
+        },
+        {
+            "id": "morning_hot_drink",
+            "theme": "晨间热饮调制：用打泡器把燕麦奶打出细腻绵密的奶泡，冲了一大杯香浓的抹茶拿铁或热可可",
+            "elements": ["抹茶拿铁", "热可可", "打奶泡", "热饮", "杯子"],
+            "sd_hint": "morning, holding a cute warm mug, foam latte, kitchen counter, steam, oversized sweater, soft lighting",
+        },
+        {
+            "id": "morning_window_breeze",
+            "theme": "推窗换气与植物：推开窗户深吸一口微凉清冽的晨风，发现窗台小盆栽又偷偷冒出了一片翠绿嫩芽",
+            "elements": ["推开窗户", "晨风", "盆栽", "绿植", "嫩芽"],
+            "sd_hint": "morning, standing by window, curtains blowing in wind, potted plant on windowsill, fresh cool air, peaceful expression",
+        },
+        {
+            "id": "morning_outfit_struggle",
+            "theme": "镜前梳妆与选衣服：站在衣柜前纠结今天穿哪件外套，和头顶那一撮倔强翘起的呆毛搏斗了十分钟",
+            "elements": ["镜子", "选衣服", "呆毛", "发夹", "衣柜"],
+            "sd_hint": "morning, looking in mirror, holding hair brush, cute ahoge, trying on clothes, bedroom, natural sunlight",
+        },
+        {
+            "id": "morning_early_walk",
+            "theme": "清晨散步或早市见闻：趁着街上人还不多出门散步，街角面包店刚拉开卷闸门，空气里全是刚出炉的黄油羊角包香",
+            "elements": ["早市", "散步", "面包店", "可颂", "街角"],
+            "sd_hint": "morning, outdoor, city street, morning sunlight, holding a paper bag with bakery, cute casual outfit, lively",
+        },
+        {
+            "id": "morning_music_reading",
+            "theme": "晨光中的手账与音乐：坐在小圆桌前边听轻快的民谣歌单，边在新的一页手账本上写下今天的日期和小目标",
+            "elements": ["手账", "写字", "听歌", "耳机", "小目标"],
+            "sd_hint": "morning, sitting at desk, writing notebook planner, wearing headphones, soft warm morning rays, cozy room",
+        },
+        {
+            "id": "morning_weather_observation",
+            "theme": "天气观察与今日计划：抬头看天发现天蓝得像刚洗过一样、云朵像大朵棉花糖，今天出门绝对不带伞，去逛逛文具店",
+            "elements": ["蓝天", "白云", "好天气", "文具店", "出门计划"],
+            "sd_hint": "morning, looking up at blue sky and fluffy clouds, balcony, happy expression, casual windbreaker",
+        },
+        {
+            "id": "morning_chores_tidy",
+            "theme": "清晨洗晒日常：把换洗的浅色床单丢进洗衣机，阳台上随风飘着刚洗好的柠檬香洗衣液味道",
+            "elements": ["洗衣机", "晒衣服", "阳台", "床单", "柠檬香"],
+            "sd_hint": "morning, balcony, hanging laundry, clean white bedsheet blowing gently, sunny day, refreshing atmosphere",
+        },
+        {
+            "id": "morning_pet_or_birds",
+            "theme": "晨光中的生灵偶遇：窗外电线杆上停着两只叽叽喳喳的小麻雀，歪着脑袋看房间，像在催促快点开工",
+            "elements": ["小鸟", "麻雀", "窗台", "叽叽喳喳", "窗外"],
+            "sd_hint": "morning, resting chin on hands by window, little sparrow on outside windowsill, soft smile, cinematic sunlight",
+        },
+        {
+            "id": "morning_energy_burst",
+            "theme": "元气满格状态：伸了一个超舒服的大懒腰，给自己冲了一小杯蜂蜜柠檬水，感觉今天精神饱满能解决好多难题",
+            "elements": ["伸懒腰", "蜂蜜柠檬水", "打气", "元气", "元气满满"],
+            "sd_hint": "morning, stretching arms upward, energetic, glass of lemon water on desk, bright sunny room, smiling face",
+        },
+    ]
+
+    night_theme_pool = [
+        {
+            "id": "night_dessert_reward",
+            "theme": "深夜便利店或甜品慰劳：晚上路过便利店带回了期间限定的焦糖布丁，第一口挖下去整个人都被治愈了",
+            "elements": ["布丁", "甜品", "便利店", "焦糖", "犒赏自己"],
+            "sd_hint": "night, holding a small spoon eating caramel pudding, cute indoor casual clothes, table with soft lamp light",
+        },
+        {
+            "id": "night_anime_manga",
+            "theme": "深夜追番或补漫画：缩在椅子上把更新的那一集动画看完了，剧情神展开到忍不住捂嘴无声尖叫",
+            "elements": ["追番", "看动画", "漫画", "神展开", "剧情"],
+            "sd_hint": "night, sitting on chair with knees hugged, laptop glowing on desk, excited cute expression, dark cozy room",
+        },
+        {
+            "id": "night_desk_craft_stationery",
+            "theme": "桌面整理与手工拼贴：把乱糟糟的画笔和胶带全部整整齐齐归位，顺便给刚收到的拍立得相纸贴上了闪闪的蕾丝贴纸",
+            "elements": ["整理桌面", "胶带", "贴纸", "拍立得", "手账"],
+            "sd_hint": "night, organizing desk, colorful stickers, polaroid photos, washi tape, warm desk lamp, focused cute look",
+        },
+        {
+            "id": "night_warm_tea_audio",
+            "theme": "睡前热茶与听雨/播客：泡了一杯热气腾腾的洋甘菊茶，插着单只耳机听电台主播慢悠悠的声音，思绪渐渐飘远",
+            "elements": ["洋甘菊茶", "热茶", "播客", "电台", "耳机"],
+            "sd_hint": "night, holding hot chamomile tea cup, steam rising, earphone in one ear, soft warm room, dreamy calm expression",
+        },
+        {
+            "id": "night_pet_cuddle",
+            "theme": "萌宠夜间陪伴或毛绒玩具：给桌旁最大的毛绒熊整理了一下歪掉的领结，对它小声嘀咕了一整天遇到的小秘密",
+            "elements": ["玩偶", "毛绒熊", "说悄悄话", "领结", "陪伴"],
+            "sd_hint": "night, hugging a big plush teddy bear, whispering gently, dim room light, sleepy cute face",
+        },
+        {
+            "id": "night_daily_funny_groan",
+            "theme": "真实可爱的小牢骚：刚洗完澡吹干头发发现睡衣反穿了、或者手机电量只剩3%在床头到处摸索充电线",
+            "elements": ["吹头发", "睡衣穿反", "充电线", "3%电量", "小迷糊"],
+            "sd_hint": "night, holding phone with low battery, messy damp hair, searching for cable, flustered cute expression",
+        },
+        {
+            "id": "night_music_stargazing",
+            "theme": "夜风与窗外夜空：走到阳台发现今晚的夜风格外温柔，天上的月亮像咬了一口的柠檬片，整座城市都安静下来了",
+            "elements": ["夜风", "阳台", "月亮", "城市夜景", "安静"],
+            "sd_hint": "night, standing on balcony, looking at crescent moon and distant city lights, gentle cool night breeze, jacket over shoulders",
+        },
+        {
+            "id": "night_shampoo_haircare",
+            "theme": "洗护与香气时刻：用了新买的蜜桃味洗发水，吹干的头发蓬蓬松松的还散发着甜甜的果香，心情格外清爽",
+            "elements": ["洗头", "吹头发", "蜜桃香", "洗发水", "蓬松"],
+            "sd_hint": "night, drying fluffy hair with a soft towel, fresh clean face, peach scent aesthetic, soft bathroom/bedroom lighting",
+        },
+        {
+            "id": "night_tomorrow_plan",
+            "theme": "明日期待与晚安道别：把明天要带的小包和钥匙整齐放在玄关，一想到明天是新的一天就忍不住嘴角上扬",
+            "elements": ["收拾背包", "玄关", "期待明天", "嘴角上扬", "晚安"],
+            "sd_hint": "night, small backpack on chair, cute keychain, looking ahead with anticipatory sweet smile, warm lighting",
+        },
+        {
+            "id": "night_comfort_food",
+            "theme": "深夜宵夜小诱惑：本来信誓旦旦说晚上不吃东西，结果还是没忍住烤了两片小年糕配海苔，嚼起来糯叽叽的太幸福了",
+            "elements": ["烤年糕", "海苔", "宵夜", "糯叽叽", "没忍住"],
+            "sd_hint": "night, small plate with grilled rice cake, cute guilty smile, chewing, warm kitchen/room corner",
+        },
+        {
+            "id": "night_scent_relax",
+            "theme": "地毯与香氛彻底放空：点上喜欢的白茶淡香氛，抱着软枕头坐在毛绒地毯上放空发呆，把一整天的疲惫都彻底放下",
+            "elements": ["地毯", "香薰", "白茶香", "大枕头", "放空"],
+            "sd_hint": "night, sitting on fluffy carpet, small aroma diffuser, warm soothing ambient light, serene peaceful expression",
+        },
+    ]
+
+    def pick_next_theme(task_name: str) -> dict:
+        pool = morning_theme_pool if task_name == "早安" else night_theme_pool
+        used_ids, _, _ = get_recent_history_constraints(task_name, limit=5)
+        available = [t for t in pool if t["id"] not in used_ids]
+        if not available:
+            last_used_id = list(used_ids)[-1] if used_ids else None
+            available = [t for t in pool if t["id"] != last_used_id] or pool
+        return random.choice(available)
+
+    # ---------------------------------------------------------
     # 定时早晚发空间任务
     # ---------------------------------------------------------
     async def task_executor(task_name: str, task_info: dict):
         logger.info(f"[Qzone 任务] 开始执行定时发空间任务: {task_name}")
         bot_name, chara_text = get_bot_persona_info()
         festival_or_term = await get_almanac_info()
+        time_context = get_current_time_context()
 
         current_global_mem = mai_context.get_global_memory() if mai_context else ""
 
-        morning_themes = [
-            "厨房早餐微小日常：煎蛋边缘微微焦脆、烤焦的面包片涂草莓果酱、或者冲泡热可可/抹茶牛奶打出绵密奶泡",
-            "晨间清爽感官：推开窗户微凉的晨风吹醒额头、窗台绿植叶尖滚动的露珠、空气里清新的早晨味道",
-            "出门或梳妆小碎念：在镜子前挑选发夹、和头顶翘起来倔强的呆毛搏斗、或者纠结今天穿哪件柔软的大毛衣",
-            "晨光中的片刻放空：坐在窗边捧着热乎乎的马克杯看清晨阳光一点点漫进房间，耳机里单曲循环喜欢的旋律",
-            "元气与今日微小期待：今天打算去书店/文具店淘新贴纸、顺路买刚出炉的黄油可颂、或者期待晚上回家追番",
-        ]
-        night_themes = [
-            "白日可爱见闻偶遇：路过花坛时和一只圆滚滚的野猫对视了三秒、面包房门口闻到刚烤好的黄油香、或者下班/放学时看见粉紫色的晚霞",
-            "便利店夜游觅食：深夜便利店暖黄色的灯光、买到了最后一串热腾腾的关东煮魔芋丝、或者挑了期间限定的布丁",
-            "少女桌面手账与心爱之物：窝在暖光台灯下拆盲盒开到了隐藏款、在手账本上贴满亮晶晶的贴纸和随笔涂鸦",
-            "真实可爱的小牢骚与小心情：小脚趾不小心踢到桌脚委屈哼唧、手机快没电了趴在床边充着电看、感叹时间过得太快今天还有想玩的事情",
-            "深夜神游与心满意足：抱着心爱的大抱枕坐在地毯上发呆神游、房间里点着淡淡的香薰、安安静静享受只属于自己的放松时光",
-        ]
+        # 智能挑选主题与去重约束
+        theme_obj = pick_next_theme(task_name)
+        selected_theme = theme_obj["theme"]
+        sd_theme_hint = theme_obj["sd_hint"]
+        selected_theme_id = theme_obj["id"]
+        selected_elements = theme_obj.get("elements", [])
 
-        if task_name == "早安":
-            selected_theme = random.choice(morning_themes)
-            sd_theme_hint = "morning, sunrise, soft sunlight, holding warm mug, kitchen or window, casual cozy clothes, cute expression"
-        else:
-            selected_theme = random.choice(night_themes)
-            sd_theme_hint = "night, warm ambient light, cozy room, relaxed sitting posture, desk or armchair, cute gentle expression"
+        _, recent_elements, recent_posts = get_recent_history_constraints(task_name, limit=3)
 
         fest_tip = f"（今天是{festival_or_term}，如有兴趣可轻描淡写提一句）" if festival_or_term else ""
+
+        negative_constraints = ""
+        if recent_elements:
+            negative_constraints += f"【严禁重复近期已发元素】：上一条/近期已发过有关【{'、'.join(recent_elements[:8])}】，本次说说严禁再出现上述相同物品或动作！必须展现新一天的全新生活切面！\n"
+        if recent_posts:
+            negative_constraints += f"【近期已发参考避重】：\n" + "\n".join([f"- {p}" for p in recent_posts[:2]]) + "\n"
 
         sys_prompt = (
             f"你是{bot_name}。\n"
             f"你的人设信息如下：\n{chara_text}\n\n"
             f"你现在要发一条 QQ 空间动态（{task_name}的说说）。\n"
+            f"当前真实时间线：{time_context}\n"
             f"风格完全参考 Twitter/X 真实可爱的生活系 Vtuber（参考 @moonjelly0、@jellyhoshiumi 的生活碎念与手账日记感）：\n"
-            f"【核心禁令】：严格杜绝千篇一律的“被窝好软”、“被子封印我”、“赖床”、“钻进被窝”这种套话！\n"
-            f"【本次微小灵感切入点】：{selected_theme}。{fest_tip}\n"
+            f"【核心禁令】：严格杜绝千篇一律的“被窝好软”、“被子封印我”、“赖床”、“钻进被窝”这种套话！严禁让读者感觉每天都在重复过同一天！\n"
+            f"{negative_constraints}"
+            f"【本次新的一天微小灵感切入点】：{selected_theme}。{fest_tip}\n"
             f"1. 极简、微小生活碎片感、少女心情日记，像真人女孩子随手敲出来的生活小确幸或真实日常。\n"
             f"2. 口气自然灵动，带一点女孩子的真实俏皮与微小心情，可以偶尔带一两个波浪号~或可爱标点，杜绝AI总结腔。\n"
             f"3. 严格限制字数在 15 ~ 45 字之间，点到即止，短小精炼。\n"
             f"4. 直接输出说说正文，严禁携带任何多余解释、引号或格式。"
         )
 
-        user_prompt = f"请写一条你的{task_name}说说。"
+        user_prompt = f"请写一条你今天（{time_context}）的{task_name}说说，展现新一天的不同切面。"
         if current_global_mem:
             user_prompt += f" 你最近的生活碎片记录（可自然呼应）：\n{current_global_mem}"
 
@@ -639,7 +832,7 @@ def main(bot: ExtendBot, config: YAMLManager):
                     system_prompt=sys_prompt,
                 )
                 post_content = resp.strip() if resp else ""
-                post_content = post_content.strip("\"'[] \n\r\t")
+                post_content = re.sub(r"^[\'\"\s\[\]]+|[\'\"\s\[\]]+$", "", post_content)
         except Exception as e:
             logger.error(f"[Qzone] LLM 生成说说文案异常: {e}")
 
@@ -647,6 +840,15 @@ def main(bot: ExtendBot, config: YAMLManager):
             post_content = f"{task_name}！窗台上的阳光刚刚好，今天也要打起精神呀~" if task_name == "早安" else f"{task_name}！深夜的便利店热牛奶好治愈，大家也都早点休息做个好梦呀~"
 
         logger.info(f"[Qzone] 生成说说内容: {post_content}")
+
+        # 记录本次发布的历史，供下一次去重
+        record_post_history({
+            "type": task_name,
+            "theme_id": selected_theme_id,
+            "elements": selected_elements,
+            "content": post_content,
+            "time": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        })
 
         # 提炼极简日常存入全局记忆（严格限制在25字以内，杜绝冗余污染）
         if mai_context and mai_llm:
@@ -662,7 +864,7 @@ def main(bot: ExtendBot, config: YAMLManager):
                 )
                 if refined_mem and len(refined_mem.strip()) > 0:
                     clean_mem = refined_mem.strip().replace("\n", " ")[:30]
-                    clean_mem = clean_mem.strip("\"'[] \n\r\t")
+                    clean_mem = re.sub(r"^[\'\"\s\[\]]+|[\'\"\s\[\]]+$", "", clean_mem)
                     mai_context.update_global_memory(f"[{datetime.datetime.now().strftime('%m-%d %H:%M')}] {clean_mem}")
                     logger.info(f"[Qzone 全局记忆] 录入极简日常: {clean_mem}")
             except Exception as e:
@@ -683,6 +885,7 @@ def main(bot: ExtendBot, config: YAMLManager):
             logger.info(f"[Qzone] 发布动态完成: {res}")
         except Exception as e:
             logger.error(f"[Qzone] 发布动态异常: {e}")
+
     # ---------------------------------------------------------
     # Vtuber 风格活人感日常互动动态机制
     # ---------------------------------------------------------
@@ -723,6 +926,7 @@ def main(bot: ExtendBot, config: YAMLManager):
         logger.info("[Qzone Vtuber日常] 触发条件满足，开始生成日常动态...")
         bot_name, chara_text = get_bot_persona_info()
         current_global_mem = mai_context.get_global_memory() if mai_context else ""
+        time_context = get_current_time_context()
 
         # 提取群聊近期有趣片段或灵感 (兼容 ctx:gwin:* 数据格式)
         group_snippet = ""
@@ -746,22 +950,25 @@ def main(bot: ExtendBot, config: YAMLManager):
             except Exception as e:
                 logger.debug(f"[Qzone Vtuber日常] 提取群聊灵感异常: {e}")
 
-        styles = [
-            "抛出一个简短可爱/无厘头的日常提问（比如询问大家在喝什么奶茶/今天天气如何）",
-            "分享一个生活中呆呆的、可爱的小瞬间/刚刚发生的趣事",
-            "单纯轻度无厘头地卖个萌、撒个娇或抒发一句此刻的小情绪",
-            "吐槽一句天气、困意或想要偷懒的小心思",
+        # 增加更多样化的日常灵感库
+        daily_styles = [
+            ("提问互动", "抛出一个简短可爱/无厘头的日常提问（比如询问大家在喝什么奶茶/今天天气如何/周末有什么安排）", "asking question, curious cute expression, holding bubble tea or phone, daily outfit"),
+            ("小确幸", "分享一个生活中呆呆的、可爱的小瞬间/刚刚发现的小惊喜（比如买到最后一个面包/看到窗外好看的云）", "cheerful smile, looking up at clouds or holding small bakery bag, sunny outdoor, casual cute"),
+            ("轻微小情绪", "单纯轻度无厘头地卖个萌、撒个娇或抒发一句此刻的小情绪（比如想偷懒/感觉今天过得好快）", "pouting, resting chin on table, cute lazy expression, indoor desk, warm lighting"),
+            ("吐槽日常", "随口吐槽一句天气、气温突变、想喝冷饮或是被静电电到的小小心情", "funny surprised expression, casual sweater, cute comic atmosphere"),
+            ("文具手账", "新拆了一卷亮晶晶的胶带或者给耳机换了个毛绒保护套的小小满足感", "holding cute stationery or decorated phone case, sparkling eyes, happy smile, desk"),
         ]
-        chosen_style = random.choice(styles)
+        chosen_cat, chosen_style, chosen_sd_hint = random.choice(daily_styles)
 
         sys_vtuber_prompt = (
             f"你是{bot_name}。\n"
             f"人设：\n{chara_text}\n\n"
             f"你现在要在自己的社交主页/QQ空间发一条简短动态。\n"
+            f"当前时间：{time_context}\n"
             f"风格完全参考 Twitter/X 真实可爱的生活系 Vtuber（如 @moonjelly0、@jellyhoshiumi）：\n"
             f"本次动态风格偏向：【{chosen_style}】。\n"
             f"要求：\n"
-            f"1. 像真人女孩随手敲出来的文字，严禁AI翻译腔、严禁报幕式套话。\n"
+            f"1. 像真人女孩随手敲出来的文字，体现出当前时段（{time_context}）的鲜活生活感，严禁AI翻译腔、严禁报幕式套话。\n"
             f"2. 保持真实呼吸感，偶尔用一两个波浪号或日常标点，不要堆砌废话。\n"
             f"3. 严格限制字数在 15 ~ 45 字之间，短小自然，点到即止。\n"
             f"4. 直接输出动态正文，不要包含任何多余文字或引号。"
@@ -780,7 +987,7 @@ def main(bot: ExtendBot, config: YAMLManager):
                     system_prompt=sys_vtuber_prompt,
                 )
                 daily_content = resp.strip() if resp else ""
-                daily_content = daily_content.strip("\"'[] \n\r\t")
+                daily_content = re.sub(r"^[\'\"\s\[\]]+|[\'\"\s\[\]]+$", "", daily_content)
         except Exception as e:
             logger.error(f"[Qzone Vtuber日常] 生成动态失败: {e}")
 
@@ -789,11 +996,20 @@ def main(bot: ExtendBot, config: YAMLManager):
 
         logger.info(f"[Qzone Vtuber日常] 生成内容: {daily_content}")
 
+        # 记录日常动态历史
+        record_post_history({
+            "type": "日常",
+            "theme_id": chosen_cat,
+            "elements": [chosen_cat],
+            "content": daily_content,
+            "time": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        })
+
         # 概率配图
         pic_paths = []
         pic_prob = float(vcfg.get("绘制图片概率", 0.5))
         if random.random() < pic_prob:
-            sd_prompt = await build_sd_prompt_for_post(daily_content, "casual daily, relaxed posture, cute expression, high quality")
+            sd_prompt = await build_sd_prompt_for_post(daily_content, chosen_sd_hint)
             img_file = await call_sd_generate(sd_prompt)
             if img_file:
                 pic_paths.append(img_file)
@@ -805,6 +1021,7 @@ def main(bot: ExtendBot, config: YAMLManager):
             vtuber_post_count_today += 1
         except Exception as e:
             logger.error(f"[Qzone Vtuber日常] 发送异常: {e}")
+
 
     async def start_vtuber_daily_monitor():
         vcfg = config.qq_zone.config.get("vtuber日常互动", {})
