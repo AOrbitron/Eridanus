@@ -343,8 +343,8 @@ def main(bot: ExtendBot, config: YAMLManager):
         height = int(sd_cfg.get("height", 1024))
         sampler_name = sd_cfg.get("sampler_name", "Euler a")
         scheduler = sd_cfg.get("scheduler", "Automatic")
-        negative_prompt = (
-            "blurry, lowres, error, film grain, scan artifacts, worst quality, bad quality, "
+        rules = get_chara_drawing_rules()
+        negative_prompt = rules.get("negative") or (
             "jpeg artifacts, very displeasing, chromatic aberration, logo, dated, signature, "
             "multiple views, gigantic breasts, nsfw"
         )
@@ -500,29 +500,32 @@ def main(bot: ExtendBot, config: YAMLManager):
             except Exception as e:
                 logger.error(f"[Qzone 保活] 监控循环异常: {e}")
     def get_chara_drawing_rules() -> dict:
-        """获取人设卡中的绘图规则"""
-        _, chara_text = get_bot_persona_info()
-        rules = {
-            "base": "1girl, teenager, solo, grey hair, gradient hair, multicolored hair, blue hair, light purple-light blue mixed eyes, (Side swept hair:1.6), ahoge, bangs, middle long hair, (round face:1.2)",
-            "art": "(Rella:1.2), (chen bin:1.3), virtual youtuber, (starshadowmagician:1.2), masterpiece, extremely detailed, lineart, (hand-drawn:1.3), (sketch:1.2), Picasso style, Van Gogh's almond blossoms, <lora:DeniaV1-Nuclear1811-IL:0.5>",
-            "outfit": "hair ornament,detached sleeves, hair bow, flower, off shoulder,layered dress, virtual youtuber,lace rim, ornaments sleeves, lolita sleeves,white pantyhose",
-            "full_section": ""
+        """从 run/qq_zone/config.yaml 读取用户配置的角色绘图规则与外观设定，留空时使用默认形象提示词"""
+        default_base = "1girl, teenager, solo, grey hair, gradient hair, multicolored hair, blue hair, light purple-light blue mixed eyes, (Side swept hair:1.6), ahoge, bangs, middle long hair, (round face:1.2)"
+        default_art = "(Rella:1.2), (chen bin:1.3), virtual youtuber, (starshadowmagician:1.2), masterpiece, extremely detailed, lineart, (hand-drawn:1.3), (sketch:1.2), Picasso style, Van Gogh's almond blossoms, <lora:DeniaV1-Nuclear1811-IL:0.5>"
+        default_outfit = "hair ornament,detached sleeves, hair bow, flower, off shoulder,layered dress, virtual youtuber,lace rim, ornaments sleeves, lolita sleeves,white pantyhose"
+        default_neg = "lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry, nsfw"
+
+        chara_draw_cfg = config.qq_zone.config.get("角色绘图设置", {})
+        base_prompt = str(chara_draw_cfg.get("基础形象设定", "") or "").strip() or default_base
+        art_prompt = str(chara_draw_cfg.get("画风与模型设定", "") or "").strip() or default_art
+        outfit_prompt = str(chara_draw_cfg.get("默认服装设定", "") or "").strip() or default_outfit
+        neg_prompt = str(chara_draw_cfg.get("负面提示词", "") or "").strip() or default_neg
+
+        # 组合成说明段落，供 LLM 提取场景变体 tags 时参考
+        full_section = (
+            f"基础形象: {base_prompt}\n"
+            f"画风模型: {art_prompt}\n"
+            f"默认服装: {outfit_prompt}"
+        )
+
+        return {
+            "base": base_prompt,
+            "art": art_prompt,
+            "outfit": outfit_prompt,
+            "negative": neg_prompt,
+            "full_section": full_section
         }
-        if chara_text:
-            m = re.search(r"#\s*.*?(?:视觉与绘图|绘图规则)(.*)", chara_text, re.DOTALL)
-            if m:
-                section = m.group(1)
-                rules["full_section"] = section.strip()
-                base_m = re.search(r"1\.\s*基础(?:形象)?设定[^\n]*\n+([^\n#]+)", section)
-                if base_m and base_m.group(1).strip():
-                    rules["base"] = base_m.group(1).strip()
-                art_m = re.search(r"2\.\s*画风与模型设定[^\n]*\n+([^\n#]+)", section)
-                if art_m and art_m.group(1).strip():
-                    rules["art"] = art_m.group(1).strip()
-                outfit_m = re.search(r"3\.\s*默认服装[^\n]*\n+([^\n#]+)", section)
-                if outfit_m and outfit_m.group(1).strip():
-                    rules["outfit"] = outfit_m.group(1).strip()
-        return rules
 
     def get_chara_visual_anchor() -> str:
         """获取角色基础形象视觉锚点"""
@@ -682,9 +685,9 @@ def main(bot: ExtendBot, config: YAMLManager):
         selected_theme_id = theme_obj["id"]
         selected_elements = theme_obj.get("elements", [])
 
-        # 变体衍生机制：将已选主题作为种子(Seed)，每次按概率引入变体引导词发散演绎全新切面（发挥LLM创造力）
+        # 变体衍生机制：将已选主题作为种子(Seed)，每次按 70% 概率引入变体引导词发散演绎全新切面（发挥LLM创造力）
         mutation_hint = ""
-        if theme_mutation_directives and random.random() < 0.60:
+        if theme_mutation_directives and random.random() < 0.70:
             directive_obj = random.choice(theme_mutation_directives)
             m_type = directive_obj.get("type", "生活切面发散")
             m_text = directive_obj.get("directive", "")
@@ -859,9 +862,9 @@ def main(bot: ExtendBot, config: YAMLManager):
         chosen_style = daily_theme_obj.get("theme", "分享少女日常生活中的真实可爱碎片")
         chosen_sd_hint = daily_theme_obj.get("sd_hint", "casual daily, relaxed posture, cute expression, high quality")
 
-        # 日常变体衍生引导词（按 55% 概率触发深度发散，避免特定小趣事话题反复雷同）
+        # 日常变体衍生引导词（按 70% 概率触发深度发散，避免特定小趣事话题反复雷同）
         daily_mutation_hint = ""
-        if theme_mutation_directives and random.random() < 0.55:
+        if theme_mutation_directives and random.random() < 0.70:
             directive_obj = random.choice(theme_mutation_directives)
             d_type = directive_obj.get("type", "生活发散")
             d_text = directive_obj.get("directive", "")

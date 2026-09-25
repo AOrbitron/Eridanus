@@ -35,3 +35,10 @@ sd绘画设置:
 动态互动:
   enable_comment_reply: true  # 是否自动回复空间好友在Bot动态下的评论
   check_interval_秒: 180      # 评论巡检轮询间隔(秒)
+
+# 角色绘图提示词设置（由用户自定义不同Bot角色的外貌与画风，不依赖角色卡格式，留空则使用默认形象）
+角色绘图设置:
+  基础形象设定: "1girl, teenager, solo, grey hair, gradient hair, multicolored hair, blue hair, light purple-light blue mixed eyes, (Side swept hair:1.6), ahoge, bangs, middle long hair, (round face:1.2)"
+  画风与模型设定: "(Rella:1.2), (chen bin:1.3), virtual youtuber, (starshadowmagician:1.2), masterpiece, extremely detailed, lineart, (hand-drawn:1.3), (sketch:1.2), Picasso style, Van Gogh's almond blossoms, <lora:DeniaV1-Nuclear1811-IL:0.5>"
+  默认服装设定: "hair ornament,detached sleeves, hair bow, flower, off shoulder,layered dress, virtual youtuber,lace rim, ornaments sleeves, lolita sleeves,white pantyhose"
+  负面提示词: "lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry, nsfw"
