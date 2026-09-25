@@ -1,1 +1,1 @@
-plugin_description="qq空间操作器"
+plugin_description="qq空间"
