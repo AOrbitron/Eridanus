@@ -64,7 +64,9 @@ def main(bot: ExtendBot, config: YAMLManager):
     # ---------------------------------------------------------
     # 本地 Cookie 缓存管理与 OneBot 接口无感免密获取
     # ---------------------------------------------------------
-    cookie_file = Path("data/qzone_cookie.json")
+    base_data_dir = Path(__file__).resolve().parent / "data"
+    base_data_dir.mkdir(parents=True, exist_ok=True)
+    cookie_file = base_data_dir / "qzone_cookie.json"
     cookie_file.parent.mkdir(parents=True, exist_ok=True)
 
     def load_cookie_cache():
@@ -590,7 +592,7 @@ def main(bot: ExtendBot, config: YAMLManager):
     # ---------------------------------------------------------
     # 动态历史与去重记忆管理（防题材重复、强化时间流动感）
     # ---------------------------------------------------------
-    post_history_file = Path("data/qzone_post_history.json")
+    post_history_file = base_data_dir / "qzone_post_history.json"
     post_history_file.parent.mkdir(parents=True, exist_ok=True)
 
     def load_post_history() -> list:
@@ -1008,7 +1010,7 @@ def main(bot: ExtendBot, config: YAMLManager):
 
         return False
 
-    replied_comments_file = Path("data/qzone_replied_comments.json")
+    replied_comments_file = base_data_dir / "qzone_replied_comments.json"
     replied_comments_file.parent.mkdir(parents=True, exist_ok=True)
 
     def load_replied_comments() -> set:
@@ -1069,20 +1071,47 @@ def main(bot: ExtendBot, config: YAMLManager):
             shuoshuo_text = msg.get("content", "")
             comments = msg.get("commentlist") or []
 
-            for c in comments:
+            # 扁平化提取说说下的所有评论（包含根评论与子评论/楼中楼回复）
+            all_target_comments = []
+            for root_c in comments:
+                # 根评论本身
+                all_target_comments.append({
+                    "raw": root_c,
+                    "is_sub": False,
+                    "root_c": root_c
+                })
+                # 提取根评论下的子评论/回复列表（QQ空间常见字段为 list_3，也可能为 replies、sublist、replylist）
+                sub_list = root_c.get("list_3") or root_c.get("replies") or root_c.get("sublist") or root_c.get("replylist") or []
+                for sub_c in sub_list:
+                    all_target_comments.append({
+                        "raw": sub_c,
+                        "is_sub": True,
+                        "root_c": root_c
+                    })
+
+            for item in all_target_comments:
+                c = item["raw"]
+                is_sub = item["is_sub"]
+                root_c = item["root_c"]
+
                 cid = str(c.get("tid") or c.get("id") or "").strip()
                 comment_uid = c.get("uin", 0)
-                comment_name = c.get("name", "空间好友")
-                comment_content = (c.get("content", "") or "").strip()
+                comment_name = c.get("name") or c.get("nick") or "空间好友"
+                raw_comment_content = (c.get("content", "") or "").strip()
+
+                # 清理 QQ 空间 UBB 艾特标签或普通文本艾特，提取实际用户说话内容
+                comment_content = re.sub(r"@\{uin:\d+,nick:[^,}]+,who:\d+\}\s*", "", raw_comment_content)
+                comment_content = re.sub(r"^@[^ ]+\s*", "", comment_content).strip()
 
                 # 排除自己发布的评论和已经回复过的评论
                 if int(comment_uid) == target_qq:
                     continue
-                unique_key = f"{tid}_{cid}"
+                root_cid = str(root_c.get("tid") or root_c.get("id") or "").strip()
+                unique_key = f"{tid}_sub_{root_cid}_{cid}" if is_sub else f"{tid}_root_{cid}"
                 if unique_key in replied_comment_ids:
                     continue
 
-                # 过滤超过24小时的古早评论，直接记录已处理，避免反复打扰
+                # 过滤超过3天的古早评论，直接记录已处理，避免反复打扰
                 if is_comment_too_old(c, max_days=3):
                     logger.debug(f"[Qzone 评论互动] 评论时间超过3天(古早评论)，自动跳过: {comment_name} -> {comment_content[:20]}")
                     replied_comment_ids.add(unique_key)
@@ -1095,7 +1124,42 @@ def main(bot: ExtendBot, config: YAMLManager):
                     save_replied_comments(replied_comment_ids)
                     continue
 
-                logger.info(f"[Qzone 评论互动] 发现新评论 来自: {comment_name}({comment_uid}) -> {comment_content}")
+                # 判断回复目标和上下文
+                # 如果是子评论：检查它是不是回复 Bot 的（或者是在 Bot 发布的根评论下回复），还是别人之间的讨论
+                root_uid = root_c.get("uin", 0)
+                target_uin = c.get("target_uin") or c.get("targetUin") or c.get("to_uin") or c.get("toUin")
+
+                # 是否明确艾特了 Bot
+                bot_at_ubb = f"uin:{target_qq}"
+                is_mentioning_bot = bot_at_ubb in raw_comment_content or (bot_name and f"@{bot_name}" in raw_comment_content)
+
+                if is_sub:
+                    # 子评论场景：
+                    # 1) target_uin 显式指向 bot
+                    # 2) 艾特了 bot
+                    # 3) 根评论是 bot 发布的，且当前子评论没有指定指向其他人
+                    is_reply_to_bot = (
+                        (target_uin and int(target_uin) == target_qq) or
+                        is_mentioning_bot or
+                        (int(root_uid) == target_qq and (not target_uin or int(target_uin) == target_qq))
+                    )
+                    if not is_reply_to_bot:
+                        # 既不是艾特bot也不是回复bot（例如路人A回复路人B），不予插嘴打扰，标记已读
+                        replied_comment_ids.add(unique_key)
+                        save_replied_comments(replied_comment_ids)
+                        continue
+
+                parent_desc = ""
+                if is_sub:
+                    root_name = root_c.get("name") or root_c.get("nick") or "楼主"
+                    root_content = (root_c.get("content", "") or "").strip()
+                    root_content_clean = re.sub(r"@\{uin:\d+,nick:[^,}]+,who:\d+\}\s*", "", root_content).strip()
+                    if int(root_uid) == target_qq:
+                        parent_desc = f"该好友正在回复你在该说说下的留言：【{root_content_clean}】\n"
+                    else:
+                        parent_desc = f"该好友正在楼中楼针对评论【{root_name}：{root_content_clean}】进行互动回复\n"
+
+                logger.info(f"[Qzone 评论互动] 发现新{'子评论' if is_sub else '根评论'} 来自: {comment_name}({comment_uid}) -> {comment_content}")
 
                 # 获取用户在 mai_reply 的对话历史与用户印象
                 user_impression = ""
@@ -1124,9 +1188,11 @@ def main(bot: ExtendBot, config: YAMLManager):
                 sys_reply_prompt = (
                     f"你是{bot_name}。\n"
                     f"人设信息：\n{chara_text}\n\n"
-                    f"你在 QQ 空间发布了一条动态说说，好友正在你的说说下发表了评论。请以你的角色性格回复对方。\n"
+                    f"你在 QQ 空间发布了一条动态说说，好友正在你的说说评论区发表了互动评论。请以你的角色性格回复对方。\n"
                     f"动态说说内容：【{shuoshuo_text}】\n"
                 )
+                if parent_desc:
+                    sys_reply_prompt += f"上下文背景：\n{parent_desc}\n"
                 if user_impression:
                     sys_reply_prompt += f"你对该好友({comment_name})的印象与记忆：\n{user_impression}\n"
                 if recent_chat_snippet:
@@ -1134,7 +1200,7 @@ def main(bot: ExtendBot, config: YAMLManager):
 
                 sys_reply_prompt += (
                     f"要求与人际分寸感规范：\n"
-                    f"1. 结合你的说说主题和对方的评论，自然、亲切地像在空间好友动态下互动一样进行回复。\n"
+                    f"1. 结合你的说说主题、上下文语境和对方的评论，自然、亲切地像在空间好友动态下互动一样进行回复。\n"
                     f"2. 【重要分寸感约束】：当前处于所有人可见的公开动态评论区！绝对不要表现得过度亲密、过度撒娇、暧昧或调情（不要叫'老公'、'宝贝'、'主人'或做亲昵身体接触描写等），以免其他用户吃醋或显得你到处和人调情！\n"
                     f"3. 保持健康、自然、元气可爱的朋友/Vtuber博主互动边界感，风趣机智地回应或友善吐槽即可。\n"
                     f"4. 若有对他的印象或聊天经历，自然流露熟络感，不要刻意背诵。\n"
@@ -1145,7 +1211,7 @@ def main(bot: ExtendBot, config: YAMLManager):
                 try:
                     if mai_llm:
                         res = await mai_llm.chat(
-                            messages=[{"role": "user", "content": f"{comment_name} 评论了你的说说：\"{comment_content}\"，请回复他："}],
+                            messages=[{"role": "user", "content": f"{comment_name} 评论道：\"{comment_content}\"，请回复他："}],
                             system_prompt=sys_reply_prompt,
                         )
                         reply_text = res.strip() if res else ""
@@ -1157,6 +1223,8 @@ def main(bot: ExtendBot, config: YAMLManager):
                     reply_text = f"谢谢{comment_name}的评论！记得天天开心哦~"
 
                 # 发送空间评论回复 (传递 comment_id 确保楼中楼准确回复)
+                # 注：QQ空间在楼中楼回复时，comment_id 始终传根评论ID（root_c 的 cid）
+                send_cid = str(root_c.get("tid") or root_c.get("id") or cid).strip()
                 try:
                     logger.info(f"[Qzone 评论回复] 正在回复 {comment_name}: {reply_text}")
                     res = await qzone._send_comments(
@@ -1166,7 +1234,7 @@ def main(bot: ExtendBot, config: YAMLManager):
                         cookies=cookies_str,
                         g_tk=g_tk,
                         fid=tid,
-                        comment_id=str(cid) if cid else None,
+                        comment_id=str(send_cid) if send_cid else None,
                         comment_name=comment_name
                     )
                     logger.info(f"[Qzone 评论回复结果]: {res}")
