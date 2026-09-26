@@ -9,7 +9,7 @@ from openai import max_retries
 
 from developTools.message.message_components import Image
 from framework_common.database_util.User import get_user
-from framework_common.utils.utils import download_img
+from framework_common.utils.utils import download_img, delay_recall
 from run.auto_reply.main import bot_name
 
 
@@ -42,7 +42,11 @@ async def image_edit(bot, event, config, img_url, prompt):
         permission_need = config.ai_generated_art.config["gptimage2"]["权限要求"]
         if user.permission < permission_need:
             return
-
+        try:
+            msg = await bot.send(event,"正在生成，请等待")
+            await delay_recall(bot, msg)
+        except Exception as e:
+            bot.logger.error(e)
         image_path = await download_img(img_url)
         aim_url = "http://api.apollodorus.xyz/v1/images/edits"
 
