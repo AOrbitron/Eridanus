@@ -3503,5 +3503,112 @@ THEME_MUTATION_DIRECTIVES = [
     {
         "type": "微气候与时令通感",
         "directive": "【微气候与时令通感】：把当前季节与微气候带来的心绪变化与场景深度交融（如深秋傍晚泛着冷意的蓝紫色天空让人好想喝一口热可可、初夏微热柏油路散发的气息预示着大雨将至、晴朗冬日午后阳光晒得毛衣散发出干燥温暖的气味）。"
+    },
+    {
+        "type": "穿搭与色彩风格变体",
+        "directive": "【穿搭与色彩风格变体】：特别留意并生动描写自己此刻的着装穿搭与色彩氛围（如换上了一件暖杏色针织毛衣、偷穿了宽大的鼠尾草绿落肩卫衣、或是轻盈的淡薰衣草紫碎花衬衫裙），将衣服的材质触感（软糯毛线、清凉亚麻、蓬松棉布）与当前时节心境自然融为一体。"
+    },
+    {
+        "type": "时令色调与视觉心境",
+        "directive": "【时令色调与视觉心境】：将视线聚焦在周围环境与自身衣着的色彩碰撞上（如清冷深蓝暮色里的奶油白围巾、初夏阳光下薄荷绿冰饮与纯白T恤的清爽映衬、秋日金黄落叶堆中温暖的焦糖驼色大衣），营造出鲜明生动的画面色调与情绪共鸣。"
     }
 ]
+
+# =====================================================================
+# 少女穿搭风格与色彩库 (Outfit and Color Palette Diversity Pool)
+# 用于 Stable Diffusion 绘图提示词变体引导，彻底摆脱固定服饰和单一色彩
+# =====================================================================
+
+OUTFIT_STYLE_POOLS = [
+    {
+        "category": "针织与毛衣 (Knitwear / Sweaters)",
+        "styles": [
+            "oversized cream cable-knit sweater, pleated brown plaid skirt, beige ankle boots",
+            "dusty blue turtleneck sweater, off-white corduroy pants, cozy warm vibe",
+            "mint green loose cardigan over white camisole, light denim shorts",
+            "lavender fluffy mohair sweater, pearl white midi skirt, gentle sweet aesthetic",
+            "mustard yellow knitted pullover, dark navy pleated skirt, vintage beret",
+            "pastel pink ribbed knit sweater, gray wool shorts, cute knitted leg warmers",
+            "warm beige v-neck knit vest over crisp white collared shirt, pleated skirt",
+            "emerald green chunky knit sweater, off-white casual trousers, relaxed fit"
+        ]
+    },
+    {
+        "category": "连身裙与裙装 (Dresses / Skirts)",
+        "styles": [
+            "light blue floral sundress, puff sleeves, delicate white ribbon waist tie",
+            "vintage beige prairie dress, square neckline, lace trim, wooden buttons",
+            "navy blue sailor collar dress, white stripes, red neckerchief tie, preppy look",
+            "sage green tier-layered slip dress over cream long-sleeve blouse",
+            "dusty rose chiffon dress, ruffled hem, romantic gentle breeze silhouette",
+            "pale yellow gingham cotton dress, frilled shoulder straps, sweet cottagecore style",
+            "black velvet mini dress with white Peter Pan collar, cuff lace details"
+        ]
+    },
+    {
+        "category": "街头休闲与卫衣 (Streetwear / Hoodies)",
+        "styles": [
+            "pastel lilac oversized hoodie, black bike shorts, chunky sneakers",
+            "cropped faded denim jacket, white crewneck tee, high-waisted beige cargo pants",
+            "charcoal grey zip-up hoodie, striped tank top inside, loose washed jeans",
+            "creamy white baseball varsity jacket, navy pleated tennis skirt, tube socks",
+            "matcha green relaxed sweatshirt, raw-edge denim skirt, canvas tote bag",
+            "oversized pastel color-block windbreaker, black leggings, sporty dynamic vibe",
+            "light grey slouchy crewneck pullover, relaxed denim overalls with one strap undone"
+        ]
+    },
+    {
+        "category": "居家与睡衣 (Loungewear / Nightwear)",
+        "styles": [
+            "soft fleece pastel pink bear-ear hoodie pajamas, matching fluffy shorts",
+            "light grey oversized slouchy waffle-knit loungewear set, cozy indoor softness",
+            "silky cream ivory pajama shirt and shorts set, contrast navy piping",
+            "sky blue striped oversized cotton boyfriend shirt, cozy white thigh-high socks",
+            "soft yellow flannel pajama set, loose fit, fuzzy sheep slippers",
+            "lavender cotton camisole and loose lounge pants, matching light wrap cardigan"
+        ]
+    },
+    {
+        "category": "衬衫与学院风 (Shirts / Academy)",
+        "styles": [
+            "crisp white button-up blouse, knitted navy houndstooth sweater vest, pleated skirt",
+            "light brown oversized linen shirt unbuttoned over white graphic tee, khaki shorts",
+            "soft pink Peter Pan collar blouse, brown suspender pinafore skirt",
+            "plaid flannel oversized shirt in teal and beige, dark gray denim skirt",
+            "chambray blue button-down shirt tucked into high-waist white pleated skirt"
+        ]
+    },
+    {
+        "category": "秋冬外套与大衣 (Outerwear / Coats)",
+        "styles": [
+            "camel beige double-breasted trench coat, warm red plaid wool scarf",
+            "olive green quilted liner jacket, off-white turtleneck, dark brown trousers",
+            "dusty blue duffle coat with horn toggles, cream fluffy ear muffs, plaid skirt",
+            "fluffy white teddy bear fleece jacket, pastel pink knit beanie, jeans",
+            "chocolate brown tailored wool coat, ivory knit turtleneck sweater, beret"
+        ]
+    }
+]
+
+OUTFIT_COLOR_PALETTES = [
+    "cream white and pastel mint green",
+    "soft lavender and ivory beige",
+    "dusty rose pink and warm pearl white",
+    "navy blue and crisp pure white",
+    "mustard yellow and charcoal grey",
+    "sage olive green and warm oatmeal cream",
+    "baby blue and light heather grey",
+    "caramel brown and warm apricot",
+    "lilac purple and pale vanilla yellow",
+    "matcha green and linen beige",
+    "powder pink and soft sky blue",
+    "soft mocha brown and creamy milk white"
+]
+
+def get_random_outfit_guidance() -> str:
+    """随机挑选一种穿搭和配色建议，作为 SD prompt 提取的引导语"""
+    import random
+    cat_obj = random.choice(OUTFIT_STYLE_POOLS)
+    style = random.choice(cat_obj["styles"])
+    palette = random.choice(OUTFIT_COLOR_PALETTES)
+    return f"{style}, palette: {palette}"

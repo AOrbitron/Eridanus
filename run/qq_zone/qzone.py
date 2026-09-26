@@ -542,23 +542,31 @@ def main(bot: ExtendBot, config: YAMLManager):
         default_outfit = rules.get("outfit", "")
         full_rules_text = rules.get("full_section", "")
 
+        # 随机抽取一套多样化服饰穿搭与配色引导
+        outfit_guidance = ""
+        get_outfit_fn = getattr(qzone_themes, "get_random_outfit_guidance", None)
+        if callable(get_outfit_fn):
+            outfit_guidance = get_outfit_fn()
+
         dynamic_scene_tags = ""
         try:
             if mai_llm:
                 prompt_generator = (
                     f"你是一名专业动漫 Stable Diffusion 提示词专家。角色是：{bot_name}。\n"
-                    f"根据角色动态文案，仅提取【当前情绪与表情】+【当前动作/场景/日常服装变体】的纯英文 tags。\n"
+                    f"根据角色动态文案，仅提取【当前情绪与表情】+【当前动作/场景/日常服饰与配色变体】的纯英文 tags。\n"
                     f"角色卡绘图规则参考：\n{full_rules_text if full_rules_text else '日常场景参考: casual clothes, sitting on sofa, cozy room. 视角表情: slight blush, upper body'}\n"
                     f"当前主题建议：{theme_desc}\n"
+                    f"推荐服饰款式与配色多样性灵感（供参考，也可契合文案自选新穿搭与色系，切忌单一固定）：{outfit_guidance if outfit_guidance else 'diverse casual clothes with rich pastel colors'}\n"
                     f"当前动态文案：{post_text}\n\n"
                     f"要求：\n"
                     f"1. 绝对不要重复生成发色、发型、眼睛等基础面部特征设定（系统已全局保留）。\n"
-                    f"2. 仅输出情绪状态、服饰、动作和场景（如 casual clothes, messy room, sleepy, holding mug 或 loose oversized hoodie, soft smile 等）。\n"
-                    f"3. 仅输出纯英文 tags，用逗号分隔，不要解释，不要输出任何中文。"
+                    f"2. 必须包含具体的【衣服款式与明确颜色】（例如：cream oversized knit sweater, pleated brown skirt 或 pastel lilac hoodie, white sneakers 或 dusty blue sundress 等，不要只写模糊的'clothes'）。\n"
+                    f"3. 仅输出情绪状态、服饰穿搭（含颜色/款式）、动作和场景，不要解释，不要输出任何中文。\n"
+                    f"4. 仅输出纯英文 tags，用英文逗号分隔。"
                 )
                 sd_tags = await mai_llm.chat(
                     messages=[{"role": "user", "content": prompt_generator}],
-                    system_prompt="You are an expert prompt engineer specializing in anime Stable Diffusion tags.",
+                    system_prompt="You are an expert prompt engineer specializing in anime Stable Diffusion tags with diverse clothing styles and harmonious color palettes.",
                 )
                 if sd_tags:
                     cleaned_tags = sd_tags.strip().replace("\n", ", ")
@@ -577,9 +585,24 @@ def main(bot: ExtendBot, config: YAMLManager):
 
         if base_anchor:
             prompt_elements.append(base_anchor)
-        cloth_keywords = ["pajamas", "dress", "clothes", "hoodie", "shirt", "skirt", "jacket", "outfit", "robe", "apron", "sweater", "cardigan"]
-        if default_outfit and not any(ck in dynamic_scene_tags.lower() for ck in cloth_keywords):
-            prompt_elements.append(default_outfit)
+
+        # 扩充服饰款式关键词，若 LLM 生成或主题中已经指定了具体服饰/穿搭，则优先采用新服饰，避免固定死板注入默认套装
+        cloth_keywords = [
+            "pajamas", "dress", "clothes", "hoodie", "shirt", "skirt", "jacket", "outfit",
+            "robe", "apron", "sweater", "cardigan", "coat", "uniform", "blouse", "vest",
+            "sleeves", "tank top", "crop top", "swimsuit", "kimono", "hanfu", "loungewear",
+            "sportswear", "windbreaker", "overalls", "dungarees", "jersey", "parka", "tunic",
+            "pants", "shorts", "trousers", "jeans"
+        ]
+        has_custom_clothing = any(ck in dynamic_scene_tags.lower() for ck in cloth_keywords)
+
+        if not has_custom_clothing:
+            if outfit_guidance:
+                # 优先注入随机生成的丰富日常穿搭与配色，增加服饰多样性
+                prompt_elements.append(outfit_guidance)
+            elif default_outfit:
+                prompt_elements.append(default_outfit)
+
         if dynamic_scene_tags:
             prompt_elements.append(dynamic_scene_tags)
         if art_anchor:
