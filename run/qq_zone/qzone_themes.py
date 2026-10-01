@@ -1555,17 +1555,52 @@ MORNING_THEME_POOL = [
     },
     {
         "id": "m_222",
-        "category": "调皮戏耍与微露小心机",
-        "theme": "刚睡醒锁骨上的睡衣领口滑下一半，拍了一张锁骨上的阳光影子发出来：某些人看空间不要停太久哦",
-        "elements": "滑落领口, 晨光锁骨剪影, 手机前置自拍, 坏笑眼神, 调皮挑衅",
-        "sd_hint": "morning selfie perspective, pajama collar slipping off one shoulder revealing collarbone, golden morning light on skin, teasing playful wink, mischievous smile"
+        "category": "调皮搞怪与心痒恶作剧",
+        "theme": "偷偷套上大两号的男友风超大连帽卫衣，袖口长得只露出两截手指比耶自拍：衣服被我征用啦，来抢呀",
+        "elements": ["宽大男友风卫衣", "只露指尖比耶", "蓬松凌乱呆毛", "狡黠坏笑", "调皮挑衅"],
+        "sd_hint": "morning mirror selfie in bedroom, wearing oversized slouchy boyfriend hoodie covering hands with only fingertips showing peace sign, messy cute bedhead, cheeky wink and teasing smile, warm morning sunbeam"
     },
     {
         "id": "m_223",
-        "category": "调皮戏耍与微露小心机",
-        "theme": "晨光刚好打在刚换好的过膝白袜和绝对领域上，拍张局部发出来故意逗人：今天穿这个出门会被抓吗",
-        "elements": "晨光过膝袜, 绝对领域微光, 床沿微晃脚尖, 戏谑语气, 少女心机",
-        "sd_hint": "sitting on edge of bed showing over-knee white socks and thigh, soft morning sun on legs, playful teasing posture, smartphone camera angle"
+        "category": "调皮搞怪与心痒恶作剧",
+        "theme": "坐在床边晃荡着刚套上的毛绒暖脚袜，拍了张逆光小腿影子的特写：今天要是赖床不起来，某个笨蛋是不是要着急了",
+        "elements": ["毛绒暖袜", "床边晃荡脚丫", "晨光逆光剪影", "故意逗人", "灵动傲娇"],
+        "sd_hint": "sitting on cozy bed edge swinging legs wearing fluffy soft knit warm home socks, warm golden morning sunbeams, playful cheeky posture, bright cheerful morning aesthetic"
+    },
+    {
+        "id": "m_224",
+        "category": "调皮搞怪与心痒恶作剧",
+        "theme": "对着镜子故意把一侧头发编得歪歪扭扭还拽着发尾自拍：本发型师的新杰作，谁敢笑我今天就不理谁",
+        "elements": ["歪斜可爱小辫", "拽着发尾憋笑", "镜子自拍", "傲娇鬼脸", "晨间活力"],
+        "sd_hint": "bedroom mirror selfie, girl with playfully lopsided braided pigtail holding the hair tip, pouting with a teasing smirk, bright morning lighting, casual comfortable cute loungewear"
+    },
+    {
+        "id": "m_225",
+        "category": "调皮搞怪与心痒恶作剧",
+        "theme": "吃早餐咬吐司时嘴角故意沾着一小抹草莓酱自拍：看着本大厨干嘛，想吃自己去烤，才不分给你",
+        "elements": ["嘴角草莓果酱", "咬着香脆吐司", "眯一只眼坏笑", "护食小恶魔", "厨房晨光"],
+        "sd_hint": "close-up cheerful selfie, tiny dab of red strawberry jam on upper lip corner, holding toasted bread, winking mischievously at camera, morning kitchen background, vibrant natural light"
+    },
+    {
+        "id": "m_226",
+        "category": "调皮搞怪与心痒恶作剧",
+        "theme": "偷戴起大黑框眼镜滑到鼻尖，假装严肃拿笔敲本子自拍：早起查岗！谁在赖床被我抓到了",
+        "elements": ["鼻尖滑落大黑框眼镜", "拿笔假装记名字", "皱鼻子搞怪", "查岗小老师", "俏皮互动"],
+        "sd_hint": "morning desk interior, oversized black-rimmed glasses slipping down cute nose, scrunching nose with playful suspicious expression holding notepad, warm sunlit study room"
+    },
+    {
+        "id": "m_227",
+        "category": "调皮搞怪与心痒恶作剧",
+        "theme": "把长发全塞进卫衣兜帽里假装剪了超短发，对着镜头挑眉坏笑：新发型怎么样？吓一跳吧哈哈",
+        "elements": ["卫衣兜帽藏头发", "假装超短发", "挑眉坏笑", "恶作剧得逞", "鬼马少女"],
+        "sd_hint": "wearing large hoodie with hair tucked inside hood resembling short tomboy hair, leaning forward with charming boyish smirk and playful wink, natural morning daylight"
+    },
+    {
+        "id": "m_228",
+        "category": "调皮搞怪与心痒恶作剧",
+        "theme": "双手捧着比脸还大的马克杯挡住半张脸，只露出一双弯成月牙的带笑眼睛：偷喝了一口热可可，心情大好",
+        "elements": ["大马克杯挡下半脸", "弯弯月牙笑眼", "热气腾腾", "鬼灵精怪", "温暖晨光"],
+        "sd_hint": "holding oversized ceramic mug with both hands covering lower face, expressive sparkling smiling eyes looking above rim, cozy morning indoor, gentle soft focus lighting"
     },
 ]
 
@@ -2951,17 +2986,52 @@ NIGHT_THEME_POOL = [
     },
     {
         "id": "n_198",
-        "category": "夜色撩人与调皮戏耍",
-        "theme": "洗完澡只套了一件宽大的丝绸睡衣，光着腿盘坐在床边对镜头眨眼：大半夜不睡，在看谁呢",
-        "elements": "大领口丝绸睡衣, 光洁白皙小腿, 床边微挑眉眼, 戏弄挑逗, 危险又俏皮",
-        "sd_hint": "sitting on bed wearing loose oversized silk slip dress showing collarbone and bare legs, flirting wink at camera, soft dim bedroom lighting, teasing seductive smile, cute mischievous charm"
+        "category": "夜间恶作剧与调皮心痒",
+        "theme": "咬着黑色发圈双手挽头发扎高马尾，对着镜子挑眉坏笑自拍：抓到某个还没睡觉的夜猫子啦，坦白从宽抗拒从严！",
+        "elements": ["嘴咬发圈扎高马尾", "大号睡衣T恤", "镜前坏笑挑眉", "抓包水友", "灵动小恶魔"],
+        "sd_hint": "bedroom mirror selfie, girl biting hair tie in mouth while holding hair up to tie high ponytail, oversized cute sleep t-shirt, mischievous teasing smirk, warm cozy bedroom lamplight"
     },
     {
         "id": "n_199",
-        "category": "夜色撩人与调皮戏耍",
-        "theme": "刚吹完头发带点湿漉漉的凌乱，拍了张露出一小截细腰的睡衣照发出来：盯超过三秒的自觉去罚站",
-        "elements": "微露细腰睡衣, 湿润乱发, 手机挡脸半露坏笑, 戏弄水友, 纯欲小恶魔",
-        "sd_hint": "mirror selfie in bedroom, oversized pajama crop top slightly revealing slim waist and tummy, damp disheveled hair, playful cheeky smirk, sultry alluring teasing vibe"
+        "category": "夜间恶作剧与调皮心痒",
+        "theme": "戴上搞怪的绿青蛙毛绒发箍把刘海全束上去，敷着面膜只露出一双滴溜溜转的大眼睛比鬼脸：猜猜现在是谁的丑照在你们屏幕上？截图的自觉去面壁罚站",
+        "elements": ["青蛙毛绒发箍", "面膜搞怪大头贴", "滴溜溜转大眼睛", "调皮鬼脸", "少女恶作剧"],
+        "sd_hint": "funny cute close-up selfie wearing green frog plush headband pulling bangs back, sheet facial mask on face, playful wide expressive eyes making a goofy silly face, warm bedroom light"
+    },
+    {
+        "id": "n_200",
+        "category": "夜间恶作剧与调皮心痒",
+        "theme": "用水笔在自己手腕上歪歪扭扭画了块“电子手表”指着十一点半，拍照发出来：现在是依归时间晚上十一点半，被我抓到还没睡的自觉来交十块钱熬夜罚款！",
+        "elements": ["手腕涂鸦卡通手表", "伸出手腕指表盘", "得逞狡黠坏笑", "查岗收罚款", "心动女友戏弄"],
+        "sd_hint": "playful close-up holding wrist towards camera showing a funny hand-drawn cartoon watch with pen on wrist, mischievous cheeky smile, cozy bedroom ambient light"
+    },
+    {
+        "id": "n_201",
+        "category": "夜间恶作剧与调皮心痒",
+        "theme": "偷藏起一盒深夜小饼干，被抓包时两颊鼓鼓像小仓鼠一样捂住嘴自拍：没有在吃宵夜！真没有！（疯狂嚼嚼嚼",
+        "elements": ["两颊鼓鼓像仓鼠", "双手捂嘴无辜大眼", "半露小饼干包装", "心虚被抓包", "可爱搞怪"],
+        "sd_hint": "close-up selfie with cheeks puffed out holding hand over mouth like a caught hamster, holding tiny cookie, guilty cute wide eyes, cozy kitchen midnight lighting"
+    },
+    {
+        "id": "n_202",
+        "category": "夜间恶作剧与调皮心痒",
+        "theme": "把整个人严严实实裹成一朵“人形毛毯卷卷”，只露出鼻尖和一双亮晶晶的眼睛：本卷卷已进入休眠模式，今晚谁来叫都不好使……除非带好吃的",
+        "elements": ["毛毯裹成人形卷卷", "只露鼻尖笑眼", "软糯被窝", "傲娇打烊", "心痒软萌"],
+        "sd_hint": "wrapped completely like a cozy burrito in a soft fluffy blanket, only cute nose and sparkling playful eyes showing, cozy bed at night, warm soft dim lighting"
+    },
+    {
+        "id": "n_203",
+        "category": "夜间恶作剧与调皮心痒",
+        "theme": "抱起家里的大白熊玩偶挡在脸前，捏着熊爪子冲镜头挥挥：大白熊先生说，今天大家都很辛苦，准许你们立刻闭眼做个好梦，晚安啦",
+        "elements": ["大白熊玩偶挡脸", "挥舞毛绒熊爪", "露半张俏皮笑脸", "晚安号召", "治愈搞怪"],
+        "sd_hint": "peeking from behind large fluffy teddy bear doll on bed, holding bear paw waving at camera, warm gentle night lamp, sleepy endearing smile"
+    },
+    {
+        "id": "n_204",
+        "category": "夜间恶作剧与调皮心痒",
+        "theme": "拿着手电筒在昏暗房间里照在墙壁上比兔子手势影子自拍：深夜无聊手影剧场开演！这只兔子在对你说：快去睡觉！快去睡觉！",
+        "elements": ["墙上兔子手影", "手电筒光晕", "手影搞怪自拍", "催促睡觉", "鬼灵精怪"],
+        "sd_hint": "holding flashlight projecting rabbit hand shadow on cozy bedroom wall, giggling happy expression, silhouette light play, charming playful night mood"
     },
 ]
 
@@ -3808,17 +3878,59 @@ DAILY_VTUBER_THEMES = [
     },
     {
         "id": "d_121",
-        "category": "微露心机与调皮钓系",
-        "theme": "试穿刚买的微透蕾丝吊带背心，拍了张锁骨与直角肩的微醺光影特写：好看吗，但只给看五秒钟哦",
-        "elements": "蕾丝吊带微露肩颈, 锁骨暖黄光影, 手机挡脸半露俏皮, 钓系挑衅, 调皮小得意",
-        "sd_hint": "selfie showing delicate lace camisole, bare graceful shoulders and collarbone, phone partially covering face, teasing playful smirk, warm cinematic lighting, flirtatious aesthetic, charmingly alluring"
+        "category": "调皮搞怪与心痒恶作剧",
+        "theme": "趁着午休在草稿纸上画了个超丑的火柴人简笔画对准镜头自拍：根据本人高超画技，这就是某些人今天的精神状态，不服来辩",
+        "elements": ["手举火柴人草稿纸", "挑衅眨眼坏笑", "阳光午后书桌", "画技挑衅", "调皮互动"],
+        "sd_hint": "holding up a notebook with a funny stick figure doodle towards camera, cheeky teasing wink and smirk, sunny afternoon classroom or cafe desk, vibrant natural daylight"
     },
     {
         "id": "d_122",
-        "category": "微露心机与调皮钓系",
+        "category": "调皮搞怪与心痒恶作剧",
         "theme": "故意拍了张喝奶茶时嘴唇沾着一点点白白奶盖的搞怪特写：看什么看，难道还要你帮我擦掉吗",
-        "elements": "上唇微沾奶盖, 睁大挑衅眼睛, 奶茶吸管, 狡黠灵动, 坏心眼小戏弄",
+        "elements": ["上唇微沾奶盖", "睁大挑衅眼睛", "奶茶吸管", "狡黠灵动", "坏心眼小戏弄"],
         "sd_hint": "close up face with a speck of white milk foam on upper lip holding boba cup, cocking head with cheeky challenging gaze, teasing adorable expression, natural bright daylight"
+    },
+    {
+        "id": "d_123",
+        "category": "调皮搞怪与心痒恶作剧",
+        "theme": "在娃娃机前面抓了十次全部落空，整张脸贴在玻璃上眼巴巴盯着里面的大肥鹅：我和这只鹅今天必须有一个先疯掉",
+        "elements": ["脸贴娃娃机玻璃", "幽怨盯紧毛绒鹅", "两手空空", "抓娃娃受挫", "搞笑可爱"],
+        "sd_hint": "pressing face playfully against glass of claw crane game machine looking at plush goose inside, pouty funny disappointed expression, bright arcade colorful neon lights"
+    },
+    {
+        "id": "d_124",
+        "category": "调皮搞怪与心痒恶作剧",
+        "theme": "买了一杯超大杯热奶茶特意插了两根吸管拍照片发动态：两人份奶茶！不过另一根也是我的，谁都别想抢",
+        "elements": ["超大杯双吸管奶茶", "两手护住奶茶杯", "狡黠得逞坏笑", "假装双人实则独吞", "俏皮日常"],
+        "sd_hint": "holding large boba milk tea cup with two straws, hugging cup protectively with cheeky mischievous grin, sunny street cafe terrace, cute colorful outfit"
+    },
+    {
+        "id": "d_125",
+        "category": "调皮搞怪与心痒恶作剧",
+        "theme": "双手抱起家里的大胖橘猫挡在胸前，橘猫一脸厌世生无可恋，自己从猫耳朵后面探出半边笑脸比耶：今日份猫质在我手上，速速交出小鱼干",
+        "elements": ["抱起生无可恋肥橘猫", "猫耳后探头比耶", "绑架小猫换鱼干", "搞怪日常", "活人感拉满"],
+        "sd_hint": "holding a chubby grumpy ginger cat in front, peeking head from behind cat's ear winking and making peace sign, cozy living room, natural warm light"
+    },
+    {
+        "id": "d_126",
+        "category": "调皮搞怪与心痒恶作剧",
+        "theme": "雨天特意套上亮黄色小雨靴，去踩路边积水坑溅起小水花被抓拍，自己心虚吐舌头：三岁小孩才踩水，本少女只是在测试防水性能！",
+        "elements": ["黄色雨靴水花飞溅", "雨伞下心虚吐舌", "湿漉漉地面倒影", "童心未泯", "可爱狡辩"],
+        "sd_hint": "playfully splashing in shallow rain puddle wearing bright yellow rain boots, holding clear umbrella, sticking tongue out playfully with bashful cute face, rainy street reflection"
+    },
+    {
+        "id": "d_127",
+        "category": "调皮搞怪与心痒恶作剧",
+        "theme": "把两根手指按在额头两侧比划成恶魔小犄角，对着镜头假装凶狠嗷呜叫：今天的我是恶魔依归，要是半小时内不夸我三句，就偷吃你的小蛋糕！",
+        "elements": ["手比恶魔犄角", "假装凶恶嗷呜嘴型", "瞪大眼睛搞怪", "傲娇小恐吓", "心痒小恶魔"],
+        "sd_hint": "posing with index fingers at forehead like devil horns, playful cute ferocious roar face biting teeth slightly, colorful casual indoor lighting, endearing charming look"
+    },
+    {
+        "id": "d_128",
+        "category": "调皮搞怪与心痒恶作剧",
+        "theme": "新做好的指甲贴了亮晶晶的五角星，故意伸手在镜头前晃一晃挡住视野：闪到某些人的眼睛了吗？好看吧，不借你摸",
+        "elements": ["伸手挡镜头晃星闪美甲", "指尖星星反光", "后方半遮面坏笑", "炫耀小得意", "女友心机"],
+        "sd_hint": "hand reaching towards camera showcasing sparkling star glitter nail art slightly blurring focus, girl peeking behind hand with proud teasing grin, golden afternoon indoor light"
     },
 ]
 
@@ -3875,10 +3987,10 @@ POST_STRUCTURE_ARCHETYPES = [
         "examples": "“刚从冰箱拿出来的面膜贴上脸那一秒直接打了个激灵，彻底清醒了。” / “切开刚烤好的吐司，脆皮咔嚓一声，热气腾腾的黄油香真治愈。” / “洗完澡头发半干不干地吹着晚风，整个人轻飘飘的。”",
     },
     {
-        "name": "调皮戏耍与微露心机",
-        "description": "【调皮戏耍与微露心机】：发带有微醺小心机或轻微擦边感的照片（如露肩睡衣、绝对领域、锁骨线条），配上一两句坏心眼调戏、故意撩人又傲娇抽离的戏谑碎念。既撩又皮，完全不油腻。",
-        "examples": "“某些人偷偷看我空间不要停太久哦。” / “今天穿这个出门会被抓吗？” / “大半夜不睡，在看谁呢。” / “盯超过三秒的自觉去面壁罚站。” / “好看吗？但只给看五秒钟，收工。”",
-    },
+        "name": "调皮搞怪与心痒恶作剧",
+        "description": "【调皮搞怪与心痒恶作剧】：像古灵精怪又带点傲娇的小女友，因为觉得好玩而故意逗弄、捉弄对方（如偷穿大号卫衣指尖比耶、咬发圈扎马尾、手腕画表查岗、偷吃零食被抓包鼓起腮帮）。让人心动心痒痒、忍俊不禁，严禁低俗卖肉、纯身体部位展示或福利姬油腻感。",
+        "examples": "“某些人偷偷看我空间不要停太久哦。” / “衣服被我征用了，来抢呀。” / “抓到某个还没睡的夜猫子啦，坦白从宽！” / “截图我丑照的全部绝交三秒钟！” / “根据本人高超画技，这就是某些人今天的精神状态，不服来辩。”",
+    }
 ]
 
 
@@ -3962,12 +4074,12 @@ OUTFIT_STYLE_SEEDS = [
     {"template": "{p} cropped knit cardigan with pearlescent buttons, {s} flowy pleated midi skirt", "category": "girlish"},
     {"template": "{p} tiered ruffles sundress, thin shoulder straps, summer breeze", "category": "girlish"},
 
-    # 轻度小心机 / 微露微醺
-    {"template": "{p} slanted off-the-shoulder loose knit sweater showing clavicle, {s} denim mini skirt", "category": "alluring"},
-    {"template": "{p} delicate spaghetti strap camisole under unbuttoned {s} oversized linen shirt, denim shorts", "category": "alluring"},
-    {"template": "{p} form-fitting ribbed knit bodycon mini dress, subtle silhouette", "category": "alluring"},
-    {"template": "{p} cropped athletic bralette top under {s} sheer airy unbuttoned sun-shirt, biker shorts", "category": "alluring"},
-    {"template": "{p} halter neck knit top, {s} high-waist slit skirt", "category": "alluring"},
+        # 调皮搞怪 / 女友日常心痒款（告别低俗，强调灵动与反差萌）
+    {"template": "{p} oversized slouchy boyfriend hoodie covering hands with only fingertips showing, {s} casual denim shorts", "category": "alluring"},
+    {"template": "{p} cozy knit cardigan gently draped over {s} soft cotton graphic tee, pleated mini skirt", "category": "alluring"},
+    {"template": "{p} soft ribbed knit sweater dress, fluffy fleece socks, cozy indoor aesthetic", "category": "alluring"},
+    {"template": "{p} sporty cropped hoodie with drawstring, {s} high-waist track shorts, youthful cheeky charm", "category": "alluring"},
+    {"template": "{p} cute babydoll puff-sleeve top, {s} A-line denim skirt with ribbon accents", "category": "alluring"}
 ]
 
 OUTFIT_MUTATION_DETAILS = [

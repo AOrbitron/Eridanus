@@ -820,7 +820,8 @@ def main(bot: ExtendBot, config: YAMLManager):
             f"你的人设信息如下：\n{chara_text}\n\n"
             f"你现在要在自己的社交空间发一条随手动态（{task_name}的说说）。\n"
             f"当前时间：{time_context}\n"
-            f"【整体基调与情绪自由】：像真实女孩子在小号随手记下的心情碎片（参考 @moonjelly0、@jellyhoshiumi）。情绪可以极丰富多变——可以超级无聊、emo阴郁、满心雀跃、平淡松弛、干劲满满，甚至带点小恶魔式的调皮戏耍！拒绝单一刻板的人设，展现最鲜活真实的活人感。\n\n"
+            f"【整体基调与情绪自由】：像真实女孩子在小号随手记下的心情碎片（参考 @moonjelly0、@jellyhoshiumi）。情绪可以极丰富多变——可以超级无聊、emo阴郁、满心雀跃、平淡松弛、干劲满满，甚至带点小恶魔式的调皮戏耍！拒绝单一刻板的人设，展现最鲜活真实的活人感。\n"
+            f"【小女友调皮心动感而非低俗】：如果触发调皮搞怪或微撩恶作剧主题，展现的是像古灵精怪、傲娇真实的小女友因为觉得好玩而跟水友开玩笑搞恶作剧；严禁福利姬/低俗卖肉/纯身体部位或露骨描写！\n\n"
             f"【核心禁令与破除AI套路】：\n"
             f"1. 严禁编造复杂的舞台剧剧情与做作转折（如'推开无人花房门铜铃哑响、昙花慢慢张开、连打三个喷嚏'这种毫无日常感的生硬虚构小短文）！普通人发动态绝不是在写小说！\n"
             f"2. 严禁使用括号动作表情（如'（目移）'、'（叹气）'、'（揉脸）'）！\n"
@@ -1000,7 +1001,8 @@ def main(bot: ExtendBot, config: YAMLManager):
             f"人设：\n{chara_text}\n\n"
             f"你现在要在自己的社交空间发一条随手生活碎念。\n"
             f"当前时间：{time_context}\n"
-            f"【整体基调与多元情绪】：像真实女孩子在小号随手发的日常碎片。情绪完全自由流动——无论当下是极度无聊、放空抑郁、元气开心、波澜不惊，还是发微撩自拍坏心眼逗人，都真实自然，随性松弛。\n\n"
+            f"【整体基调与多元情绪】：像真实女孩子在小号随手发的日常碎片。情绪完全自由流动——无论当下是极度无聊、放空抑郁、元气开心、波澜不惊，还是发微撩自拍坏心眼逗人，都真实自然，随性松弛。\n"
+            f"【小女友调皮心动感而非低俗】：如果触发调皮搞怪或微撩恶作剧主题，展现的是像古灵精怪、傲娇真实的小女友因为觉得好玩而跟水友开玩笑搞恶作剧；严禁福利姬/低俗卖肉/纯身体部位或露骨描写！\n\n"
             f"【核心写作要领】：\n"
             f"1. 拒绝写成做作编造的虚构小故事！不要层层铺垫前因后果，不要为了写细节而堆砌生硬剧情。\n"
             f"2. 严禁使用'（目移）'、'（叹气）'等任何括号动作戏！\n"
@@ -1187,10 +1189,69 @@ def main(bot: ExtendBot, config: YAMLManager):
 
         bot_name, chara_text = get_bot_persona_info()
 
+        inter_cfg = config.qq_zone.config.get("动态互动", {})
+        custom_reply_guidance = (inter_cfg.get("reply_guidance") or "").strip()
+        if not custom_reply_guidance:
+            custom_reply_guidance = (
+                "口吻生动鲜活，像关系很好的朋友或Vtuber在自己动态下神回复！"
+                "严禁车轱辘复读相同的借口或固定句式，针对不同好友的评论给出不同角度的吐槽、反问、接梗、求饶或傲娇反击；"
+                "严禁在回复中使用任何括号动作描写如(气呼呼)。"
+            )
+
+        reply_strategies = [
+            {
+                "name": "机智反弹互怼",
+                "directive": "不要解释借口！反客为主挑对方的刺，反问对方是不是太闲了特意赶来抓包，或者嘲弄对方也半斤八两，充满好友间轻快互损的乐趣。"
+            },
+            {
+                "name": "幽默自嘲求放过",
+                "directive": "顺着对方调侃的话自黑认栽，装可怜认输求放过，假装要找个地缝钻进去，求别拆穿了。"
+            },
+            {
+                "name": "傲娇炸毛威胁",
+                "directive": "假装被戳到痛处炸毛，宣布跟对方绝交三分钟，或者威胁要把对方做成表情包挂到群里示众。"
+            },
+            {
+                "name": "理直气壮敲竹杠",
+                "directive": "既然被你看到了那就见者有份，理直气壮索要一杯奶茶或一包薯条作为封口费，否则就赖上你。"
+            },
+            {
+                "name": "转移焦点装傻",
+                "directive": "眼神飘忽强行顾左右而言他，假装无事发生，突然聊今天天气真好或你晚饭吃什么，生硬地转移话题。"
+            },
+            {
+                "name": "就地抓壮丁",
+                "directive": "既然你这么有精神，正好过来帮我收拾残局/打扫桌面/干活，别光顾着看戏！"
+            },
+            {
+                "name": "抓字眼接梗",
+                "directive": "敏锐抓住对方评论里的某个词、错别字或谐音梗反将一军，展现水友群聊的高段位接梗感。"
+            },
+            {
+                "name": "反向好奇打探",
+                "directive": "不聊自己当前的窘况，反过来好奇打听对方在干嘛，是不是也在偷偷摸鱼，打探对方的八卦。"
+            }
+        ]
+
         for msg in msg_list:
             tid = msg.get("tid", "")
             shuoshuo_text = msg.get("content", "")
             comments = msg.get("commentlist") or []
+
+            # 收集当前说说下已有 Bot 历史回复（用于同动态防复读）
+            existing_bot_replies = []
+            for root_c in comments:
+                if int(root_c.get("uin", 0)) == target_qq:
+                    c_txt = re.sub(r"@\{uin:\d+,nick:[^,}]+,who:\d+\}\s*", "", root_c.get("content", "") or "").strip()
+                    if c_txt:
+                        existing_bot_replies.append(c_txt)
+                for sub_c in (root_c.get("list_3") or root_c.get("replies") or root_c.get("sublist") or root_c.get("replylist") or []):
+                    if int(sub_c.get("uin", 0)) == target_qq:
+                        c_txt = re.sub(r"@\{uin:\d+,nick:[^,}]+,who:\d+\}\s*", "", sub_c.get("content", "") or "").strip()
+                        if c_txt:
+                            existing_bot_replies.append(c_txt)
+
+            recent_replies_for_this_post = []
 
             # 扁平化提取说说下的所有评论（包含根评论与子评论/楼中楼回复）
             all_target_comments = []
@@ -1305,6 +1366,19 @@ def main(bot: ExtendBot, config: YAMLManager):
                     except Exception as e:
                         logger.warning(f"[Qzone] 读取 mai_reply 对话上下文失败: {e}")
 
+                # 同动态防车轱辘复读判定
+                all_prior_replies = existing_bot_replies + recent_replies_for_this_post
+                anti_repetition_prompt = ""
+                if all_prior_replies:
+                    prior_samples = all_prior_replies[-5:]
+                    anti_repetition_prompt = (
+                        "【防车轱辘复读警告（极度重要）】：你在本条说说下已经对其他好友做出过如下回复：\n"
+                        + "\n".join([f"- {r}" for r in prior_samples])
+                        + "\n⚠️ 本次回复【绝对严禁】再复读或变相复读上述任何相同的借口、解释理由、词汇或句式！针对当前好友必须换一个完全不同的角度、切入点或态度回应！\n"
+                    )
+
+                chosen_strategy = random.choice(reply_strategies)
+
                 # LLM 生成贴合人设与说说主题的回复
                 sys_reply_prompt = (
                     f"你是{bot_name}。\n"
@@ -1319,13 +1393,21 @@ def main(bot: ExtendBot, config: YAMLManager):
                 if recent_chat_snippet:
                     sys_reply_prompt += f"你们近期的对话上下文片段：\n{recent_chat_snippet}\n"
 
+                if anti_repetition_prompt:
+                    sys_reply_prompt += f"\n{anti_repetition_prompt}\n"
+
                 sys_reply_prompt += (
+                    f"【本次建议切入策略（{chosen_strategy['name']}）】：\n"
+                    f"{chosen_strategy['directive']}\n\n"
+                    f"【个性化优化引导词】：\n"
+                    f"{custom_reply_guidance}\n\n"
                     f"要求与人际分寸感规范：\n"
                     f"1. 结合你的说说主题、上下文语境和对方的评论，自然、亲切地像在空间好友动态下互动一样进行回复。\n"
                     f"2. 【重要分寸感约束】：当前处于所有人可见的公开动态评论区！绝对不要表现得过度亲密、过度撒娇、暧昧或调情（不要叫'老公'、'宝贝'、'主人'或做亲昵身体接触描写等），以免其他用户吃醋或显得你到处和人调情！\n"
                     f"3. 保持健康、自然、元气可爱的朋友/Vtuber博主互动边界感，风趣机智地回应或友善吐槽即可。\n"
-                    f"4. 若有对他的印象或聊天经历，自然流露熟络感，不要刻意背诵。\n"
-                    f"5. 长度严格控制在 15~50 字以内，轻松口语化，绝对不要包含任何系统标记或多余引号，不要自己在回复开头写@谁（系统会自动添加标准艾特标签）。"
+                    f"4. 【绝对严禁输出任何括号动作描写】！严禁包含类似 (气呼呼)、(小声嘀咕)、(把手指伸过去)、（委屈地对手指）、(目移) 等任何圆括号或中文括号包裹的动作、心理或神态描写！必须只输出纯粹的人声自然口语台词！\n"
+                    f"5. 若有对他的印象或聊天经历，自然流露熟络感，不要刻意背诵。\n"
+                    f"6. 长度严格控制在 10~45 字以内，轻松口语化，绝对不要包含任何系统标记或多余引号，不要自己在回复开头写@谁（系统会自动添加标准艾特标签）。"
                 )
 
                 reply_text = ""
@@ -1336,12 +1418,28 @@ def main(bot: ExtendBot, config: YAMLManager):
                             system_prompt=sys_reply_prompt,
                         )
                         reply_text = res.strip() if res else ""
-                        reply_text = reply_text.strip("\"'[] \n\r\t")
                 except Exception as e:
                     logger.error(f"[Qzone] 生成评论回复失败: {e}")
 
+                if reply_text:
+                    # 彻底剥离任何中英文圆括号动作/心理描写（如 "(气呼呼)"、"（把手指伸到屏幕前）"）
+                    while True:
+                        cleaned = re.sub(r"[\(（][^()（）]*[\)）]", "", reply_text).strip()
+                        if cleaned == reply_text:
+                            break
+                        reply_text = cleaned
+                    reply_text = re.sub(r'^[\u201c\u201d"\'\s\[\]]+|[\u201c\u201d"\'\s\[\]]+$', "", reply_text).strip()
+
                 if not reply_text:
-                    reply_text = f"谢谢{comment_name}的评论！记得天天开心哦~"
+                    fallbacks = [
+                        f"哼，{comment_name}你少幸灾乐祸啦！",
+                        f"{comment_name}抓包速度这么快，是不是偷偷住我空间了！",
+                        f"被{comment_name}看到了……快装作没看见！",
+                        f"呜，{comment_name}别拆台，给我留点面子嘛~"
+                    ]
+                    reply_text = random.choice(fallbacks)
+
+                recent_replies_for_this_post.append(reply_text)
 
                 # 发送空间评论回复 (传递 comment_id 确保楼中楼准确回复)
                 # 注：QQ空间在楼中楼回复时，comment_id 始终传根评论ID（root_c 的 cid）
