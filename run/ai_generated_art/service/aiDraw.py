@@ -37,6 +37,18 @@ try:
 except (ValueError, IndexError, TypeError):
     sd_max_size = 1600 * 1600
 allow_nsfw_groups = [int(item) for item in aiDrawController.get("allow_nsfw_groups", [])] if aiDrawController else []
+sd_timeout = float(aiDrawController.get("sd超时时间", 600) or 600) if aiDrawController else 600.0
+
+def get_sd_timeout(config=None) -> float:
+    if config is not None:
+        try:
+            cfg = config.ai_generated_art.config.get("ai绘画", {})
+            val = cfg.get("sd超时时间")
+            if val is not None:
+                return float(val)
+        except Exception:
+            pass
+    return sd_timeout
 censored_words = ["nsfw", "nipple", "pussy", "areola", "dick", "cameltoe", "ass", "boob", "arse", "penis", "porn", "sex", "bitch", "fuck", "arse", "blowjob", "handjob", "anal", "nude", "vagina", "boner"]
 positives = '{},rating:general, best quality, very aesthetic, absurdres'
 negatives = 'blurry, lowres, error, film grain, scan artifacts, worst quality, bad quality, jpeg artifacts, very displeasing, chromatic aberration, logo, dated, signature, multiple views, gigantic breasts'
@@ -506,8 +518,11 @@ async def SdreDraw(prompt, path, config, groupid, b64_in, args):
         "Authorization": auth_header
     }
     
-    async with httpx.AsyncClient(timeout=None, trust_env=False, headers={'User-Agent': 'Mozilla/5.0', 'Accept-Encoding': 'identity'}) as client:
+    sd_t = get_sd_timeout(config)
+    timeout_client = httpx.Timeout(sd_t, connect=min(60.0, sd_t))
+    async with httpx.AsyncClient(timeout=timeout_client, trust_env=False, headers={'User-Agent': 'Mozilla/5.0', 'Accept-Encoding': 'identity'}) as client:
         response = await client.post(url=f'{url}/sdapi/v1/img2img', json=payload, headers=headers)
+        response.raise_for_status()
     r = response.json()
     if 'images' not in r or len(r['images']) == 0:
         return None
@@ -614,8 +629,11 @@ async def SdDraw0(prompt, path, config, groupid, args):
         headers=eridanus_headers
     #print(payload)
     #print(headers)
-    async with httpx.AsyncClient(timeout=None, trust_env=False, headers={'User-Agent': 'Mozilla/5.0', 'Accept-Encoding': 'identity'}) as client:
+    sd_t = get_sd_timeout(config)
+    timeout_client = httpx.Timeout(sd_t, connect=min(60.0, sd_t))
+    async with httpx.AsyncClient(timeout=timeout_client, trust_env=False, headers={'User-Agent': 'Mozilla/5.0', 'Accept-Encoding': 'identity'}) as client:
         response = await client.post(url=f'{url}/sdapi/v1/txt2img', json=payload, headers=headers)
+        response.raise_for_status()
     r = response.json()
 
     b64 = r['images'][0]
@@ -646,8 +664,11 @@ async def getloras(config):
     }
 
     url = f'{url}/sdapi/v1/loras'
-    async with httpx.AsyncClient(timeout=None, trust_env=False, headers={'User-Agent': 'Mozilla/5.0', 'Accept-Encoding': 'identity'}) as client:
+    sd_t = min(60.0, get_sd_timeout(config))
+    timeout_client = httpx.Timeout(sd_t, connect=10.0)
+    async with httpx.AsyncClient(timeout=timeout_client, trust_env=False, headers={'User-Agent': 'Mozilla/5.0', 'Accept-Encoding': 'identity'}) as client:
         response = await client.get(url, headers=headers)
+        response.raise_for_status()
         r = response.json()
         result_lines = [f'<lora:{lora.get("name", "未知")}:1.0>,' for lora in r]
         result = '以下是可用的lora：\n' + '\n'.join(result_lines)
@@ -672,9 +693,11 @@ async def getcheckpoints(config):
         "Authorization": auth_header
     }
     url = f'{url}/sdapi/v1/sd-models'
-
-    async with httpx.AsyncClient(timeout=None, trust_env=False, headers={'User-Agent': 'Mozilla/5.0', 'Accept-Encoding': 'identity'}) as client:
+    sd_t = min(60.0, get_sd_timeout(config))
+    timeout_client = httpx.Timeout(sd_t, connect=10.0)
+    async with httpx.AsyncClient(timeout=timeout_client, trust_env=False, headers={'User-Agent': 'Mozilla/5.0', 'Accept-Encoding': 'identity'}) as client:
         response = await client.get(url, headers=headers)
+        response.raise_for_status()
         r = response.json()
         model_lines = [f'{model.get("model_name", "未知")}.safetensors' for model in r]
         result = f'当前底模: {ckpt}\n以下是可用的底模：\n' + '\n'.join(model_lines)
@@ -1050,8 +1073,11 @@ async def SdmaskDraw(prompt, path, config, groupid, b64_in, args, mask_base64):
         "Accept": "application/json",
         "Authorization": auth_header
     }
-    async with httpx.AsyncClient(timeout=None, trust_env=False, headers={'User-Agent': 'Mozilla/5.0', 'Accept-Encoding': 'identity'}) as client:
+    sd_t = get_sd_timeout(config)
+    timeout_client = httpx.Timeout(sd_t, connect=min(60.0, sd_t))
+    async with httpx.AsyncClient(timeout=timeout_client, trust_env=False, headers={'User-Agent': 'Mozilla/5.0', 'Accept-Encoding': 'identity'}) as client:
         response = await client.post(url=f'{url}/sdapi/v1/img2img', json=payload, headers=headers)
+        response.raise_for_status()
     r = response.json()
     if 'images' not in r or len(r['images']) == 0:
         return None
@@ -1081,10 +1107,12 @@ async def getsampler(config):
         "Accept": "application/json",
         "Authorization": auth_header
     }
-    url = f'{url}/sdapi/v1/samplers'    
-
-    async with httpx.AsyncClient(timeout=None, trust_env=False, headers={'User-Agent': 'Mozilla/5.0', 'Accept-Encoding': 'identity'}) as client:
+    url = f'{url}/sdapi/v1/samplers'
+    sd_t = min(60.0, get_sd_timeout(config))
+    timeout_client = httpx.Timeout(sd_t, connect=10.0)
+    async with httpx.AsyncClient(timeout=timeout_client, trust_env=False, headers={'User-Agent': 'Mozilla/5.0', 'Accept-Encoding': 'identity'}) as client:
         response = await client.get(url, headers=headers)
+        response.raise_for_status()
         r = response.json()
         try:
             names_list = [item["name"] for item in r if "name" in item]
@@ -1107,8 +1135,11 @@ async def getscheduler(config):
         "Authorization": auth_header
     }
     url = f'{url}/sdapi/v1/schedulers'
-    async with httpx.AsyncClient(timeout=None, trust_env=False, headers={'User-Agent': 'Mozilla/5.0', 'Accept-Encoding': 'identity'}) as client:
+    sd_t = min(60.0, get_sd_timeout(config))
+    timeout_client = httpx.Timeout(sd_t, connect=10.0)
+    async with httpx.AsyncClient(timeout=timeout_client, trust_env=False, headers={'User-Agent': 'Mozilla/5.0', 'Accept-Encoding': 'identity'}) as client:
         response = await client.get(url, headers=headers)
+        response.raise_for_status()
         r = response.json()
         label_list = [item["label"] for item in r if "label" in item]
         result = f'\n'.join(label_list)
@@ -1117,10 +1148,10 @@ async def getscheduler(config):
 async def interrupt(config):
     global round_sd
     try:
-        adjusted_index = int(round_sd) - 1
         sdUrls = config.ai_generated_art.config["ai绘画"]["sdUrl"]
-        if adjusted_index < 0 or adjusted_index >= len(sdUrls):
-            raise IndexError("索引超出范围，请检查 round_sd 的值。")
+        if not sdUrls:
+            return None
+        adjusted_index = (int(round_sd) - 1) % len(sdUrls)
         url = sdUrls[adjusted_index]
         url, auth_header = parse_custom_url_auth(url)
 
@@ -1133,7 +1164,7 @@ async def interrupt(config):
             "114514": "1919810"
         }
         url = f'{url}/sdapi/v1/interrupt'
-        async with httpx.AsyncClient(headers={'Accept-Encoding': 'identity'}, trust_env=False) as client:
+        async with httpx.AsyncClient(timeout=10.0, headers={'Accept-Encoding': 'identity'}, trust_env=False) as client:
             response = await client.post(url, json=post_data, headers=headers)
             response.raise_for_status()
             return response.json()
@@ -1147,10 +1178,10 @@ async def interrupt(config):
 async def skipsd(config):
     global round_sd
     try:
-        adjusted_index = int(round_sd) - 1
         sdUrls = config.ai_generated_art.config["ai绘画"]["sdUrl"]
-        if adjusted_index < 0 or adjusted_index >= len(sdUrls):
-            raise IndexError("索引超出范围，请检查 round_sd 的值。")
+        if not sdUrls:
+            return None
+        adjusted_index = (int(round_sd) - 1) % len(sdUrls)
         url = sdUrls[adjusted_index]
         url, auth_header = parse_custom_url_auth(url)
 
@@ -1163,7 +1194,7 @@ async def skipsd(config):
             "114514": "1919810"
         }
         url = f'{url}/sdapi/v1/skip'
-        async with httpx.AsyncClient(headers={'Accept-Encoding': 'identity'}, trust_env=False) as client:
+        async with httpx.AsyncClient(timeout=10.0, headers={'Accept-Encoding': 'identity'}, trust_env=False) as client:
             response = await client.post(url, json=post_data, headers=headers)
             response.raise_for_status()
             return response.json()
@@ -1436,8 +1467,11 @@ async def SdOutpaint(prompt, path, config, groupid, b64_in, args):
         "Authorization": auth_header
     }
 
-    async with httpx.AsyncClient(timeout=None, trust_env=False, headers={'User-Agent': 'Mozilla/5.0', 'Accept-Encoding': 'identity'}) as client:
+    sd_t = get_sd_timeout(config)
+    timeout_client = httpx.Timeout(sd_t, connect=min(60.0, sd_t))
+    async with httpx.AsyncClient(timeout=timeout_client, trust_env=False, headers={'User-Agent': 'Mozilla/5.0', 'Accept-Encoding': 'identity'}) as client:
         response = await client.post(url=f'{url}/sdapi/v1/img2img', json=payload, headers=headers)
+        response.raise_for_status()
     
     r = response.json()
     if 'images' not in r or len(r['images']) == 0:
@@ -1459,15 +1493,17 @@ async def SdOutpaint(prompt, path, config, groupid, b64_in, args):
     return path
 
 async def get_img_info(base64, api):
-    async with httpx.AsyncClient(timeout=None, trust_env=False, headers={'User-Agent': 'Mozilla/5.0', 'Accept-Encoding': 'identity'}) as client:
-        api, auth_header = parse_custom_url_auth(api)
+    api, auth_header = parse_custom_url_auth(api)
 
-        headers = {
-            "Content-Type": "application/json",
-            "Accept": "application/json",
-            "Authorization": auth_header
-        }
+    headers = {
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+        "Authorization": auth_header
+    }
+    timeout_client = httpx.Timeout(60.0, connect=10.0)
+    async with httpx.AsyncClient(timeout=timeout_client, trust_env=False, headers={'User-Agent': 'Mozilla/5.0', 'Accept-Encoding': 'identity'}) as client:
         response = await client.post(url=f'{api}/sdapi/v1/png-info', json={"image": base64}, headers=headers)
+        response.raise_for_status()
         data = response.json()
         formatted_json = json.dumps(data, indent=4, ensure_ascii=False)
         return formatted_json

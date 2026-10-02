@@ -152,19 +152,19 @@ async def call_text2img1(bot, event, config, tag):
             await bot.send(event, log)
         path = f"data/pictures/cache/{random_str()}.png"
         bot.logger.info(f"调用sd api: path:{path}|prompt:{tag} 当前队列人数：{turn}")
+        if turn != 0:
+            if turn > config.ai_generated_art.config["ai绘画"]["sd队列长度限制"] and event.user_id != \
+                    config.common_config.basic_config["master"]["id"]:
+                msg = await bot.send(event, "服务端任务队列已满，稍后再试")
+                await delay_recall(bot, msg)
+                return
+            msg = await bot.send(event, f'请求已加入绘图队列，当前排队任务数量：{turn}，请耐心等待~', True)
+            await delay_recall(bot, msg)
+        else:
+            msg = await bot.send(event, f"正在绘制，请耐心等待~", True)
+            await delay_recall(bot, msg)
+        turn += 1
         try:
-            if turn != 0:
-                if turn > config.ai_generated_art.config["ai绘画"]["sd队列长度限制"] and event.user_id != \
-                        config.common_config.basic_config["master"]["id"]:
-                    msg = await bot.send(event, "服务端任务队列已满，稍后再试")
-                    await delay_recall(bot, msg)
-                    return
-                msg = await bot.send(event, f'请求已加入绘图队列，当前排队任务数量：{turn}，请耐心等待~', True)
-                await delay_recall(bot, msg)
-            else:
-                msg = await bot.send(event, f"正在绘制，请耐心等待~", True)
-                await delay_recall(bot, msg)
-            turn += 1
             args = sd_user_args.get(event.sender.user_id, {})
             if hasattr(event, "group_id"):
                 id_ = event.group_id
@@ -172,31 +172,40 @@ async def call_text2img1(bot, event, config, tag):
                 id_ = event.user_id
             try:
                 p = await SdDraw0(tag, path, config, id_, args)
+            except httpx.TimeoutException as e:
+                bot.logger.error(f"sd api调用超时: {e}")
+                raise
             except Exception as e:
                 bot.logger.error(e)
                 bot.logger.error("sd自动重试")
                 p = await SdDraw0(tag, path, config, id_, args)
             if not p:
-                turn -= 1
                 bot.logger.info("色图已屏蔽")
                 msg = await bot.send(event, "杂鱼，色图不给你喵~", True)
                 await delay_recall(bot, msg)
             elif p.startswith("审核api"):
-                turn -= 1
                 bot.logger.info(p)
                 msg = await bot.send(event, p, True)
                 await delay_recall(bot, msg)
             else:
-                turn -= 1
                 await bot.send(event, [Image(file=p)], True)
             return p
 
+        except httpx.TimeoutException as e:
+            bot.logger.error(f"sd api请求超时，已取消队列: {e}")
+            try:
+                await interrupt(config)
+            except Exception:
+                pass
+            msg = await bot.send(event, "sd绘图请求超时，已自动取消队列，请稍后重试~", True)
+            await delay_recall(bot, msg)
         except Exception as e:
             bot.logger.error(e)
-            turn -= 1
             bot.logger.error(f"sd api调用失败。{e}")
             msg = await bot.send(event, f"sd api调用失败。{e}")
             await delay_recall(bot, msg)
+        finally:
+            turn = max(0, turn - 1)
 
 
 async def call_aiArtModerate(bot, event, config, img_url):
@@ -621,32 +630,39 @@ def main(bot, config):
                     await delay_recall(bot, msg)
                     return
 
+                msg = await bot.send(event, f"开始重绘啦~sd前面排队{turn}人，请耐心等待喵~", True)
+                await delay_recall(bot, msg)
+                turn += 1
                 try:
                     args = sd_re_args.get(event.sender.user_id, {})
                     b64_in = await url_to_base64(img_url)
 
-                    msg = await bot.send(event, f"开始重绘啦~sd前面排队{turn}人，请耐心等待喵~", True)
-                    await delay_recall(bot, msg)
-                    turn += 1
                     # 将 UserGet[event.sender.user_id] 列表中的内容和 positive_prompt 合并成一个字符串
                     p = await SdOutpaint(prompts_str, path, config, event.group_id, b64_in, args)
                     if not p:
-                        turn -= 1
                         bot.logger.info("色图已屏蔽")
                         msg = await bot.send(event, "杂鱼，色图不给你喵~", True)
                         await delay_recall(bot, msg)
                     elif p.startswith("审核api"):
-                        turn -= 1
                         bot.logger.info(p)
                         msg = await bot.send(event, p, True)
                         await delay_recall(bot, msg)
                     else:
-                        turn -= 1
                         await bot.send(event, [Text("sd重绘结果"), Image(file=p)], True)
+                except httpx.TimeoutException as e:
+                    bot.logger.error(f"sd重绘请求超时，已取消队列: {e}")
+                    try:
+                        await interrupt(config)
+                    except Exception:
+                        pass
+                    msg = await bot.send(event, "sd重绘请求超时，已自动取消队列，请稍后重试~", True)
+                    await delay_recall(bot, msg)
                 except Exception as e:
                     bot.logger.error(f"重绘失败: {e}")
                     msg = await bot.send(event, f"sd api重绘失败。{e}", True)
                     await delay_recall(bot, msg)
+                finally:
+                    turn = max(0, turn - 1)
 
     @bot.on(GroupMessageEvent)
     async def AiSdDraw(event):
@@ -711,10 +727,10 @@ def main(bot, config):
 
         if str(event.pure_text) == "interrupt" and config.ai_generated_art.config["ai绘画"][
             "sd画图"] and event.user_id == config.common_config.basic_config["master"]["id"]:
-            global turn
             try:
                 await interrupt(config)
-                msg = await bot.send(event, f"中断任务成功")
+                turn = 0
+                msg = await bot.send(event, f"中断任务成功，队列已重置")
                 await delay_recall(bot, msg, 20)
             except Exception as e:
                 bot.logger.error(e)
@@ -723,9 +739,9 @@ def main(bot, config):
 
         if str(event.pure_text) == "skip" and config.ai_generated_art.config["ai绘画"]["sd画图"] and event.user_id == \
                 config.common_config.basic_config["master"]["id"]:
-            global turn
             try:
                 await skipsd(config)
+                turn = max(0, turn - 1)
                 msg = await bot.send(event, f"跳过任务成功")
                 await delay_recall(bot, msg, 20)
             except Exception as e:
@@ -914,32 +930,45 @@ def main(bot, config):
                 UserGetm.pop(event.sender.user_id)
                 mask.pop(event.sender.user_id)
 
+                if turn > config.ai_generated_art.config["ai绘画"]["sd队列长度限制"] and event.user_id != \
+                        config.common_config.basic_config["master"]["id"]:
+                    msg = await bot.send(event, "服务端任务队列已满，稍后再试")
+                    await delay_recall(bot, msg, 20)
+                    return
+
+                msg = await bot.send(event, f"开始局部重绘啦~sd前面排队{turn}人，请耐心等待喵~", True)
+                await delay_recall(bot, msg, 20)
+                turn += 1
                 try:
                     args = sd_re_args.get(event.sender.user_id, {})
                     b64_in = await url_to_base64(img_url)
                     mask_b64 = await url_to_base64(mask_url)
 
-                    msg = await bot.send(event, f"开始局部重绘啦~sd前面排队{turn}人，请耐心等待喵~", True)
-                    await delay_recall(bot, msg, 20)
-                    turn += 1
                     p = await SdmaskDraw(prompts, path, config, event.group_id, b64_in, args, mask_b64)
                     if not p:
-                        turn -= 1
                         bot.logger.info("色图已屏蔽")
                         msg = await bot.send(event, "杂鱼，色图不给你喵~", True)
                         await delay_recall(bot, msg, 20)
                     elif p.startswith("审核api"):
-                        turn -= 1
                         bot.logger.info(p)
                         msg = await bot.send(event, p, True)
                         await delay_recall(bot, msg, 20)
                     else:
-                        turn -= 1
                         await bot.send(event, [Text("sd局部重绘结果"), Image(file=p)], True)
+                except httpx.TimeoutException as e:
+                    bot.logger.error(f"局部重绘请求超时，已取消队列: {e}")
+                    try:
+                        await interrupt(config)
+                    except Exception:
+                        pass
+                    msg = await bot.send(event, "sd局部重绘请求超时，已自动取消队列，请稍后重试~", True)
+                    await delay_recall(bot, msg, 20)
                 except Exception as e:
                     bot.logger.error(f"局部重绘失败: {e}")
                     msg = await bot.send(event, f"sd api局部重绘失败。{e}", True)
                     await delay_recall(bot, msg, 20)
+                finally:
+                    turn = max(0, turn - 1)
                 return
 
     @bot.on(GroupMessageEvent)

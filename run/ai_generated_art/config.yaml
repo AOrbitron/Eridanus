@@ -14,7 +14,7 @@ gptimage2:
   extra_prompt: "赛璐璐风格。不必绘制过于繁复的服饰细节和发丝，不用完全还原参考图细节，保持角色可识别即可。允许简化。保持图片清晰"   #这两块建议ai生成
   character_anchor: "的固定外貌特征如下：粉色和蓝色渐变眼睛；少女体型；标志性服装为白色不对称吊带礼裙，腰间系蓝色细带蝴蝶结，裙摆呈不规则燕尾形；白色过膝袜配白色高跟鞋"
 ai绘画:
-  sdUrl: # 你自己搭建的sd，地址，示例http://127.0.0.1:17858（示例≠你能直接填示例用），免费云部署见文档，本地部署https://www.bilibili.com/video/BV1iM4y1y7oA/
+  sdUrl:  # 你自己搭建的sd，地址，示例http://127.0.0.1:17858（示例≠你能直接填示例用），免费云部署见文档，本地部署https://www.bilibili.com/video/BV1iM4y1y7oA/
     - ''
   apikey: '' # sd的api key，一般来说不需要
   sd审核和反推api: '' # 如果你的sd有反推插件https://github.com/spawner1145/stable-diffusion-webui-wd14-tagger.git，可以直接使用你的sdurl的api，也可以部署https://github.com/spawner1145/wd14-inference-webui.git并使用这个启动的网址作为api
@@ -28,6 +28,7 @@ ai绘画:
   sd画图默认分辨率: '1024,1536' # 宽,高（别带空格）
   sd最大分辨率: '1600,1600'
   sd队列长度限制: 6     #防止有人刷绘图指令。
+  sd超时时间: 600      # sd绘图超时时间(秒)，默认600s左右
   ai绘画所需权限等级: 0 # sd绘图权限
   内置ai绘画1开关: true  #聚合接口
   内置ai绘画2开关: true  #NoobXL-V-pred-v1.0，来自modelscope。
