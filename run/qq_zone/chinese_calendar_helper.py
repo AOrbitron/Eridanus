@@ -256,3 +256,102 @@ def get_chinese_calendar_info(d: Optional[date] = None, include_lunar_if_none: b
         return get_lunar_date_str(d)
 
     return None
+
+
+# -------------------------------------------------------------
+# 四季与时令高精度天文视黄经划分
+# -------------------------------------------------------------
+def get_season_info(d: Optional[date] = None) -> dict:
+    """
+    高精度计算公历日期对应的季节与时令信息（基于 VSOP 太阳视黄经模型，精确到日）。
+    划分规则遵循中国传统天文学四立（立春、立夏、立秋、立冬）与二十四节气：
+    - 春季: 315° <= 太阳视黄经 < 45° (立春至立夏前)
+      - 初春 (315°~345°): 立春、雨水
+      - 仲春 (345°~15°): 惊蛰、春分
+      - 暮春 (15°~45°): 清明、谷雨
+    - 夏季: 45° <= 太阳视黄经 < 135° (立夏至立秋前)
+      - 初夏 (45°~75°): 立夏、小满
+      - 盛夏 (75°~105°): 芒种、夏至
+      - 晚夏 (105°~135°): 小暑、大暑
+    - 秋季: 135° <= 太阳视黄经 < 225° (立秋至立冬前)
+      - 初秋 (135°~165°): 立秋、处暑
+      - 仲秋 (165°~195°): 白露、秋分
+      - 深秋 (195°~225°): 寒露、霜降
+    - 冬季: 225° <= 太阳视黄经 < 315° (立冬至立春前)
+      - 初冬 (225°~255°): 立冬、小雪
+      - 隆冬 (255°~285°): 大雪、冬至
+      - 暮冬 (285°~315°): 小寒、大寒
+
+    返回字典结构：
+    - season: '春季' | '夏季' | '秋季' | '冬季'
+    - sub_season: '初春' | '仲春' | '暮春' ...
+    - full_name: '春季（初春）' ...
+    - description: 气候特征与体感描写
+    - solar_longitude: 太阳视黄经浮点数
+    """
+    if d is None:
+        d = date.today()
+
+    try:
+        dt = datetime(d.year, d.month, d.day, 12, 0, 0, tzinfo=TZ_BEIJING).astimezone(timezone.utc)
+        deg = _get_solar_longitude(dt)
+        if deg >= 315 or deg < 45:
+            season = "春季"
+            if 315 <= deg < 345:
+                sub = "初春"
+            elif deg >= 345 or deg < 15:
+                sub = "仲春"
+            else:
+                sub = "暮春"
+            desc = "气温渐暖，草木复苏萌芽，春风拂面，适宜外出踏青与春茶萌发"
+        elif deg < 135:
+            season = "夏季"
+            if deg < 75:
+                sub = "初夏"
+            elif deg < 105:
+                sub = "盛夏"
+            else:
+                sub = "晚夏"
+            desc = "天气炎热，阳光强烈，蝉鸣雷雨，适宜冷饮解暑、防晒透气"
+        elif deg < 225:
+            season = "秋季"
+            if deg < 165:
+                sub = "初秋"
+            elif deg < 195:
+                sub = "仲秋"
+            else:
+                sub = "深秋"
+            desc = "天高气爽，渐带凉意微寒，草木渐黄落叶，需添衣防凉、热饮温汤"
+        else:
+            season = "冬季"
+            if deg < 255:
+                sub = "初冬"
+            elif deg < 285:
+                sub = "隆冬"
+            else:
+                sub = "暮冬"
+            desc = "天寒地冻，草木凋零，需厚衣围巾保暖防寒，热食热饮暖手，严禁反季活动"
+    except Exception:
+        deg = 0.0
+        m = d.month
+        if m in (3, 4, 5):
+            season, sub, desc = "春季", "春季", "气温渐暖，草木萌芽，微风温和"
+        elif m in (6, 7, 8):
+            season, sub, desc = "夏季", "夏季", "天气炎热，阳光强烈，注意防暑"
+        elif m in (9, 10, 11):
+            season, sub, desc = "秋季", "秋季", "天高气爽，渐带凉意，添衣防寒"
+        else:
+            season, sub, desc = "冬季", "冬季", "天寒地冻，草木凋零，注意保暖防寒"
+
+    return {
+        "season": season,
+        "sub_season": sub,
+        "full_name": f"{season}（{sub}）",
+        "description": desc,
+        "solar_longitude": round(deg, 2)
+    }
+
+def get_season_name(d: Optional[date] = None) -> str:
+    """返回当前季节的完整描述名称，如 '冬季（隆冬）'"""
+    info = get_season_info(d)
+    return info.get("full_name", "")

@@ -23,9 +23,9 @@ except ImportError:
     import qzone_themes
 
 try:
-    from run.qq_zone.chinese_calendar_helper import get_chinese_calendar_info
+    from run.qq_zone.chinese_calendar_helper import get_chinese_calendar_info, get_season_info, get_season_name
 except ImportError:
-    from chinese_calendar_helper import get_chinese_calendar_info
+    from chinese_calendar_helper import get_chinese_calendar_info, get_season_info, get_season_name
 
 from developTools.event.events import LifecycleMetaEvent, GroupMessageEvent, PrivateMessageEvent
 from developTools.message.message_components import Text, Image, Mface
@@ -442,6 +442,24 @@ def main(bot: ExtendBot, config: YAMLManager):
             logger.warning(f"[Qzone 日历] 节假日计算异常: {e}")
             return None
 
+    def get_current_season() -> dict:
+        """
+        获取当前季节与时令信息（纯本地离线高精度计算）
+        包含季节、当前亚季（初/仲/暮/隆）、气候特征描述等
+        """
+        try:
+            today = datetime.date.today()
+            return get_season_info(today)
+        except Exception as e:
+            logger.warning(f"[Qzone 日历] 季节时令计算异常: {e}")
+            return {
+                "season": "四季",
+                "sub_season": "",
+                "full_name": "当前时令",
+                "description": "",
+                "solar_longitude": 0.0
+            }
+
     def get_bot_persona_info() -> tuple[str, str]:
         bot_name = config.common_config.basic_config.get("bot", "小助手")
         chara_text = ""
@@ -587,11 +605,14 @@ def main(bot: ExtendBot, config: YAMLManager):
         dynamic_scene_tags = ""
         try:
             if mai_llm:
+                season_meta = get_current_season()
+                season_sd_full = season_meta.get("full_name", "")
                 prompt_generator = (
                     f"你是一名专业动漫 Stable Diffusion 提示词专家。角色是：{bot_name}。\n"
                     f"根据角色动态文案，仅提取【当前情绪与表情】+【当前动作/场景/日常服饰穿搭】的纯英文 tags。\n"
                     f"角色卡绘图规则参考：\n{full_rules_text if full_rules_text else '日常场景参考: casual clothes, sitting on sofa, cozy room. 视角表情: slight blush, upper body'}\n"
                     f"当前主题建议：{theme_desc}\n"
+                    f"当前季节时令：{season_sd_full}\n"
                     f"【本次系统指定的服饰与色系种子（核心硬性约束）】：\n"
                     f"- 配色方案名称：{palette_name}\n"
                     f"- 本次指定主色：{primary_color}，指定辅色：{secondary_color}\n"
@@ -602,8 +623,9 @@ def main(bot: ExtendBot, config: YAMLManager):
                     f"2. 服饰穿搭必须严格使用上述系统分配的色系（主色：{primary_color}，辅色：{secondary_color}），严禁随意篡改色系！\n"
                     f"3. 【重点严禁】：绝对严禁千篇一律偏向薄荷绿（mint green / pastel green / light green 等单一刻板偏见）！本次服饰主色必须明确使用指定的【{primary_color}】（如：{primary_color} 卫衣/毛衣/大衣/睡衣/衬衫等），展现全色谱多样性！\n"
                     f"4. 可根据动态文案微调款式细节（如睡前可使用 {primary_color} 睡衣/家居服，外出/晨起使用相应外套/风衣），但服装主色必须忠实保持为 {primary_color}。\n"
-                    f"5. 仅输出情绪状态、服饰穿搭（含指定颜色与款式）、动作和场景，不要解释，不要输出任何中文。\n"
-                    f"6. 仅输出纯英文 tags，用英文逗号分隔。"
+                    f"5. 服饰厚度、冷暖层次与环境细节应大体契合当前季节时令（{season_sd_full}），杜绝违背季节常识（如寒冬只穿单薄夏装短裤、盛夏裹厚重羽绒服烤火等）。\n"
+                    f"6. 仅输出情绪状态、服饰穿搭（含指定颜色与款式）、动作和场景，不要解释，不要输出任何中文。\n"
+                    f"7. 仅输出纯英文 tags，用英文逗号分隔。"
                 )
                 sd_tags = await mai_llm.chat(
                     messages=[{"role": "user", "content": prompt_generator}],
@@ -723,6 +745,8 @@ def main(bot: ExtendBot, config: YAMLManager):
         now = datetime.datetime.now()
         weekday_names = ["星期一", "星期二", "星期三", "星期四", "星期五", "星期六", "星期日"]
         weekday_str = weekday_names[now.weekday()]
+        season_meta = get_current_season()
+        season_full = season_meta.get("full_name", "当季")
         hour = now.hour
         if 5 <= hour < 9:
             period_str = "清晨刚起不久"
@@ -738,7 +762,7 @@ def main(bot: ExtendBot, config: YAMLManager):
             period_str = "深夜准备洗漱休息时分"
         else:
             period_str = "凌晨夜深人静夜猫子时段"
-        return f"{now.strftime('%Y年%m月%d日')} {weekday_str} {now.strftime('%H:%M')}（当前时段：{period_str}）"
+        return f"{now.strftime('%Y年%m月%d日')} {weekday_str} {now.strftime('%H:%M')}（当前时令：{season_full}，时段：{period_str}）"
 
     # 接入丰富主题库（超 120 种精心设计的场景与日常少女心情）
     morning_theme_pool = getattr(qzone_themes, 'MORNING_THEME_POOL', [])
@@ -772,6 +796,10 @@ def main(bot: ExtendBot, config: YAMLManager):
         bot_name, chara_text = get_bot_persona_info()
         festival_or_term = await get_almanac_info()
         time_context = get_current_time_context()
+        season_meta = get_current_season()
+        season_full = season_meta.get("full_name", "当季")
+        season_name = season_meta.get("season", "当季")
+        season_desc = season_meta.get("description", "")
 
         current_global_mem = mai_context.get_global_memory() if mai_context else ""
 
@@ -799,15 +827,30 @@ def main(bot: ExtendBot, config: YAMLManager):
             mutation_hint = (
                 f"\n【变体发散（发挥创造力）】（类型：{m_type}）：\n"
                 f"{m_text}\n"
-                f"请以此种子切面为灵感跳板，自由发散演绎出属于你的真实小插曲或微妙心境，不必死板拘泥于种子原话！"
+                f"请以此种子切面为灵感跳板，结合当前【{season_full}】气候与时令，自由发散演绎出属于你的真实小插曲或微妙心境，不必死板拘泥于种子原话！"
             )
             logger.info(f"[Qzone 变体激发] {task_name} 触发变体衍生: [{m_type}]，基底种子: {base_theme[:30]}")
         else:
-            logger.info(f"[Qzone 主题选择] {task_name} 采用原始种子切面: {base_theme[:30]}")
+            mutation_hint = (
+                f"\n【当季变体发散提示】：请以该种子切面为灵感基础，顺应当前【{season_full}】的气候与时令自然展开演绎，展现鲜活真实的日常。"
+            )
+            logger.info(f"[Qzone 主题选择] {task_name} 采用原始种子切面并融入当季引导: {base_theme[:30]}")
 
         _, recent_elements, recent_posts = get_recent_history_constraints(task_name, limit=3)
 
-        fest_tip = f"（今天是{festival_or_term}，如有兴趣可轻描淡写提一句）" if festival_or_term else ""
+        # 节日提醒与 AI 季节变体引导（免除对静态主题库的繁琐分类，让 AI 自主在变体生成时化解反季节冲突，如大冬天去采茶等）
+        season_reminder = (
+            f"当前正值【{season_full}】（气候体感：{season_desc}）。"
+            f"【AI季节变体引导（关键）】：生活动态与体感描写必须完全符合当前【{season_full}】的季节常理！"
+            f"若抽中的种子切面含有反季节元素（例如在冬天抽中茶园采茶/摘新茶、吃冰镇西瓜、盛夏海滩等），"
+            f"严禁生搬硬套或违背时令强行描写！请发挥 AI 创造力，在生成变体时自主将其自然转化为符合当前【{season_name}】的生活切面"
+            f"（例如：冬天抽中采茶种子，可自主化用为在温暖暖气房里冲泡一杯热茶暖手发呆、翻出春天封存的茶叶罐怀念春天、或路过冬日静默茶山感叹寒风凛冽等；"
+            f"夏天抽中围炉烤火，可化用为在空调房贪凉或吃冰棒等）。"
+        )
+        if festival_or_term:
+            fest_tip = f"（今天是【{festival_or_term}】，如有兴趣可轻描淡写提一句。{season_reminder}）"
+        else:
+            fest_tip = f"（{season_reminder}）"
 
         negative_constraints = ""
         if recent_elements:
@@ -820,6 +863,7 @@ def main(bot: ExtendBot, config: YAMLManager):
             f"你的人设信息如下：\n{chara_text}\n\n"
             f"你现在要在自己的社交空间发一条随手动态（{task_name}的说说）。\n"
             f"当前时间：{time_context}\n"
+            f"当前季节与时令：{season_full}（气候特征：{season_desc}）\n"
             f"【整体基调与情绪自由】：像真实女孩子在小号随手记下的心情碎片（参考 @moonjelly0、@jellyhoshiumi）。情绪可以极丰富多变——可以超级无聊、emo阴郁、满心雀跃、平淡松弛、干劲满满，甚至带点小恶魔式的调皮戏耍！拒绝单一刻板的人设，展现最鲜活真实的活人感。\n"
             f"【小女友调皮心动感而非低俗】：如果触发调皮搞怪或微撩恶作剧主题，展现的是像古灵精怪、傲娇真实的小女友因为觉得好玩而跟水友开玩笑搞恶作剧；严禁福利姬/低俗卖肉/纯身体部位或露骨描写！\n\n"
             f"【核心禁令与破除AI套路】：\n"
@@ -827,7 +871,8 @@ def main(bot: ExtendBot, config: YAMLManager):
             f"2. 严禁使用括号动作表情（如'（目移）'、'（叹气）'、'（揉脸）'）！\n"
             f"3. 严禁句尾机械式打卡问候（逢早必说'大家早安呀'、逢晚必说'晚安好梦'）！\n"
             f"4. 杜绝'被窝好软'、'被子封印我'、'赖床'等陈词滥调！\n"
-            f"5. 【字数与篇幅】：控制在 1 ~ 30 字左右（通常一两句话即可，绝不超过 35 字！）。\n"
+            f"5. 【严禁违背季节常识（核心）】：必须严格符合当前【{season_full}】的真实体感与季节常识，坚决杜绝反季节违和现象（如严冬寒风天跑去茶园采摘嫩茶、盛夏暴晒烤火等）！遇到非当季种子，由 AI 自主变体化用为当季合情合理的真实生活细节。\n"
+            f"6. 【字数与篇幅】：控制在 1 ~ 30 字左右（通常一两句话即可，绝不超过 35 字！）。\n"
             f"   - 遇到低能量、不想说话或发呆时，几个字到十几字足够（如“电量归零，谁也别跟我说话…”、“只想静静当一株植物”）；\n"
             f"   - 遇到生活随手碎念或小吐槽，一两句讲完自然收尾，绝不长篇大论，绝不画蛇添足。\n"
             f"{negative_constraints}"
@@ -945,6 +990,11 @@ def main(bot: ExtendBot, config: YAMLManager):
         bot_name, chara_text = get_bot_persona_info()
         current_global_mem = mai_context.get_global_memory() if mai_context else ""
         time_context = get_current_time_context()
+        festival_or_term = await get_almanac_info()
+        season_meta = get_current_season()
+        season_full = season_meta.get("full_name", "当季")
+        season_name = season_meta.get("season", "当季")
+        season_desc = season_meta.get("description", "")
 
         # 提取群聊近期有趣片段或灵感 (兼容 ctx:gwin:* 数据格式)
         group_snippet = ""
@@ -982,6 +1032,18 @@ def main(bot: ExtendBot, config: YAMLManager):
         }
         logger.info(f"[Qzone 句式原型] 日常动态采用行文形态: 【{chosen_daily_archetype['name']}】")
 
+        # 节日与季节时令变体引导
+        daily_season_reminder = (
+            f"当前正值【{season_full}】（气候特征：{season_desc}）。"
+            f"【AI季节变体引导】：必须严格遵循当前【{season_full}】的时令常识！"
+            f"若本次种子切面包含非当季元素（如寒冬抽中采茶/海滩戏水、盛夏抽中围炉烤火等），"
+            f"由 AI 在发散时自主化用为符合当前【{season_name}】的真实日常（如冬天采茶化为喝热茶/回忆茶香），严禁反季节描写！"
+        )
+        if festival_or_term:
+            daily_fest_tip = f"（今天是【{festival_or_term}】。{daily_season_reminder}）"
+        else:
+            daily_fest_tip = f"（{daily_season_reminder}）"
+
         # 日常变体衍生引导词（按 70% 概率触发深度发散，避免特定小趣事话题反复雷同）
         daily_mutation_hint = ""
         if theme_mutation_directives and random.random() < 0.70:
@@ -990,28 +1052,33 @@ def main(bot: ExtendBot, config: YAMLManager):
             d_text = directive_obj.get("directive", "")
             daily_mutation_hint = (
                 f"\n【变体衍生发散】（{d_type}）：{d_text}\n"
-                f"请以该种子切面为灵感发散开去，创作出真实生动、具有唯一性的生活小记录，不要死板复现原话题！"
+                f"请以该种子切面为灵感跳板，结合当前【{season_full}】时令气候，发散出具有当季真实生活呼吸感的小记录！"
             )
             logger.info(f"[Qzone Vtuber日常] 触发变体衍生: [{d_type}]，基底种子: {chosen_style[:30]}")
         else:
-            logger.info(f"[Qzone Vtuber日常] 采用基础种子: {chosen_style[:30]}")
+            daily_mutation_hint = (
+                f"\n【当季变体发散提示】：请以该种子为灵感，结合当前【{season_full}】自然展开演绎，不要死板复现原话题。"
+            )
+            logger.info(f"[Qzone Vtuber日常] 采用基础种子并融入当季引导: {chosen_style[:30]}")
 
         sys_vtuber_prompt = (
             f"你是{bot_name}。\n"
             f"人设：\n{chara_text}\n\n"
             f"你现在要在自己的社交空间发一条随手生活碎念。\n"
             f"当前时间：{time_context}\n"
+            f"当前季节与时令：{season_full}（气候特征：{season_desc}）\n"
             f"【整体基调与多元情绪】：像真实女孩子在小号随手发的日常碎片。情绪完全自由流动——无论当下是极度无聊、放空抑郁、元气开心、波澜不惊，还是发微撩自拍坏心眼逗人，都真实自然，随性松弛。\n"
             f"【小女友调皮心动感而非低俗】：如果触发调皮搞怪或微撩恶作剧主题，展现的是像古灵精怪、傲娇真实的小女友因为觉得好玩而跟水友开玩笑搞恶作剧；严禁福利姬/低俗卖肉/纯身体部位或露骨描写！\n\n"
             f"【核心写作要领】：\n"
             f"1. 拒绝写成做作编造的虚构小故事！不要层层铺垫前因后果，不要为了写细节而堆砌生硬剧情。\n"
             f"2. 严禁使用'（目移）'、'（叹气）'等任何括号动作戏！\n"
             f"3. 严禁逢发必问'大家呢'！拒绝生硬反问套路，点到即止。\n"
-            f"4. 【字数控制】：严格在 10 ~ 30 字左右（一两句话说清，绝不超过 35 字！）。低能量或不想说话时，哪怕只有五六个字也完全可以，重在自然真实！\n\n"
+            f"4. 【严禁反季节描写（核心）】：必须符合当前【{season_full}】气候常理，若种子涉及非当季元素由 AI 变体自主化用为当季切面。\n"
+            f"5. 【字数控制】：严格在 10 ~ 30 字左右（一两句话说清，绝不超过 35 字！）。低能量或不想说话时，哪怕只有五六个字也完全可以，重在自然真实！\n\n"
             f"【本次切入形态建议】：\n"
             f"{chosen_daily_archetype['description']}\n"
             f"示范：{chosen_daily_archetype['examples']}\n\n"
-            f"本次生活切入种子（Seed）：【{chosen_style}】。{daily_mutation_hint}\n"
+            f"本次生活切入种子（Seed）：【{chosen_style}】。{daily_fest_tip}{daily_mutation_hint}\n"
             f"直接输出动态正文，不要包含任何多余文字或引号。"
         )
         user_vtuber_prompt = f"请发一条日常动态，采用【{chosen_daily_archetype['name']}】结构，写出真实少女生活感。"
