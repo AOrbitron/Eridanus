@@ -126,8 +126,8 @@ class AuditSystem:
                     )
                     # 发送警告消息给主人
                     await bot.send_friend_message(master_id, alert_msg)
-                    if bot.id == 3552663628:
-                        await bot.send_group_message(1050663831,alert_msg)
+                    #if bot.id == 3552663628:
+                        #await bot.send_group_message(1050663831,alert_msg)
                         # 群u爱看
                 else:
                     logger.error("[MaiReply Audit] 发现敏感内容，但未配置 master，无法发送告警信息。")
