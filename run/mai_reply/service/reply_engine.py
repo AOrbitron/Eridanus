@@ -298,6 +298,7 @@ class ReplyEngine:
                 recent_speaker_impressions=recent_speaker_impressions,
                 user_text=final_text,
                 global_memory=self.context.get_global_memory(),
+                user_memory=self.context.get_user_memory(user_id),
             )
 
             max_turns = self.cfg.mai_reply.config.get("context", {}).get("max_turns", 20)

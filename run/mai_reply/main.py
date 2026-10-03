@@ -40,7 +40,6 @@ from developTools.message.message_components import Text, Image, Mface, At, Repl
 from framework_common.framework_util.websocket_fix import ExtendBot
 from framework_common.framework_util.yamlLoader import YAMLManager
 from framework_common.utils.utils import download_img, get_img
-from run.mai_reply.service.gei_img_description import _resolve_images
 
 from run.mai_reply.service.trigger import TriggerChecker
 from run.mai_reply.service.reply_engine import ReplyEngine
@@ -322,6 +321,52 @@ def main(bot: ExtendBot, config: YAMLManager):
                 await bot.send(event, f"已初始化 {target_id} 在所有群和私聊中的对话记录，共 {count} 条，并清除了用户印象～")
                 return True
 
+        # ── 长期固定事实记忆与全局生活记忆管理指令 ──
+        show_mem_aliases = ("/showmemory", "/查看记忆", "查看记忆")
+        for command in show_mem_aliases:
+            if command_matches(text, command, has_target_at):
+                parsed_target_id = parse_clear_target(event, command)
+                target_id = parsed_target_id or event.user_id
+                if target_id != event.user_id and not is_master(event.user_id):
+                    return True
+                if not getattr(engine.context, "enable_memory_slots", False):
+                    await bot.send(event, "结构化记忆槽位功能当前未开启～")
+                    return True
+                mem = engine.context.get_user_memory(target_id)
+                if not mem:
+                    await bot.send(event, f"目前尚未记录 {target_id} 的固定事实记忆～")
+                else:
+                    await bot.send(event, f"【{target_id} 的长期事实记忆槽位】\n{mem}")
+                return True
+
+        clear_mem_aliases = ("/clearmemory", "/清除记忆", "清除记忆")
+        for command in clear_mem_aliases:
+            if command_matches(text, command, has_target_at):
+                parsed_target_id = parse_clear_target(event, command)
+                target_id = parsed_target_id or event.user_id
+                if target_id != event.user_id and not is_master(event.user_id):
+                    return True
+                count = engine.context.clear_user_memory_slots(target_id)
+                await bot.send(event, f"已清空 {target_id} 的全部事实记忆槽位（共清除 {count} 条）～")
+                return True
+
+        if text in ("/showglobalmemory", "/查看全局记忆", "查看全局记忆"):
+            if not is_master(event.user_id):
+                return True
+            gmem = engine.context.get_global_memory()
+            if not gmem:
+                await bot.send(event, "目前暂无Bot全局生活记忆记录～")
+            else:
+                await bot.send(event, f"【Bot全局生活与经历记忆】\n{gmem}")
+            return True
+
+        if text in ("/clearglobalmemory", "/清除全局记忆", "清除全局记忆"):
+            if not is_master(event.user_id):
+                return True
+            engine.context.clear_global_memory()
+            await bot.send(event, "已清空Bot全局生活与经历记忆～")
+            return True
+
         return False
 
     @bot.on(GroupMessageEvent)
@@ -335,25 +380,6 @@ def main(bot: ExtendBot, config: YAMLManager):
 
         async def add_to_context():
             """把消息存入旁观窗口（不触发回复时仍需感知群氛围）"""
-            if event.message_chain.has(Image) or event.message_chain.has(Mface):
-                if (
-                    config.mai_reply.config["context"]["img_context"]
-                    and event.group_id in config.mai_reply.config["context"]["vision_enable_group"]
-                ):
-                    bot.logger.info(f"[MaiReply] 消息包含图片，且已开启图片上下文，将存入旁观窗口")
-                    async def img_add_to_window():
-                        img_url = await get_img(event, bot)
-                        path = f"data/pictures/cache/{uuid.uuid4()}.png"
-                        await download_img(img_url, path)
-                        window_text = await _resolve_images(path, event.message_id)
-                        engine.context.push_group_window(
-                            event.group_id,
-                            event.sender.nickname,
-                            window_text + f"url：{img_url}",
-                            user_id=event.user_id,  # ← 传入 user_id
-                        )
-                        engine.context._load_group_window(event.group_id)
-                    asyncio.create_task(img_add_to_window())
             if text.strip():
                 try:
                     user_name = event.sender.nickname

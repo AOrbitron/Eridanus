@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import List, Dict, Optional
 
 from framework_common.database_util.RedisCacheManager import create_custom_cache_manager
+from run.mai_reply.service.memory_slot_manager import MemorySlotManager
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -109,6 +110,14 @@ class ContextManager:
 
         self._ctx_sqlite = SQLitePersistence(ctx_sqlite_path)
         self._imp_sqlite = SQLitePersistence(imp_sqlite_path)
+
+        # 结构化固定记忆槽位层（全局独立生活记忆 + 用户专属长期事实记忆）
+        self.enable_memory_slots: bool = ccfg.get("enable_memory_slots", True)
+        self.memory_slots = MemorySlotManager(
+            db_path=imp_sqlite_path,
+            cache_manager=self._imp_cache,
+            config=config,
+        )
 
     # ------------------------------------------------------------------ 内部读写辅助（带双层 fallback）
 
@@ -387,9 +396,23 @@ class ContextManager:
             return
         self._imp_set(self._impression_key(user_id), summary)
 
-    def clear_impression(self, user_id: int) -> None:
+    def clear_impression(self, user_id: int, clear_slots: bool = False) -> None:
         """清除对某个用户的印象记忆（Redis + SQLite 双层同步删除）"""
         self._imp_delete(self._impression_key(user_id))
+        if clear_slots and self.enable_memory_slots:
+            self.memory_slots.clear_all_user_slots(user_id)
+
+    def clear_user_memory_slots(self, user_id: int) -> int:
+        """专门清空某个用户的结构化固定记忆槽位"""
+        if self.enable_memory_slots:
+            return self.memory_slots.clear_all_user_slots(user_id)
+        return 0
+
+    def get_user_memory(self, user_id: int) -> str:
+        """获取用户的结构化固定记忆槽位文本（用于 prompt 注入）"""
+        if not self.enable_memory_slots:
+            return ""
+        return self.memory_slots.format_user_slots_for_prompt(user_id)
 
     def clear_all_user_impressions(self) -> int:
         keys = self._imp_keys("imp:*")
@@ -475,6 +498,12 @@ class ContextManager:
         return "memory:global"
 
     def get_global_memory(self) -> str:
+        """获取全局独立生活记忆（优先结构化记忆槽位，降级回退旧版字符串）"""
+        if self.enable_memory_slots:
+            formatted = self.memory_slots.format_global_slots_for_prompt()
+            if formatted:
+                return formatted
+
         raw = self._imp_get(self._global_memory_key())
         if not raw:
             return ""
@@ -487,8 +516,12 @@ class ContextManager:
         return str(raw)
 
     def update_global_memory(self, content: str, max_items: int = 5) -> None:
+        """更新全局生活记忆（与 qq_zone 联动，自动推入槽位并兼顾旧版存储）"""
         if not content or not content.strip():
             return
+        if self.enable_memory_slots:
+            self.memory_slots.add_global_event(content)
+
         raw = self._imp_get(self._global_memory_key())
         history_items = []
         if raw:
@@ -508,8 +541,12 @@ class ContextManager:
         self._imp_set(self._global_memory_key(), json.dumps(history_items, ensure_ascii=False))
 
     def clear_global_memory(self) -> None:
+        if self.enable_memory_slots:
+            self.memory_slots.clear_all_global_slots()
         self._imp_delete(self._global_memory_key())
 
     def close(self) -> None:
+        if hasattr(self, "memory_slots"):
+            self.memory_slots.close()
         self._ctx_sqlite.close()
         self._imp_sqlite.close()

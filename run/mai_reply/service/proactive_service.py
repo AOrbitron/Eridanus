@@ -319,16 +319,21 @@ class ProactiveService:
         user_name: str,
         decision: Dict[str, Any],
         search_result: str,
-        user_impression: str
+        user_impression: str,
+        user_id: Optional[int] = None,
     ) -> List[str]:
         """根据决策和外部资料，结合Bot人设生成高度口语化、亲密自然的主动关怀消息"""
         bot_name = self.prompt_builder.get_bot_name("yucca")
+        user_memory = self.context.get_user_memory(user_id) if (user_id and hasattr(self.context, "get_user_memory")) else ""
+        global_memory = self.context.get_global_memory() if hasattr(self.context, "get_global_memory") else ""
         system_prompt = self.prompt_builder.build_system_prompt(
             bot_name=bot_name,
             user_name=user_name,
             group_name="私聊",
             user_impression=user_impression,
-            is_group=False
+            is_group=False,
+            global_memory=global_memory,
+            user_memory=user_memory,
         )
 
         now = datetime.now()
@@ -519,7 +524,7 @@ class ProactiveService:
                     search_result = await _perform_web_search(decision.get("search_query"))
 
                 # 生成关怀话语
-                segments = await self.generate_proactive_message(user_name, decision, search_result, user_impression)
+                segments = await self.generate_proactive_message(user_name, decision, search_result, user_impression, user_id=uid)
                 if not segments:
                     continue
 

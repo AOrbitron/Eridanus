@@ -22,6 +22,41 @@ IMPRESSION_MAX_CHARS = 300  # 超过此字数触发压缩
 GROUP_IMP_TRIGGER_MSGS = 10  # 每累计 N 条群消息触发一次群印象更新
 GROUP_IMP_MAX_CHARS = 400    # 群印象最大字数
 
+# 结构化记忆槽位 + 增量印象融合更新提示词
+SUMMARY_WITH_SLOTS_PROMPT_TEMPLATE = """你（{bot_name}）正在整理对 {user_name} 的记忆与印象。
+
+你和TA的最新对话记录：
+{history_text}
+
+---
+【你对TA的现有长期固定记忆槽位（1-10）】
+{user_slots_text}
+
+---
+【你（Bot自己）的全局独立生活记忆槽位（1-10）】
+{global_slots_text}
+
+---
+【你对TA的旧主观印象】
+{old_impression}
+
+---
+【任务与指令】
+1. 【硬事实记忆维护】（最重要！请务必调用工具维护固定槽位）：
+   - 仔细审查上方对话与现有槽位。如果对话中提到了该用户的硬事实（如：所在地/城市、时区时差、学校/学历、职业、喜好/禁忌、重要经历发生日期、重要约定等），请务必调用 `set_user_memory_slot(slot_id, content)` 写入或更新对应的槽位（1-10）！
+     * 例如用户提到在莫斯科留学、与我有5小时时差，务必记录到槽位1[基础个人档案]；
+     * 例如用户提到了喜欢或讨厌什么、食物忌口，记录到槽位2[喜好]或槽位3[雷区]；
+     * 例如提到约定的事情或重大经历，记录到槽位7或槽位8-10；
+     * 记忆内容请务必客观、精简、事实化（建议30-80字内），切忌长篇大论。
+   - 如果旧有槽位信息被明确更正或失效，调用 `clear_user_memory_slot(slot_id)` 清空或直接更新。
+   - 如果你在对话中产生了自己的生活经历更新或新感悟，也可调用 `set_global_memory_slot` 更新Bot自身全局槽位（1-10）。
+   - 如果本轮对话没有产生任何需要沉淀的硬事实，则无需调用工具。
+
+2. 【主观情感印象生成】（直接输出纯文本）：
+   - 在完成（或无需进行）工具调用后，请用不超过{chars}字输出你对 {user_name} 最新的主观整体印象与情感态度。
+   - 要求第一人称（"我"），带主观感情色彩，融合旧印象与新对话，重点描述你们的关系状态、你对TA的喜恶/调侃等态度。
+   - 直接输出主观印象文本，不要附带任何前缀或解释。"""
+
 # 增量更新：融合旧印象与新对话
 SUMMARY_PROMPT_TEMPLATE = """你（{bot_name}）和 {user_name} 的最新对话：
 
@@ -100,8 +135,16 @@ class ImpressionUpdater:
     def _counter_key(self, user_id: int, group_id) -> str:
         return f"{group_id or 'priv'}:{user_id}"
 
-    async def _call_llm(self, prompt: str) -> str:
-        """统一的LLM调用入口"""
+    async def _call_llm(self, prompt: str, tools=None) -> str:
+        """统一的LLM调用入口，支持 Function Calling 工具集"""
+        if tools:
+            # 携带工具调用时，必须走支持函数调用的 LLMClient
+            return await self._llm.chat(
+                messages=[{"role": "user", "content": prompt}],
+                system_prompt="你是一个情感与记忆管理专家，负责帮助Bot记住他人的客观事实、更新自身独立生活记忆、并提炼主观情感态度。",
+                tools=tools,
+                model=self.model,
+            )
         if not self.base_url:
             return await self._llm.chat(
                 messages=[{"role": "user", "content": prompt}],
@@ -150,14 +193,31 @@ class ImpressionUpdater:
 
             old_impression = self._ctx.get_impression(user_id) or ""
 
-            prompt = SUMMARY_PROMPT_TEMPLATE.format(
-                bot_name=bot_name,
-                user_name=user_name,
-                history_text=history_text,
-                old_impression=old_impression or "（暂无，第一次聊）",
-                chars=self.max_chars
-            )
-            new_impression = await self._call_llm(prompt)
+            enable_slots = getattr(self._ctx, "enable_memory_slots", False) and hasattr(self._ctx, "memory_slots")
+            tools = None
+            if enable_slots:
+                tools = self._ctx.memory_slots.build_updater_tools(user_id, user_name)
+                user_slots_text = self._ctx.memory_slots.format_user_slots_for_updater(user_id)
+                global_slots_text = self._ctx.memory_slots.format_global_slots_for_updater()
+                prompt = SUMMARY_WITH_SLOTS_PROMPT_TEMPLATE.format(
+                    bot_name=bot_name,
+                    user_name=user_name,
+                    history_text=history_text,
+                    user_slots_text=user_slots_text,
+                    global_slots_text=global_slots_text,
+                    old_impression=old_impression or "（暂无，第一次聊）",
+                    chars=self.max_chars,
+                )
+            else:
+                prompt = SUMMARY_PROMPT_TEMPLATE.format(
+                    bot_name=bot_name,
+                    user_name=user_name,
+                    history_text=history_text,
+                    old_impression=old_impression or "（暂无，第一次聊）",
+                    chars=self.max_chars,
+                )
+
+            new_impression = await self._call_llm(prompt, tools=tools)
             if not new_impression:
                 return
 

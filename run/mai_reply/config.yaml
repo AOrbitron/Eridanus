@@ -34,7 +34,7 @@ trigger_llm:   #ai判断是否触发
   enable: true
   api_key: ""
   base_url: "http://api.apollodorus.xyz/v1"   # 可以去我们的开发群1050663831获取免费apikey。
-  model: "gpt-4o-mini"                # 填入你用于判断的廉价/快速模型
+  model: "gpt-4o-mini"              # 填入你用于判断的廉价/快速模型
   stream: True
   whitelist_enabled: true  # 是否启用白名单模式，启用后只有在白名单中的群聊才会触发ai回复
   whitelist:
@@ -68,12 +68,11 @@ context: # 上下文相关配置
   group_reply_impression_count: 3 #群聊回复时调用其他n个用户印象
   group_trigger_msgs: 10 #群聊印象更新间隔
   group_max_chars: 600 #群聊印象最大字数
-  img_context: false   # 已弃用，别开。
-  vision_base_url: "http://api.apollodorus.xyz/v1"  # 视觉模型接口URL，留空则使用llm配置中的base_url
-  vision_api_key: "xxxxx"  # 视觉模型API
-  vision_model: "gpt-4o-mini"  # 能读图的模型
-  vision_enable_group:
-    - 1050663831  # 启用图像上下文的群聊ID列表
+  # 结构化固定记忆槽位与全局独立经历记忆层（独立功能开关）
+  enable_memory_slots: false   # 是否开启结构化长期固定事实记忆与Bot全局独立生活记忆层
+  global_memory_slot_count: 10  # Bot全局独立生活经历记忆槽位数（默认10条）
+  user_memory_slot_count: 10    # 每个用户的长期客观事实记忆槽位数（默认10条）
+  memory_slot_max_chars: 120    # 单条槽位记忆最大字数限制
   anti_nsfw:
     enable: false          # 是否开启审核系统，模型默认用trigger_llm的
     trigger_turns: 5      # 几轮对话触发一次审查

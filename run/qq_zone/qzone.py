@@ -791,6 +791,28 @@ def main(bot: ExtendBot, config: YAMLManager):
     # ---------------------------------------------------------
     # 定时早晚发空间任务
     # ---------------------------------------------------------
+    async def sync_post_to_global_memory(content_text: str):
+        """提炼动态日常存入 mai_reply 的全局独立生活记忆层（严格限制在25字内）"""
+        if mai_context and mai_llm:
+            try:
+                mem_prompt = (
+                    f"根据这条Bot动态内容，提炼成一句话极简日常事实（严格在25字以内，杜绝'今天也'等套话，客观记录少女日常行为，如'烤吐司涂果酱吃了美味早餐'或'下班路上偶遇可爱的胖橘猫'），若无实质日常则回复空：\n"
+                    f"动态：{content_text}\n"
+                    f"只输出提炼后的极简短句：\n"
+                )
+                refined_mem = await mai_llm.chat(
+                    messages=[{"role": "user", "content": mem_prompt}],
+                    system_prompt="你是一个极简日常信息提炼助手。",
+                )
+                if refined_mem and len(refined_mem.strip()) > 0:
+                    clean_mem = refined_mem.strip().replace("\n", " ")[:30]
+                    clean_mem = re.sub(r"^[\'\"\s\[\]]+|[\'\"\s\[\]]+$", "", clean_mem)
+                    now_str = datetime.datetime.now().strftime("%m-%d %H:%M")
+                    mai_context.update_global_memory(f"[{now_str}] {clean_mem}")
+                    logger.info(f"[Qzone 全局记忆] 成功录入Bot日常生活记忆: [{now_str}] {clean_mem}")
+            except Exception as e:
+                logger.error(f"[Qzone] 全局记忆更新异常: {e}")
+
     async def task_executor(task_name: str, task_info: dict):
         logger.info(f"[Qzone 任务] 开始执行定时发空间任务: {task_name}")
         bot_name, chara_text = get_bot_persona_info()
@@ -913,25 +935,8 @@ def main(bot: ExtendBot, config: YAMLManager):
             "time": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         })
 
-        # 提炼极简日常存入全局记忆（严格限制在25字以内，杜绝冗余污染）
-        if mai_context and mai_llm:
-            try:
-                mem_prompt = (
-                    f"根据这条Bot动态内容，提炼成一句话极简日常事实（严格在25字以内，杜绝'今天也'等套话，客观记录少女日常行为，如'烤吐司涂果酱吃了美味早餐'或'下班路上偶遇可爱的胖橘猫'），若无实质日常则回复空：\n"
-                    f"动态：{post_content}\n"
-                    f"只输出提炼后的极简短句：\n"
-                )
-                refined_mem = await mai_llm.chat(
-                    messages=[{"role": "user", "content": mem_prompt}],
-                    system_prompt="你是一个极简日常信息提炼助手。",
-                )
-                if refined_mem and len(refined_mem.strip()) > 0:
-                    clean_mem = refined_mem.strip().replace("\n", " ")[:30]
-                    clean_mem = re.sub(r"^[\'\"\s\[\]]+|[\'\"\s\[\]]+$", "", clean_mem)
-                    mai_context.update_global_memory(f"[{datetime.datetime.now().strftime('%m-%d %H:%M')}] {clean_mem}")
-                    logger.info(f"[Qzone 全局记忆] 录入极简日常: {clean_mem}")
-            except Exception as e:
-                logger.error(f"[Qzone] 记忆更新异常: {e}")
+        # 提炼极简日常存入全局记忆
+        await sync_post_to_global_memory(post_content)
 
         # 判断是否需要 SD 绘图
         pic_paths = []
@@ -1112,6 +1117,9 @@ def main(bot: ExtendBot, config: YAMLManager):
             "content": daily_content,
             "time": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         })
+
+        # 提炼日常存入 mai_reply 全局独立生活记忆层
+        await sync_post_to_global_memory(daily_content)
 
         # 概率配图
         pic_paths = []
