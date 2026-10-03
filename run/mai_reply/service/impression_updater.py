@@ -1,14 +1,18 @@
+﻿# -*- coding: utf-8 -*-
 """
 impression_updater.py
 用户印象更新器 —— 定期用 LLM 对历史对话做增量摘要，形成跨会话的压缩记忆
 - 每 N 轮触发一次，融合旧印象与新对话生成新印象
+- 支持双阶段强保障：阶段1 专属 Tool Calling 抽取硬事实并维护固定槽位；阶段2 生成第一人称主观情感印象
 - 印象超过字数上限时自动压缩，避免无限膨胀
 - 支持群聊气氛/话题印象（group_impression），每 M 条群消息触发一次
 """
 
 import asyncio
+import json
+import re
 import traceback
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Any
 
 from framework_common.framework_util.yamlLoader import YAMLManager
 from framework_common.utils.system_logger import get_logger
@@ -22,42 +26,42 @@ IMPRESSION_MAX_CHARS = 300  # 超过此字数触发压缩
 GROUP_IMP_TRIGGER_MSGS = 10  # 每累计 N 条群消息触发一次群印象更新
 GROUP_IMP_MAX_CHARS = 400    # 群印象最大字数
 
-# 结构化记忆槽位 + 增量印象融合更新提示词
-SUMMARY_WITH_SLOTS_PROMPT_TEMPLATE = """你（{bot_name}）正在整理对 {user_name} 的记忆与印象。
+# 阶段1：专属硬事实提取与记忆槽位维护提示词（专注 Tool Calling）
+MEMORY_SLOT_EXTRACT_PROMPT_TEMPLATE = """你是一个严谨客观的事实与记忆分析专家。你的唯一职责是审查对话，提取用户【{user_name}】的硬事实，并调用工具写入对应的长期记忆槽位（1-10）。
 
-你和TA的最新对话记录：
+【你和TA的最新对话记录】：
 {history_text}
 
 ---
-【你对TA的现有长期固定记忆槽位（1-10）】
+【用户 {user_name} 当前的固定硬事实槽位（1-10）】：
 {user_slots_text}
 
 ---
-【你（Bot自己）的全局独立生活记忆槽位（1-10）】
+【Bot自身当前的全局独立生活经历槽位（1-10）】：
 {global_slots_text}
 
 ---
-【你对TA的旧主观印象】
-{old_impression}
+【10个记忆槽位蓝图与分类规划】：
+- 槽位1 [基础个人档案]：所在地/常住城市、留学地、时区/时差（例如莫斯科UTC+3、比国内慢5小时）、学校学历（如莫大、东北师大）、年龄称谓、职业等
+- 槽位2 [深度喜好偏好]：饮食口味偏好、爱吃的美食、爱玩的游戏、动漫作品、音乐等生活嗜好
+- 槽位3 [雷区禁忌点]：绝对忌口的食物、反感避讳的话题、容易引起冲突的雷区
+- 槽位4 [日常作息规律]：早起/熬夜作息节奏、学习/打工/工作规律与生活作息
+- 槽位5 [性格特质风格]：说话风格特征、标志性口头禅、鲜明性格态度
+- 槽位6 [重要人际社会]：重要亲友、宠物名字（如猫狗）、身边重要的朋友伙伴社会关系
+- 槽位7 [契约约定承诺]：与Bot约定好的具体事项、承诺做到的事、共同秘密
+- 槽位8-9 [重大生平里程]：过往重要生平经历与转折事件（求学、考研、就业等里程碑及时间）
+- 槽位10 [近期核心焦点]：近期正全力攻关或牵挂的现实大事件（考试、面试、项目推进等）
 
 ---
-【任务与指令】
-1. 【硬事实记忆维护】（最重要！请务必调用工具维护固定槽位）：
-   - 仔细审查上方对话与现有槽位。如果对话中提到了该用户的硬事实（如：所在地/城市、时区时差、学校/学历、职业、喜好/禁忌、重要经历发生日期、重要约定等），请务必调用 `set_user_memory_slot(slot_id, content)` 写入或更新对应的槽位（1-10）！
-     * 例如用户提到在莫斯科留学、与我有5小时时差，务必记录到槽位1[基础个人档案]；
-     * 例如用户提到了喜欢或讨厌什么、食物忌口，记录到槽位2[喜好]或槽位3[雷区]；
-     * 例如提到约定的事情或重大经历，记录到槽位7或槽位8-10；
-     * 记忆内容请务必客观、精简、事实化（建议30-80字内），切忌长篇大论。
-   - 如果旧有槽位信息被明确更正或失效，调用 `clear_user_memory_slot(slot_id)` 清空或直接更新。
-   - 如果你在对话中产生了自己的生活经历更新或新感悟，也可调用 `set_global_memory_slot` 更新Bot自身全局槽位（1-10）。
-   - 如果本轮对话没有产生任何需要沉淀的硬事实，则无需调用工具。
+【执行指令】：
+1. 仔细阅读最新对话。如果对话中提到了用户【{user_name}】的客观事实（例如：在莫斯科留学、比国内慢5小时、喜欢什么、讨厌什么等），必须调用工具 `set_user_memory_slot(slot_id, content)` 写入或更新对应槽位！
+   - 内容要求：纯客观、事实化、精炼准确（建议30-80字），明确包含具体事实（时间/地点/学校/时差/喜好等硬事实）。切勿抒情或写主观评价！
+2. 如果旧槽位信息被明确更正或失效，调用更新覆盖或调用 `clear_user_memory_slot(slot_id)` 清空。
+3. 如果对话中提及了Bot自己的独立生活事件，可调用 `set_global_memory_slot(slot_id, content)` 更新Bot全局槽位。
+4. 如果审查后确认本轮对话完全没有任何新的硬事实需要记录（例如纯日常寒暄、表情包、无任何新事实），不要调用工具，直接回复【无事实更新】。
+"""
 
-2. 【主观情感印象生成】（直接输出纯文本）：
-   - 在完成（或无需进行）工具调用后，请用不超过{chars}字输出你对 {user_name} 最新的主观整体印象与情感态度。
-   - 要求第一人称（"我"），带主观感情色彩，融合旧印象与新对话，重点描述你们的关系状态、你对TA的喜恶/调侃等态度。
-   - 直接输出主观印象文本，不要附带任何前缀或解释。"""
-
-# 增量更新：融合旧印象与新对话
+# 阶段2：增量更新主观印象：融合旧印象与新对话
 SUMMARY_PROMPT_TEMPLATE = """你（{bot_name}）和 {user_name} 的最新对话：
 
 {history_text}
@@ -116,54 +120,229 @@ class ImpressionUpdater:
         self._group_counters: Dict[int, int] = {}
 
         cfg = YAMLManager.get_instance()
-        self.model = cfg.mai_reply.config["context"]["impression_model"] if cfg.mai_reply.config["context"]["impression_model"] else cfg.mai_reply.config["trigger_llm"]["model"]
-        self.api_key = cfg.mai_reply.config["trigger_llm"]["api_key"]
-        self.base_url = cfg.mai_reply.config["trigger_llm"]["base_url"]
-
-
         ccfg = cfg.mai_reply.config.get("context", {})
+
+        # 模型解析：优先使用配置中指定的 impression_model；留空则默认使用主 LLM 模型（具备完整工具调用能力）
+        imp_model = ccfg.get("impression_model")
+        if imp_model and str(imp_model).strip():
+            self.model = str(imp_model).strip()
+        else:
+            lcfg = cfg.mai_reply.config.get("llm", {})
+            provider = str(lcfg.get("provider", "openai")).lower()
+            if provider == "gemini":
+                self.model = lcfg.get("gemini", {}).get("model")
+            else:
+                self.model = lcfg.get("openai", {}).get("model")
+
+        # trigger_llm 配置作为次级回退
+        trig_cfg = cfg.mai_reply.config.get("trigger_llm", {})
+        self.api_key = trig_cfg.get("api_key", "")
+        self.base_url = trig_cfg.get("base_url", "")
+
         self.max_chars = int(ccfg.get("impression_max_chars", IMPRESSION_MAX_CHARS))
         self.group_imp_trigger: int = int(ccfg.get("group_trigger_msgs", GROUP_IMP_TRIGGER_MSGS))
         self.group_imp_max_chars: int = int(ccfg.get("group_max_chars", GROUP_IMP_MAX_CHARS))
-       # self.enable_group_impression: bool = imp_cfg.get("enable_group_impression", True)
-
 
         self.enable_group_impression: bool = ccfg.get("enable_impression", True)
         self.group_impression_ttl: int = ccfg.get("impression_ttl", 604800)
         # 构建回复时，最多读取最近 N 位发言者的 impression
         self.group_reply_impression_count: int = ccfg.get("group_reply_impression_count", 3)
+
     def _counter_key(self, user_id: int, group_id) -> str:
         return f"{group_id or 'priv'}:{user_id}"
 
-    async def _call_llm(self, prompt: str, tools=None) -> str:
-        """统一的LLM调用入口，支持 Function Calling 工具集"""
+    async def _call_llm(self, prompt: str, tools=None, system_prompt: Optional[str] = None) -> str:
+        """统一的LLM调用入口，优先走支持 Function Calling 的 LLMClient"""
+        sys_p = system_prompt or "你是一个情感与记忆管理专家，负责帮助Bot记住他人的客观事实、更新自身独立生活记忆、并提炼主观情感态度。"
         if tools:
             # 携带工具调用时，必须走支持函数调用的 LLMClient
-            return await self._llm.chat(
+            res = await self._llm.chat(
                 messages=[{"role": "user", "content": prompt}],
-                system_prompt="你是一个情感与记忆管理专家，负责帮助Bot记住他人的客观事实、更新自身独立生活记忆、并提炼主观情感态度。",
+                system_prompt=sys_p,
                 tools=tools,
                 model=self.model,
             )
-        if not self.base_url:
-            return await self._llm.chat(
+            return res or ""
+
+        if self._llm:
+            res = await self._llm.chat(
                 messages=[{"role": "user", "content": prompt}],
-                system_prompt="你是一个情感记忆提取器，帮助机器人记住并压缩对他人的印象。不加任何前缀。",
+                system_prompt=sys_p,
                 model=self.model,
             )
-        else:
-            return await simplified_chat(
+            return res or ""
+        elif self.base_url:
+            res = await simplified_chat(
                 self.base_url,
                 [{"role": "user", "content": prompt}],
                 self.model,
                 self.api_key,
-                system_prompt="你是一个情感记忆提取器，帮助机器人记住并压缩对他人的印象。不加任何前缀。"
+                system_prompt=sys_p,
             )
+            return res or ""
+        return ""
+
+    def _parse_and_apply_fallback_slots(self, text: str, user_id: int, user_name: str) -> bool:
+        """
+        容错解析器：当部分模型或中转代理未走原生 tool_calls 而是以文本/JSON/函数代码输出时，
+        自动提取并写入记忆槽位，确保 100% 成功率。
+        """
+        if not text or not text.strip() or "无事实更新" in text:
+            return False
+
+        applied = False
+
+        # 1. 提取 XML/函数标记 (<tool_call>, <function=...>)
+        xml_matches = re.finditer(r'(?:<tool_call>|<function=(?P<fn>[\w_]+)>)(.*?)(?:</tool_call>|</function>)', text, re.DOTALL)
+        for xm in xml_matches:
+            fn_tag = xm.group("fn") or ""
+            payload_str = (xm.group(2) or "").strip()
+            try:
+                d = json.loads(payload_str)
+                sid = d.get("slot_id") or (d.get("parameters", {}).get("slot_id") if isinstance(d.get("parameters"), dict) else None)
+                cnt = d.get("content") or (d.get("parameters", {}).get("content") if isinstance(d.get("parameters"), dict) else "")
+                tname = fn_tag or str(d.get("tool", "") or d.get("name", ""))
+                if sid is not None and cnt:
+                    sid_int = int(sid)
+                    if "global" in tname:
+                        self._ctx.memory_slots.set_global_slot(sid_int, str(cnt).strip())
+                    else:
+                        self._ctx.memory_slots.set_user_slot(user_id, sid_int, str(cnt).strip())
+                    applied = True
+                    logger.info(f"[MemorySlots 容错解析] 成功从XML标记解析写入槽位: {sid_int} -> {cnt}")
+            except Exception:
+                pass
+
+        # 2. 提取 Markdown 代码块中的 JSON 或原生 JSON 列表/对象
+        json_blocks = re.findall(r"```(?:json)?\s*([{\[].*?[}\]])\s*```", text, re.DOTALL)
+        candidates = list(json_blocks)
+        bare_objs = re.findall(r'(\{[^{}]*?"slot_id"[^{}]*?\})', text, re.DOTALL)
+        candidates.extend(bare_objs)
+        if not candidates:
+            candidates = [text.strip()]
+
+        for block in candidates:
+            block_clean = block.strip()
+            try:
+                data = json.loads(block_clean)
+                items = data if isinstance(data, list) else [data]
+                for item in items:
+                    if isinstance(item, dict):
+                        sid = item.get("slot_id")
+                        content = item.get("content")
+                        tool_name = str(item.get("tool", "") or item.get("name", "") or item.get("action", ""))
+                        if sid is not None:
+                            try:
+                                sid_int = int(sid)
+                                if "clear" in tool_name:
+                                    if "global" in tool_name:
+                                        self._ctx.memory_slots.clear_global_slot(sid_int)
+                                    else:
+                                        self._ctx.memory_slots.clear_user_slot(user_id, sid_int)
+                                    applied = True
+                                    logger.info(f"[MemorySlots 容错解析] 成功清空槽位: {tool_name} -> {sid_int}")
+                                elif content:
+                                    if "global" in tool_name:
+                                        self._ctx.memory_slots.set_global_slot(sid_int, str(content).strip())
+                                    else:
+                                        self._ctx.memory_slots.set_user_slot(user_id, sid_int, str(content).strip())
+                                    applied = True
+                                    logger.info(f"[MemorySlots 容错解析] 成功从JSON解析写入槽位: {sid_int} -> {content}")
+                            except Exception:
+                                pass
+            except Exception:
+                pass
+
+        # 3. 匹配函数调用形式：set_user_memory_slot(...)
+        func_matches = re.finditer(
+            r'(?P<fn>set_user_memory_slot|set_global_memory_slot|clear_user_memory_slot|clear_global_memory_slot)\s*\((.*?)\)',
+            text,
+            re.DOTALL
+        )
+        for m in func_matches:
+            full_fn = m.group("fn")
+            args_str = m.group(2)
+            sid_m = re.search(r'(?:slot_id\s*=\s*)?(\d+)', args_str)
+            cnt_m = re.search(r'(?:content\s*=\s*)?["\'](.*?)["\'](?:\s*[,)]|\s*$)', args_str, re.DOTALL)
+            if sid_m:
+                try:
+                    sid = int(sid_m.group(1))
+                    cnt = cnt_m.group(1).strip() if cnt_m else ""
+                    if "clear" in full_fn:
+                        if "global" in full_fn:
+                            self._ctx.memory_slots.clear_global_slot(sid)
+                        else:
+                            self._ctx.memory_slots.clear_user_slot(user_id, sid)
+                        applied = True
+                        logger.info(f"[MemorySlots 容错解析] 成功从函数字符串解析清空槽位: {full_fn}({sid})")
+                    elif cnt:
+                        if "global" in full_fn:
+                            self._ctx.memory_slots.set_global_slot(sid, cnt)
+                        else:
+                            self._ctx.memory_slots.set_user_slot(user_id, sid, cnt)
+                        applied = True
+                        logger.info(f"[MemorySlots 容错解析] 成功从函数字符串解析写入槽位: {full_fn}({sid}, {cnt})")
+                except Exception:
+                    pass
+
+        return applied
+
+    async def _extract_and_update_memory_slots(
+        self, user_id: int, user_name: str, history_text: str
+    ) -> None:
+        """阶段1：专门使用 Tool Calling 分析对话并抽取硬事实，维护固定记忆槽位"""
+        try:
+            tools = self._ctx.memory_slots.build_updater_tools(user_id, user_name)
+            user_slots_text = self._ctx.memory_slots.format_user_slots_for_updater(user_id)
+            global_slots_text = self._ctx.memory_slots.format_global_slots_for_updater()
+
+            prompt = MEMORY_SLOT_EXTRACT_PROMPT_TEMPLATE.format(
+                user_name=user_name,
+                history_text=history_text,
+                user_slots_text=user_slots_text,
+                global_slots_text=global_slots_text,
+            )
+
+            executed_calls = []
+            wrapped_tools = {}
+            for tname, tdict in tools.items():
+                orig_func = tdict["func"]
+                decl = tdict["declaration"]
+
+                def _bind(name, func):
+                    async def wrapper(*args, **kwargs):
+                        executed_calls.append((name, kwargs))
+                        return await func(*args, **kwargs)
+                    wrapper.__doc__ = func.__doc__
+                    return wrapper
+
+                wrapped_tools[tname] = {
+                    "func": _bind(tname, orig_func),
+                    "declaration": decl,
+                }
+
+            result_text = await self._call_llm(
+                prompt,
+                tools=wrapped_tools,
+                system_prompt="你是一个严谨客观的硬事实记忆提取专家，负责提取客观事实并调用工具更新记忆槽位。切忌主观抒情。",
+            )
+
+            if executed_calls:
+                logger.info(f"[MaiReply] 记忆槽位更新完成，共触发 {len(executed_calls)} 次工具调用: {[c[0] for c in executed_calls]}")
+            else:
+                # 若模型未触发原生 tool call，尝试从回复文本做容错解析
+                if result_text:
+                    parsed = self._parse_and_apply_fallback_slots(result_text, user_id, user_name)
+                    if not parsed and "无事实更新" not in result_text:
+                        logger.debug(f"[MaiReply] 事实槽位分析无事实更新或未触发工具: {result_text[:60]}")
+        except Exception as e:
+            traceback.print_exc()
+            logger.error(f"[MaiReply] 记忆槽位事实提取失败: {e}")
 
     # ------------------------------------------------------------------ 用户印象
 
     def tick(self, user_id: int, group_id, user_name: str, bot_name: str) -> None:
-        """每次对话完成后调用，达到触发轮数时异步更新用户印象"""
+        """每次对话完成后调用，达到触发轮数时异步更新用户印象与硬事实记忆"""
         key = self._counter_key(user_id, group_id)
         self._counters[key] = self._counters.get(key, 0) + 1
         if self._counters[key] >= SUMMARY_TRIGGER_TURNS:
@@ -180,7 +359,7 @@ class ImpressionUpdater:
             if not history:
                 return
 
-            recent = history[-6:]
+            recent = history[-8:]
             lines = []
             for msg in recent:
                 role = user_name if msg["role"] == "user" else bot_name
@@ -194,30 +373,28 @@ class ImpressionUpdater:
             old_impression = self._ctx.get_impression(user_id) or ""
 
             enable_slots = getattr(self._ctx, "enable_memory_slots", False) and hasattr(self._ctx, "memory_slots")
-            tools = None
+
+            # 阶段 1：独立提取客观硬事实并更新记忆槽位
             if enable_slots:
-                tools = self._ctx.memory_slots.build_updater_tools(user_id, user_name)
-                user_slots_text = self._ctx.memory_slots.format_user_slots_for_updater(user_id)
-                global_slots_text = self._ctx.memory_slots.format_global_slots_for_updater()
-                prompt = SUMMARY_WITH_SLOTS_PROMPT_TEMPLATE.format(
-                    bot_name=bot_name,
+                await self._extract_and_update_memory_slots(
+                    user_id=user_id,
                     user_name=user_name,
                     history_text=history_text,
-                    user_slots_text=user_slots_text,
-                    global_slots_text=global_slots_text,
-                    old_impression=old_impression or "（暂无，第一次聊）",
-                    chars=self.max_chars,
-                )
-            else:
-                prompt = SUMMARY_PROMPT_TEMPLATE.format(
-                    bot_name=bot_name,
-                    user_name=user_name,
-                    history_text=history_text,
-                    old_impression=old_impression or "（暂无，第一次聊）",
-                    chars=self.max_chars,
                 )
 
-            new_impression = await self._call_llm(prompt, tools=tools)
+            # 阶段 2：生成第一人称主观情感印象
+            prompt = SUMMARY_PROMPT_TEMPLATE.format(
+                bot_name=bot_name,
+                user_name=user_name,
+                history_text=history_text,
+                old_impression=old_impression or "（暂无，第一次聊）",
+                chars=self.max_chars,
+            )
+
+            new_impression = await self._call_llm(
+                prompt,
+                system_prompt="你是一个情感记忆提取器，帮助机器人记住并压缩对他人的主观印象。不加任何前缀。"
+            )
             if not new_impression:
                 return
 
