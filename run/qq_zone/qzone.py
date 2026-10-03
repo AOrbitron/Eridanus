@@ -1265,40 +1265,82 @@ def main(bot: ExtendBot, config: YAMLManager):
                 "严禁在回复中使用任何括号动作描写如(气呼呼)。"
             )
 
-        reply_strategies = [
-            {
-                "name": "机智反弹互怼",
-                "directive": "不要解释借口！反客为主挑对方的刺，反问对方是不是太闲了特意赶来抓包，或者嘲弄对方也半斤八两，充满好友间轻快互损的乐趣。"
-            },
-            {
-                "name": "幽默自嘲求放过",
-                "directive": "顺着对方调侃的话自黑认栽，装可怜认输求放过，假装要找个地缝钻进去，求别拆穿了。"
-            },
-            {
-                "name": "傲娇炸毛威胁",
-                "directive": "假装被戳到痛处炸毛，宣布跟对方绝交三分钟，或者威胁要把对方做成表情包挂到群里示众。"
-            },
-            {
-                "name": "理直气壮敲竹杠",
-                "directive": "既然被你看到了那就见者有份，理直气壮索要一杯奶茶或一包薯条作为封口费，否则就赖上你。"
-            },
-            {
-                "name": "转移焦点装傻",
-                "directive": "眼神飘忽强行顾左右而言他，假装无事发生，突然聊今天天气真好或你晚饭吃什么，生硬地转移话题。"
-            },
-            {
-                "name": "就地抓壮丁",
-                "directive": "既然你这么有精神，正好过来帮我收拾残局/打扫桌面/干活，别光顾着看戏！"
-            },
-            {
-                "name": "抓字眼接梗",
-                "directive": "敏锐抓住对方评论里的某个词、错别字或谐音梗反将一军，展现水友群聊的高段位接梗感。"
-            },
-            {
-                "name": "反向好奇打探",
-                "directive": "不聊自己当前的窘况，反过来好奇打听对方在干嘛，是不是也在偷偷摸鱼，打探对方的八卦。"
-            }
-        ]
+        # 动态获取当前节假日、周末与时令信息（为评论互动提供真实时间感知）
+        festival_or_term = await get_almanac_info()
+        time_context = get_current_time_context()
+        season_meta = get_current_season()
+        season_full = season_meta.get("full_name", "当季")
+        now_dt = datetime.datetime.now()
+        is_weekend = now_dt.weekday() >= 5
+        is_holiday = bool(festival_or_term) or is_weekend
+        if festival_or_term:
+            holiday_desc = f"当前正值【{festival_or_term}】长假/节日时令"
+        elif is_weekend:
+            holiday_desc = "当前正值周末休息日（非工作日/非上学日）"
+        else:
+            holiday_desc = "普通工作日/上学日"
+
+        def check_reply_cliche_or_repetition(candidate_text: str, priors: list[str]) -> tuple[bool, str]:
+            """
+            智能检测回复是否命中了套路化公式、刻板口头禅或与本动态下已有回复雷同
+            """
+            c_clean = candidate_text.strip()
+            # 1. 生硬看云/天气转移话题套路
+            cloud_kw = ["云好白", "天上的云", "外面的云", "像棉花糖", "看天上的云", "看云"]
+            meal_kw = ["晚饭", "晚上吃", "晚饭吃啥", "吃什么", "打算吃啥", "打算吃什么", "吃啥", "参谋一下"]
+            if any(w in c_clean for w in cloud_kw):
+                return True, "生硬扯天上的云/天气转移话题"
+            if any(w in c_clean for w in ["天气真好", "今天天气"]) and any(w in c_clean for w in meal_kw):
+                return True, "生硬借天气转移话题并问吃什么"
+
+            # 2. 滥用封口费套路
+            if "封口费" in c_clean:
+                return True, "索要封口费套路"
+
+            # 3. 滥用‘救命’起手与‘留条活路/无事发生’
+            help_kw = ["留条活路", "留点活路", "留点面子", "钻地缝", "埋进沙发", "无事发生", "当做无事发生"]
+            if any(w in c_clean for w in ["救命", "快闭嘴"]) and any(w in c_clean for w in help_kw):
+                return True, "‘救命’起手并求留活路/无事发生套路"
+            if any(w in c_clean for w in ["留条活路", "留点活路", "钻地缝", "埋进沙发"]):
+                return True, "套路化求饶/留活路借口"
+
+            # 4. 重复索要奶茶/饮品
+            beverage_keywords = ["奶茶", "全糖", "冰淇淋", "冰牛奶", "薯条", "冰美式", "可乐", "饮料"]
+            if any(w in c_clean for w in beverage_keywords) and any(any(w in p for w in beverage_keywords) for p in priors):
+                return True, "重复索要奶茶/饮品"
+
+            # 5. 重复抓壮丁拖地/收拾桌子
+            clean_keywords = ["拖地", "把地拖", "拖了", "打扫", "擦桌子", "擦地", "收拾", "收拾桌面", "收拾干净", "收拾残局", "打翻", "洒了", "弄洒"]
+            if any(w in c_clean for w in clean_keywords) and any(any(w in p for w in clean_keywords) for p in priors):
+                return True, "重复抓壮丁要求拖地/收拾桌面"
+
+            # 6. 假期间不合常理地指责在工位摸鱼
+            if is_holiday and any(w in c_clean for w in ["工位", "上班摸鱼", "在工位", "偷摸摸鱼", "摸鱼刷手机", "偷偷摸鱼", "上班时间"]):
+                return True, "节假日/周末期间不合逻辑地指责在工位摸鱼"
+
+            # 7. 重复向不同好友询问吃什么
+            repeat_meal_kw = ["晚饭", "午饭", "吃啥", "吃什么", "打算吃什么", "打算吃啥"]
+            if any(w in c_clean for w in repeat_meal_kw) and any(any(w in p for w in repeat_meal_kw) for p in priors):
+                return True, "向不同好友重复询问吃饭/晚饭"
+
+            # 8. 基于 2-gram 判定与本条动态下已有回复的字词相似度
+            def get_2grams(s: str) -> set:
+                return {s[i:i+2] for i in range(len(s)-1)} if len(s) >= 2 else {s}
+
+            cand_ng = get_2grams(c_clean)
+            for p in priors:
+                p_ng = get_2grams(p.strip())
+                if cand_ng and p_ng:
+                    overlap = len(cand_ng & p_ng) / max(len(cand_ng), 1)
+                    if overlap > 0.40:
+                        return True, f"与已有回复用词重复率过高({overlap:.2f})"
+
+            # 9. 连续句首套路复读 (如都以 '说谁...呢' 或 '笑什么笑' 起手)
+            for p in priors:
+                if len(c_clean) >= 4 and len(p) >= 4 and c_clean[:4] == p[:4]:
+                    return True, f"回复句首起手式与既往回复重复(‘{c_clean[:4]}’)"
+
+            return False, ""
 
         for msg in msg_list:
             tid = msg.get("tid", "")
@@ -1444,67 +1486,113 @@ def main(bot: ExtendBot, config: YAMLManager):
                         + "\n⚠️ 本次回复【绝对严禁】再复读或变相复读上述任何相同的借口、解释理由、词汇或句式！针对当前好友必须换一个完全不同的角度、切入点或态度回应！\n"
                     )
 
-                chosen_strategy = random.choice(reply_strategies)
-
-                # LLM 生成贴合人设与说说主题的回复
-                sys_reply_prompt = (
+                # LLM 生成贴合人设与说说主题的回复（基于高阶对话原则与反套路动态检测，杜绝刻板模式化）
+                sys_reply_prompt_base = (
                     f"你是{bot_name}。\n"
                     f"人设信息：\n{chara_text}\n\n"
                     f"你在 QQ 空间发布了一条动态说说，好友正在你的说说评论区发表了互动评论。请以你的角色性格回复对方。\n"
                     f"动态说说内容：【{shuoshuo_text}】\n"
+                    f"当前现实时间背景：{time_context}（{holiday_desc}）\n"
                 )
                 if parent_desc:
-                    sys_reply_prompt += f"上下文背景：\n{parent_desc}\n"
+                    sys_reply_prompt_base += f"上下文背景：\n{parent_desc}\n"
                 if user_impression:
-                    sys_reply_prompt += f"你对该好友({comment_name})的印象与记忆：\n{user_impression}\n"
+                    sys_reply_prompt_base += f"你对该好友({comment_name})的印象与记忆：\n{user_impression}\n"
                 if recent_chat_snippet:
-                    sys_reply_prompt += f"你们近期的对话上下文片段：\n{recent_chat_snippet}\n"
+                    sys_reply_prompt_base += f"你们近期的对话上下文片段：\n{recent_chat_snippet}\n"
 
                 if anti_repetition_prompt:
-                    sys_reply_prompt += f"\n{anti_repetition_prompt}\n"
+                    sys_reply_prompt_base += f"\n{anti_repetition_prompt}\n"
 
-                sys_reply_prompt += (
-                    f"【本次建议切入策略（{chosen_strategy['name']}）】：\n"
-                    f"{chosen_strategy['directive']}\n\n"
-                    f"【个性化优化引导词】：\n"
-                    f"{custom_reply_guidance}\n\n"
-                    f"要求与人际分寸感规范：\n"
-                    f"1. 结合你的说说主题、上下文语境和对方的评论，自然、亲切地像在空间好友动态下互动一样进行回复。\n"
-                    f"2. 【重要分寸感约束】：当前处于所有人可见的公开动态评论区！绝对不要表现得过度亲密、过度撒娇、暧昧或调情（不要叫'老公'、'宝贝'、'主人'或做亲昵身体接触描写等），以免其他用户吃醋或显得你到处和人调情！\n"
-                    f"3. 保持健康、自然、元气可爱的朋友/Vtuber博主互动边界感，风趣机智地回应或友善吐槽即可。\n"
-                    f"4. 【绝对严禁输出任何括号动作描写】！严禁包含类似 (气呼呼)、(小声嘀咕)、(把手指伸过去)、（委屈地对手指）、(目移) 等任何圆括号或中文括号包裹的动作、心理或神态描写！必须只输出纯粹的人声自然口语台词！\n"
-                    f"5. 若有对他的印象或聊天经历，自然流露熟络感，不要刻意背诵。\n"
-                    f"6. 长度严格控制在 10~45 字以内，轻松口语化，绝对不要包含任何系统标记或多余引号，不要自己在回复开头写@谁（系统会自动添加标准艾特标签）。"
+                # 基于高阶原则的自然互动指引（彻底告别固定模板与机械套路）
+                conversational_guidance = (
+                    "【真实社交互动原则（核心）】：\n"
+                    f"1. 你是鲜活、机敏的{bot_name}，这是你在自己发表的动态说说评论区与好友们自然的实时互动。\n"
+                    f"2. 【就事论事，顺应语境】：直接针对好友评论的具体内容（对方指出的细节、挑的刺、吐槽、调侃、玩梗、关切或疑问）给出具有针对性的真实反应！\n"
+                    "   - 如果对方挑细节/挑刺（如质疑手指数量、表情奇怪、被微辣辣翻车等）：你可以自信狡辩（画画手抖、特效重影、滤镜抽风、辣到神志不清）、可以被气笑、也可以反挑对方的刺，态度灵活生动；\n"
+                    "   - 如果对方调侃你（如叫你笨笨、笨宝宝）：可以傲娇抗议、反向给对方起搞怪外号、或者佯装生气；\n"
+                    "   - 如果对方分享共鸣或聊吃的：顺着对方的具体话题聊，交流真实感受；\n"
+                    "   - 如果对方只是发个表情、拟声词或玩抽象梗：简短打趣、接梗或轻快吐槽即可。\n"
+                    "3. 情绪与反应完全自由多变，像真实生活中的女孩子与朋友互损打趣，严禁千篇一律的句式。"
+                )
+
+                negative_cliche_rules = (
+                    "【严禁任何模板化套路与敷衍转移话题（高压红线）】：\n"
+                    "1. 【绝对严禁】生硬扯天上的云朵、天气（如'啊哈哈天上的云好白/云像棉花糖/今天天气真好'），然后强行问对方'晚饭吃什么'！这是最劣质的机器人答非所问套路！\n"
+                    "2. 【绝对严禁】动辄以'救命'起手喊救命，或千篇一律求对方'给我留条活路/无事发生/钻地缝/埋进沙发'！\n"
+                    "3. 【绝对严禁】动不动就索要'奶茶/薯条作为封口费'，不要把自己当成只会要奶茶的NPC！\n"
+                    "4. 【绝对严禁】动辄'快过来帮我把地拖了/把打翻的收拾干净'抓壮丁！\n"
+                    f"5. 【绝对严禁】在假期/周末盲目指责对方'上班在工位偷摸摸鱼'！当前实况是：【{holiday_desc}】，大家都在放假休闲，指责在工位摸鱼完全违背常理！\n"
+                    "6. 严禁车轱辘复读相同的借口或固定句式，针对不同好友给出不同角度的回应！"
+                )
+
+                reply_rules = (
+                    f"【个性化优化引导词】：\n{custom_reply_guidance}\n\n"
+                    "要求与人际分寸感规范：\n"
+                    "1. 结合你的说说主题、上下文语境和对方的评论，自然、亲切地像在空间好友动态下互动一样进行回复。\n"
+                    "2. 【重要分寸感约束】：当前处于所有人可见的公开动态评论区！绝对不要表现得过度亲密、过度撒娇、暧昧或调情（不要叫'老公'、'宝贝'、'主人'或做亲昵身体接触描写等），以免其他用户吃醋或显得你到处和人调情！\n"
+                    "3. 保持健康、自然、元气可爱的朋友/Vtuber博主互动边界感，风趣机智地回应或友善吐槽即可。\n"
+                    "4. 【绝对严禁输出任何括号动作描写】！严禁包含类似 (气呼呼)、(小声嘀咕)、(把手指伸过去)、（委屈地对手指）、(目移) 等任何圆括号或中文括号包裹的动作、心理或神态描写！必须只输出纯粹的人声自然口语台词！\n"
+                    "5. 若有对他的印象或聊天经历，自然流露熟络感，不要刻意背诵。\n"
+                    "6. 长度严格控制在 10~45 字以内，轻松口语化，绝对不要包含任何系统标记或多余引号，不要自己在回复开头写@谁（系统会自动添加标准艾特标签）。"
                 )
 
                 reply_text = ""
-                try:
-                    if mai_llm:
-                        res = await mai_llm.chat(
-                            messages=[{"role": "user", "content": f"{comment_name} 评论道：\"{comment_content}\"，请回复他："}],
-                            system_prompt=sys_reply_prompt,
-                        )
-                        reply_text = res.strip() if res else ""
-                except Exception as e:
-                    logger.error(f"[Qzone] 生成评论回复失败: {e}")
+                max_retries = 2
+                retry_hint = ""
 
-                if reply_text:
-                    # 彻底剥离任何中英文圆括号动作/心理描写（如 "(气呼呼)"、"（把手指伸到屏幕前）"）
-                    while True:
-                        cleaned = re.sub(r"[\(（][^()（）]*[\)）]", "", reply_text).strip()
-                        if cleaned == reply_text:
+                for attempt in range(max_retries + 1):
+                    full_sys_prompt = f"{sys_reply_prompt_base}\n{conversational_guidance}\n{negative_cliche_rules}\n{reply_rules}"
+                    if retry_hint:
+                        full_sys_prompt += f"\n{retry_hint}\n"
+
+                    candidate = ""
+                    try:
+                        if mai_llm:
+                            res = await mai_llm.chat(
+                                messages=[{"role": "user", "content": f"{comment_name} 评论道：\"{comment_content}\"，请回复他："}],
+                                system_prompt=full_sys_prompt,
+                            )
+                            candidate = res.strip() if res else ""
+                    except Exception as e:
+                        logger.error(f"[Qzone] 生成评论回复失败(attempt {attempt}): {e}")
+
+                    if candidate:
+                        # 彻底剥离任何中英文圆括号动作/心理描写（如 "(气呼呼)"、"（把手指伸到屏幕前）"）
+                        while True:
+                            cleaned = re.sub(r"[\(（][^()（）]*[\)）]", "", candidate).strip()
+                            if cleaned == candidate:
+                                break
+                            candidate = cleaned
+                        candidate = re.sub(r'^[\u201c\u201d"\'\s\[\]]+|[\u201c\u201d"\'\s\[\]]+$', "", candidate).strip()
+
+                    if candidate:
+                        is_cliche, reason = check_reply_cliche_or_repetition(candidate, all_prior_replies)
+                        if is_cliche and attempt < max_retries:
+                            logger.warning(
+                                f"[Qzone 评论防套路] 候选回复命中模板套路: [{reason}] -> \"{candidate}\"，"
+                                f"正在触发针对性重试..."
+                            )
+                            retry_hint = (
+                                f"【系统严重警告】：你上一轮生成的回复「{candidate}」被系统拦截，因为命中了禁止的套路：【{reason}】！"
+                                f"请立刻打破该思维定势，完全就事论事直接针对好友的具体评论「{comment_content}」给出完全不同的自然回应，严禁再使用上述任何套路！"
+                            )
+                            continue
+                        else:
+                            reply_text = candidate
                             break
-                        reply_text = cleaned
-                    reply_text = re.sub(r'^[\u201c\u201d"\'\s\[\]]+|[\u201c\u201d"\'\s\[\]]+$', "", reply_text).strip()
 
                 if not reply_text:
                     fallbacks = [
                         f"哼，{comment_name}你少幸灾乐祸啦！",
                         f"{comment_name}抓包速度这么快，是不是偷偷住我空间了！",
                         f"被{comment_name}看到了……快装作没看见！",
-                        f"呜，{comment_name}别拆台，给我留点面子嘛~"
+                        f"呜，{comment_name}别拆台，给我留点面子嘛~",
+                        f"哎呀{comment_name}你别乱讲，才没有这回事呢！",
+                        f"好你个{comment_name}，专门挑这个时候冒出来是吧！"
                     ]
-                    reply_text = random.choice(fallbacks)
+                    clean_fallbacks = [fb for fb in fallbacks if not any(fb[:6] in p for p in all_prior_replies)]
+                    reply_text = random.choice(clean_fallbacks or fallbacks)
 
                 recent_replies_for_this_post.append(reply_text)
 

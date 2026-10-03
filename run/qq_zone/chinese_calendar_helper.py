@@ -221,13 +221,17 @@ def get_chinese_calendar_info(d: Optional[date] = None, include_lunar_if_none: b
     except Exception:
         pass
 
-    # 2. 判断常规农历节日
+    # 2. 判断常规农历节日与春节黄金周
     try:
         _, l_m, l_d, is_leap, _ = solar_to_lunar(d)
         if not is_leap:
             l_fest = LUNAR_FESTIVALS.get((l_m, l_d))
             if l_fest and l_fest not in festivals:
                 festivals.append(l_fest)
+            # 春节长假假期 (正月初二至初七)
+            if l_m == 1 and 2 <= l_d <= 7:
+                if '春节长假' not in festivals and '春节' not in festivals:
+                    festivals.append('春节长假')
     except Exception:
         pass
 
@@ -244,10 +248,23 @@ def get_chinese_calendar_info(d: Optional[date] = None, include_lunar_if_none: b
     except Exception:
         pass
 
-    # 4. 判断公历节日
+    # 4. 判断公历节日及法定长假黄金周
     s_fest = SOLAR_FESTIVALS.get((d.month, d.day))
     if s_fest and s_fest not in festivals:
         festivals.append(s_fest)
+
+    # 十一国庆黄金周 (10月1日~10月7日)
+    if d.month == 10 and 2 <= d.day <= 7:
+        if '国庆长假（十一黄金周）' not in festivals and '国庆节' not in festivals:
+            festivals.append('国庆长假（十一黄金周）')
+    # 五一劳动节长假 (5月1日~5月5日)
+    elif d.month == 5 and 2 <= d.day <= 5:
+        if '五一劳动节长假' not in festivals and '劳动节' not in festivals:
+            festivals.append('五一劳动节长假')
+    # 元旦假期 (1月1日~1月3日)
+    elif d.month == 1 and 2 <= d.day <= 3:
+        if '元旦假期' not in festivals and '元旦' not in festivals:
+            festivals.append('元旦假期')
 
     if festivals:
         return "、".join(festivals)
