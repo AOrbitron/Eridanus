@@ -17,6 +17,7 @@ from typing import List, Dict, Optional, Any
 from framework_common.framework_util.yamlLoader import YAMLManager
 from framework_common.utils.system_logger import get_logger
 from run.mai_reply.service.simple_chat import simplified_chat
+from run.mai_reply.service.llm_client import LLMClient
 
 logger = get_logger(__name__)
 
@@ -112,7 +113,7 @@ GROUP_IMP_COMPRESS_TEMPLATE = """以下是你（{bot_name}）对群【{group_nam
 class ImpressionUpdater:
 
     def __init__(self, llm_client, context_manager):
-        self._llm = llm_client
+        self._main_llm = llm_client
         self._ctx = context_manager
         # 用户印象计数器：counter_key -> turn_count
         self._counters: Dict[str, int] = {}
@@ -122,22 +123,58 @@ class ImpressionUpdater:
         cfg = YAMLManager.get_instance()
         ccfg = cfg.mai_reply.config.get("context", {})
 
-        # 模型解析：优先使用配置中指定的 impression_model；留空则默认使用主 LLM 模型（具备完整工具调用能力）
-        imp_model = ccfg.get("impression_model")
-        if imp_model and str(imp_model).strip():
-            self.model = str(imp_model).strip()
+        # 优先使用配置中显式指定的 impression_model
+        explicit_imp_model = str(ccfg.get("impression_model") or "").strip()
+
+        # 检查 trigger_llm 配置（用于低开销提取事实与更新记忆槽位）
+        trig_cfg = cfg.mai_reply.config.get("trigger_llm", {})
+        trig_model = str(trig_cfg.get("model") or "").strip()
+        trig_base_url = str(trig_cfg.get("base_url") or "").strip().rstrip("/")
+        trig_api_key = str(trig_cfg.get("api_key") or "").strip()
+
+        # 优先使用 trigger_llm 配置，如果 trigger_llm 未配置则回退到主回复模型配置
+        if trig_model:
+            lcfg = cfg.mai_reply.config.get("llm", {})
+            main_oa_keys = lcfg.get("openai", {}).get("api_keys", [])
+            chosen_keys = [trig_api_key] if trig_api_key else (main_oa_keys if main_oa_keys else [""])
+            target_model = explicit_imp_model if explicit_imp_model else trig_model
+            base_url = trig_base_url if trig_base_url else "https://api.openai.com/v1"
+
+            custom_llm_cfg = {
+                "provider": "openai",
+                "stream": bool(trig_cfg.get("stream", True)),
+                "max_tool_rounds": 10,
+                "openai": {
+                    "api_keys": chosen_keys,
+                    "model": target_model,
+                    "base_url": base_url,
+                    "no_extra_paramters": False,
+                    "temperature": 0.3,
+                    "max_tokens": 1024,
+                }
+            }
+            try:
+                self._slot_llm = LLMClient(cfg, custom_llm_cfg=custom_llm_cfg)
+            except Exception as e:
+                logger.warning(f"[MaiReply] 基于 trigger_llm 构建独立客户端失败，将回退主回复模型: {e}")
+                self._slot_llm = self._main_llm
+
+            self.model = target_model
+            self.api_key = trig_api_key
+            self.base_url = base_url
+            logger.info(f"[MaiReply] 记忆槽位与印象更新优先启用 trigger_llm 配置: model={self.model}, base_url={base_url}")
         else:
+            self._slot_llm = self._main_llm
             lcfg = cfg.mai_reply.config.get("llm", {})
             provider = str(lcfg.get("provider", "openai")).lower()
             if provider == "gemini":
-                self.model = lcfg.get("gemini", {}).get("model")
+                main_model = lcfg.get("gemini", {}).get("model")
             else:
-                self.model = lcfg.get("openai", {}).get("model")
-
-        # trigger_llm 配置作为次级回退
-        trig_cfg = cfg.mai_reply.config.get("trigger_llm", {})
-        self.api_key = trig_cfg.get("api_key", "")
-        self.base_url = trig_cfg.get("base_url", "")
+                main_model = lcfg.get("openai", {}).get("model")
+            self.model = explicit_imp_model if explicit_imp_model else (main_model or "gpt-3.5-turbo")
+            self.api_key = trig_api_key
+            self.base_url = trig_base_url
+            logger.info(f"[MaiReply] trigger_llm 未配置，记忆槽位与印象更新回退使用主回复模型: model={self.model}")
 
         self.max_chars = int(ccfg.get("impression_max_chars", IMPRESSION_MAX_CHARS))
         self.group_imp_trigger: int = int(ccfg.get("group_trigger_msgs", GROUP_IMP_TRIGGER_MSGS))
@@ -152,20 +189,23 @@ class ImpressionUpdater:
         return f"{group_id or 'priv'}:{user_id}"
 
     async def _call_llm(self, prompt: str, tools=None, system_prompt: Optional[str] = None) -> str:
-        """统一的LLM调用入口，优先走支持 Function Calling 的 LLMClient"""
+        """统一的LLM调用入口，优先走支持 Function Calling 的记忆专用 LLMClient（配置优先使用 trigger_llm，未配置时回退主回复模型）"""
         sys_p = system_prompt or "你是一个情感与记忆管理专家，负责帮助Bot记住他人的客观事实、更新自身独立生活记忆、并提炼主观情感态度。"
-        if tools:
-            # 携带工具调用时，必须走支持函数调用的 LLMClient
-            res = await self._llm.chat(
-                messages=[{"role": "user", "content": prompt}],
-                system_prompt=sys_p,
-                tools=tools,
-                model=self.model,
-            )
-            return res or ""
+        target_llm = self._slot_llm or self._main_llm
 
-        if self._llm:
-            res = await self._llm.chat(
+        if tools:
+            # 携带工具调用时，走支持函数调用的 LLMClient
+            if target_llm:
+                res = await target_llm.chat(
+                    messages=[{"role": "user", "content": prompt}],
+                    system_prompt=sys_p,
+                    tools=tools,
+                    model=self.model,
+                )
+                return res or ""
+
+        if target_llm:
+            res = await target_llm.chat(
                 messages=[{"role": "user", "content": prompt}],
                 system_prompt=sys_p,
                 model=self.model,

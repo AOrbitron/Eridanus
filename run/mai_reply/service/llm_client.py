@@ -23,9 +23,16 @@ logger=get_logger(__name__)
 
 class LLMClient:
 
-    def __init__(self, config):
+    def __init__(self, config, custom_llm_cfg: Optional[Dict[str, Any]] = None):
         self.cfg = config
-        lcfg = config.mai_reply.config.get("llm", {})
+        if custom_llm_cfg is not None:
+            lcfg = custom_llm_cfg
+        elif hasattr(config, "mai_reply") and hasattr(config.mai_reply, "config"):
+            lcfg = config.mai_reply.config.get("llm", {})
+        elif isinstance(config, dict):
+            lcfg = config.get("llm", {})
+        else:
+            lcfg = {}
         self.provider: str = lcfg.get("provider", "openai").lower()
 
         # 是否在底层使用流式请求防超时
@@ -34,7 +41,10 @@ class LLMClient:
 
         # --- OpenAI 兼容配置
         oa = lcfg.get("openai", {})
-        self._oa_keys: List[str] = oa.get("api_keys",[])
+        raw_keys = oa.get("api_keys", [])
+        if isinstance(raw_keys, str):
+            raw_keys = [raw_keys]
+        self._oa_keys: List[str] = [k for k in raw_keys if k]
         self._oa_model: str = oa.get("model", "gpt-3.5-turbo")
         self._oa_base_url: str = oa.get("base_url", "https://api.openai.com").rstrip("/")
         self.no_extra_paramters: bool =oa.get("no_extra_paramters",False)
