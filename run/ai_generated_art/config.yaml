@@ -4,7 +4,7 @@ sightengine:       #ai创作图片鉴别，自己去申请https://dashboard.sigh
   api_secret: ''
 gptimage2:
   权限要求: 0   #使用gptimage2功能所需的权限等级，超过此等级不受次数限制
-  model: "gpt-image-2"   # 模型名称，当前可用的模型有 "gpt-image-2" 和 "nano-banana-2" 建议gpt-image-2，效果更好。nanobanana将消耗双倍配额
+  model: "gpt-image-2.5-flare"   # 模型名称，当前可用的模型有 "gpt-image-2.5-flare" 和 "nano-banana-2" 建议gpt-image-2，效果更好。nanobanana将消耗双倍配额
   apikey: ''  # 项目群中获取
   aspect_ratio: '1:1'  # 生成图像的宽高比，常见的有 '1:1', '16:9', '4:3' 等，根据需要调整
   resolution: "1K"  #2k双倍配额消耗，且很可能生图失败。

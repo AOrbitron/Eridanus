@@ -129,6 +129,8 @@ def main(bot: ExtendBot, config: YAMLManager):
             api_config = config.ai_generated_art.config.get("gptimage2", {})
             base_url = api_config.get("base_url", "http://api.apollodorus.xyz/v1")
             apikey = api_config.get("apikey", "")
+            model = api_config.get("model", "")
+            resolution=api_config.get("resolution")
 
             # 构造 Prompt
             user_prompt = " ".join(data_store["text"]) if data_store["text"] else "可爱Q版"
@@ -149,8 +151,8 @@ def main(bot: ExtendBot, config: YAMLManager):
                 data = {
                     "prompt": final_prompt,
                     "aspect_ratio": "1:1",
-                    "model": "gpt-image-2",
-                    "resolution": "2K"
+                    "model": model,
+                    "resolution": resolution
                 }
                 if uid in sticker_user_dict:
                     for p in sticker_user_dict[uid]["image"]:
