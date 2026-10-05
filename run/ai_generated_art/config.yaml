@@ -3,9 +3,12 @@ sightengine:       #ai创作图片鉴别，自己去申请https://dashboard.sigh
   api_user: ''
   api_secret: ''
 gptimage2:
+  base_url: "http://api.apollodorus.xyz/v1" # gptimage2 API 基础地址
   权限要求: 0   #使用gptimage2功能所需的权限等级，超过此等级不受次数限制
   model: "gpt-image-2.5-flare"   # 模型名称，当前可用的模型有 "gpt-image-2.5-flare" 和 "nano-banana-2" 建议gpt-image-2，效果更好。nanobanana将消耗双倍配额
-  apikey: ''  # 项目群中获取
+  apikey: ''  # 接口apikey
+  sticker_style_ref: "data/system/sticker_template_3x3.png" # 表情包画风参考图片路径，用于将输入角色转为可爱Q版贴纸风格
+  sticker_resolution: "1K" # 表情包生成分辨率，9宫格推荐2K以保证单个切分贴纸高清精细
   aspect_ratio: '1:1'  # 生成图像的宽高比，常见的有 '1:1', '16:9', '4:3' 等，根据需要调整
   resolution: "1K"  #2k双倍配额消耗，且很可能生图失败。
   max_retry: 5 #最大重试次数
