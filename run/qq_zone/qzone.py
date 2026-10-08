@@ -379,9 +379,16 @@ def main(bot: ExtendBot, config: YAMLManager):
             headers["Authorization"] = f"Bearer {apikey}"
         timeout_val = int(sd_cfg.get("timeout", 120))
 
-        # 重试机制：支持配置重试次数（默认失败重试 3 次，共 4 次尝试机会）与间隔延迟
+        # 重试机制：支持配置重试次数与间隔延迟（支持 retry_delay_seconds / retry_delay_minutes / retry_delay，默认10分钟即600秒）
         max_retries = int(sd_cfg.get("max_retries", 3))
-        retry_delay = float(sd_cfg.get("retry_delay", 2.5))
+        if "retry_delay_seconds" in sd_cfg:
+            retry_delay = float(sd_cfg.get("retry_delay_seconds", 600))
+        elif "retry_delay_minutes" in sd_cfg:
+            retry_delay = float(sd_cfg.get("retry_delay_minutes", 10)) * 60.0
+        elif "retry_delay" in sd_cfg:
+            retry_delay = float(sd_cfg.get("retry_delay", 600))
+        else:
+            retry_delay = 600.0  # 默认 10 分钟 (600秒)
         total_attempts = 1 + max(0, max_retries)
 
         for attempt in range(1, total_attempts + 1):
@@ -623,9 +630,10 @@ def main(bot: ExtendBot, config: YAMLManager):
                     f"2. 服饰穿搭必须严格使用上述系统分配的色系（主色：{primary_color}，辅色：{secondary_color}），严禁随意篡改色系！\n"
                     f"3. 【重点严禁】：绝对严禁千篇一律偏向薄荷绿（mint green / pastel green / light green 等单一刻板偏见）！本次服饰主色必须明确使用指定的【{primary_color}】（如：{primary_color} 卫衣/毛衣/大衣/睡衣/衬衫等），展现全色谱多样性！\n"
                     f"4. 可根据动态文案微调款式细节（如睡前可使用 {primary_color} 睡衣/家居服，外出/晨起使用相应外套/风衣），但服装主色必须忠实保持为 {primary_color}。\n"
-                    f"5. 服饰厚度、冷暖层次与环境细节应大体契合当前季节时令（{season_sd_full}），杜绝违背季节常识（如寒冬只穿单薄夏装短裤、盛夏裹厚重羽绒服烤火等）。\n"
-                    f"6. 仅输出情绪状态、服饰穿搭（含指定颜色与款式）、动作和场景，不要解释，不要输出任何中文。\n"
-                    f"7. 仅输出纯英文 tags，用英文逗号分隔。"
+                    f"5. 服饰厚度、冷暖层次与环境细节大体契合时令即可，杜绝反季节违和常识（如寒冬穿单薄夏装短裤、盛夏裹羽绒服烤火）。\n"
+                    f"6. 【画面要素与背景严禁单一刻板】：切忌因为时令而在每个画面都硬塞入枯燥重复的季节符号（例如：绝对不要千篇一律全是枫叶 maple leaf、落叶 fallen leaves、枯叶或红叶，已造成严重审美疲劳）！画面背景、道具与生活情境应保持丰富多样、松弛自然（如温馨房间、书桌、窗台、咖啡店、日常街景、便利店、走廊等各类日常切面均可），不要强行添加枫叶等刻板季节要素。\n"
+                    f"7. 仅输出情绪状态、服饰穿搭（含指定颜色与款式）、动作和场景，不要解释，不要输出任何中文。\n"
+                    f"8. 仅输出纯英文 tags，用英文逗号分隔。"
                 )
                 sd_tags = await mai_llm.chat(
                     messages=[{"role": "user", "content": prompt_generator}],

@@ -32,7 +32,7 @@ sd绘画设置:
   height: 1024           # 图片高度
   timeout: 120           # 绘画接口超时时间(秒)
   max_retries: 3         # 绘画接口失败重试次数(默认3次)
-  retry_delay: 2.5       # 重试等待间隔时间(秒)
+  retry_delay_seconds: 600   # 重试等待间隔时间(秒)，默认600秒(10分钟)，支持自定义
 
 动态互动:
   enable_comment_reply: true  # 是否自动回复空间好友在Bot动态下的评论
