@@ -452,6 +452,11 @@ class PluginManager:
                     relative_path = file_path.relative_to(self.plugin_manager.plugins_dir)
                     parts = relative_path.parts
 
+                    # 忽略插件产生的数据、日志与缓存子目录，避免插件写数据自发触发热重载
+                    ignored_dirs = {"data", "log", "logs", "cache", "__pycache__", ".git", "temp", "tmp"}
+                    if any(part in ignored_dirs for part in parts[1:-1]):
+                        return False
+
                     # 至少要有两个部分：插件目录名和文件名
                     if len(parts) >= 2:
                         plugin_dir = self.plugin_manager.plugins_dir / parts[0]
@@ -1129,6 +1134,21 @@ class PluginManager:
                 if plugin_name in self.loaded_plugins:
                     plugin_info = self.loaded_plugins[plugin_name]
                     module_name = plugin_info['module_name']
+                    # 优先通知插件执行清理钩子（停止后台调度器/协程等）
+                    try:
+                        mod = sys.modules.get(module_name)
+                        for clean_name in ["plugin_cleanup", "cleanup", "close", "shutdown"]:
+                            clean_fn = getattr(mod, clean_name, None) if mod else None
+                            if clean_fn and callable(clean_fn):
+                                if asyncio.iscoroutinefunction(clean_fn):
+                                    await clean_fn()
+                                else:
+                                    clean_fn()
+                                self.logger.info(f"已对 {plugin_name} 执行卸载清理 {clean_name} 钩子")
+                                break
+                    except Exception as clean_err:
+                        self.logger.warning(f"执行 {plugin_name} 卸载清理异常: {clean_err}")
+
                     del sys.modules[module_name]
                     # 获取当前处理器数量并卸载插件的所有事件处理器
                     handler_count = self.bot._unload_plugin_handlers(plugin_name)

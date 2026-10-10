@@ -43,6 +43,23 @@ def calc_bkn(p_skey: str) -> int:
     return hash_val & 0x7FFFFFFF
 
 
+# -------------------------------------------------------------
+# 跨热重载全局单例生命周期管理
+# -------------------------------------------------------------
+_GLOBAL_QZONE_INSTANCE = None
+
+
+async def plugin_cleanup():
+    """供框架 unload_plugin 或热重载前调用的清理钩子"""
+    global _GLOBAL_QZONE_INSTANCE
+    if _GLOBAL_QZONE_INSTANCE:
+        try:
+            await _GLOBAL_QZONE_INSTANCE.stop()
+        except Exception as e:
+            print(f"[Qzone] plugin_cleanup 清理异常: {e}")
+        _GLOBAL_QZONE_INSTANCE = None
+
+
 def main(bot: ExtendBot, config: YAMLManager):
     logger = bot.logger
     qzone_login = NativeQzoneLogin()
@@ -51,6 +68,57 @@ def main(bot: ExtendBot, config: YAMLManager):
     qzone = QzoneApiFixed()
     qzone_status = False
     cookie_invalid_notified = False
+
+    # ---------------------------------------------------------
+    # 模块实例与后台任务生命周期控制器
+    # ---------------------------------------------------------
+    global _GLOBAL_QZONE_INSTANCE
+
+    class QzoneLifecycleManager:
+        def __init__(self):
+            self.scheduler = None
+            self.background_tasks = []
+            self.send_lock = asyncio.Lock()
+            self.comment_reply_lock = asyncio.Lock()
+            self.in_progress_comments = set()
+            self.last_scheduled_execution = {}
+            self.stopped = False
+
+        async def stop(self):
+            if self.stopped:
+                return
+            self.stopped = True
+            logger.info("[Qzone 生命周期] 开始停止旧实例后台服务...")
+            if self.scheduler:
+                try:
+                    if self.scheduler.running:
+                        self.scheduler.shutdown(wait=False)
+                        logger.info("[Qzone 生命周期] 旧调度器已停止")
+                except Exception as e:
+                    logger.warning(f"[Qzone 生命周期] 停止旧调度器异常: {e}")
+            for t in self.background_tasks:
+                try:
+                    if not t.done():
+                        t.cancel()
+                except Exception:
+                    pass
+            self.background_tasks.clear()
+            logger.info("[Qzone 生命周期] 旧后台监控协程已全部取消")
+
+    # 若之前已有实例存活（例如非标准卸载场景），先优雅停止
+    if _GLOBAL_QZONE_INSTANCE:
+        try:
+            logger.warning("[Qzone] 检测到已存在运行中的旧 Qzone 实例，正在接管并停止旧任务...")
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                asyncio.create_task(_GLOBAL_QZONE_INSTANCE.stop())
+            else:
+                loop.run_until_complete(_GLOBAL_QZONE_INSTANCE.stop())
+        except Exception as e:
+            logger.warning(f"[Qzone] 停止旧实例异常: {e}")
+
+    current_instance = QzoneLifecycleManager()
+    _GLOBAL_QZONE_INSTANCE = current_instance
 
     # ---------------------------------------------------------
     # 尝试加载 mai_reply 的 ContextManager 和 LLMClient
@@ -265,6 +333,11 @@ def main(bot: ExtendBot, config: YAMLManager):
     # 动态与图片发送辅助方法
     # ---------------------------------------------------------
     async def send_to_qzone(content: Optional[str] = None, pic_paths: Optional[list] = None):
+        nonlocal login_result
+        async with current_instance.send_lock:
+            return await _send_to_qzone_locked(content, pic_paths)
+
+    async def _send_to_qzone_locked(content: Optional[str] = None, pic_paths: Optional[list] = None):
         nonlocal login_result
         if not login_result:
             await fetch_cookie_from_onebot()
@@ -821,7 +894,34 @@ def main(bot: ExtendBot, config: YAMLManager):
             except Exception as e:
                 logger.error(f"[Qzone] 全局记忆更新异常: {e}")
 
+    task_history_file = base_data_dir / "qzone_task_history.json"
+
+    def load_task_history() -> dict:
+        if task_history_file.exists():
+            try:
+                return json.loads(task_history_file.read_text(encoding="utf-8"))
+            except Exception:
+                pass
+        return {}
+
+    def save_task_history(history: dict):
+        try:
+            task_history_file.write_text(json.dumps(history, ensure_ascii=False, indent=2), encoding="utf-8")
+        except Exception as e:
+            logger.error(f"[Qzone] 保存任务执行历史失败: {e}")
+
+    current_instance.last_scheduled_execution = load_task_history()
+
     async def task_executor(task_name: str, task_info: dict):
+        today_str = datetime.date.today().strftime("%Y-%m-%d")
+        last_date = current_instance.last_scheduled_execution.get(task_name)
+        if last_date == today_str and not task_info.get("_force_test", False):
+            logger.warning(f"[Qzone 任务] 定时任务 [{task_name}] 今日({today_str})已经执行过，跳过重复触发！")
+            return
+
+        current_instance.last_scheduled_execution[task_name] = today_str
+        save_task_history(current_instance.last_scheduled_execution)
+
         logger.info(f"[Qzone 任务] 开始执行定时发空间任务: {task_name}")
         bot_name, chara_text = get_bot_persona_info()
         festival_or_term = await get_almanac_info()
@@ -1238,6 +1338,13 @@ def main(bot: ExtendBot, config: YAMLManager):
 
     async def check_and_reply_comments():
         nonlocal login_result, replied_comment_ids
+        if current_instance.comment_reply_lock.locked():
+            return
+        async with current_instance.comment_reply_lock:
+            return await _check_and_reply_comments_locked()
+
+    async def _check_and_reply_comments_locked():
+        nonlocal login_result, replied_comment_ids
         if not login_result:
             await fetch_cookie_from_onebot()
         if not login_result:
@@ -1415,7 +1522,7 @@ def main(bot: ExtendBot, config: YAMLManager):
                     continue
                 root_cid = str(root_c.get("tid") or root_c.get("id") or "").strip()
                 unique_key = f"{tid}_sub_{root_cid}_{cid}" if is_sub else f"{tid}_root_{cid}"
-                if unique_key in replied_comment_ids:
+                if unique_key in replied_comment_ids or unique_key in current_instance.in_progress_comments:
                     continue
 
                 # 过滤超过3天的古早评论，直接记录已处理，避免反复打扰
@@ -1615,6 +1722,7 @@ def main(bot: ExtendBot, config: YAMLManager):
                 # 发送空间评论回复 (传递 comment_id 确保楼中楼准确回复)
                 # 注：QQ空间在楼中楼回复时，comment_id 始终传根评论ID（root_c 的 cid）
                 send_cid = str(root_c.get("tid") or root_c.get("id") or cid).strip()
+                current_instance.in_progress_comments.add(unique_key)
                 try:
                     logger.info(f"[Qzone 评论回复] 正在回复 {comment_name}: {reply_text}")
                     res = await qzone._send_comments(
@@ -1636,6 +1744,8 @@ def main(bot: ExtendBot, config: YAMLManager):
                     save_replied_comments(replied_comment_ids)
                 except Exception as e:
                     logger.error(f"[Qzone] 调用 _send_comments 失败: {e}")
+                finally:
+                    current_instance.in_progress_comments.discard(unique_key)
 
                 await asyncio.sleep(2)
 
@@ -1658,6 +1768,7 @@ def main(bot: ExtendBot, config: YAMLManager):
     # ---------------------------------------------------------
     scheduledTasks = config.qq_zone.config.get("定时发空间", {})
     scheduler = AsyncIOScheduler()
+    current_instance.scheduler = scheduler
 
     def create_dynamic_jobs():
         for task_name, task_info in scheduledTasks.items():
@@ -1692,9 +1803,10 @@ def main(bot: ExtendBot, config: YAMLManager):
         scheduler.start()
         logger.info("[Qzone] 定时发空间调度器已启动")
 
-        asyncio.create_task(start_keepalive_monitor())
-        asyncio.create_task(start_comment_monitor())
-        asyncio.create_task(start_vtuber_daily_monitor())
+        t_keep = asyncio.create_task(start_keepalive_monitor())
+        t_comm = asyncio.create_task(start_comment_monitor())
+        t_vtube = asyncio.create_task(start_vtuber_daily_monitor())
+        current_instance.background_tasks.extend([t_keep, t_comm, t_vtube])
 
     @bot.on(LifecycleMetaEvent)
     async def on_lifecycle(event: LifecycleMetaEvent):
@@ -1733,11 +1845,13 @@ def main(bot: ExtendBot, config: YAMLManager):
             await set_cache(event)
         elif event.pure_text in ["测试早安", "发送早安"] and is_master:
             await bot.send(event, [Text("正在测试发送早安说说...")])
-            task_info = scheduledTasks.get("早安", {"绘制图片": True})
+            task_info = dict(scheduledTasks.get("早安", {"绘制图片": True}))
+            task_info["_force_test"] = True
             await task_executor("早安", task_info)
         elif event.pure_text in ["测试晚安", "发送晚安"] and is_master:
             await bot.send(event, [Text("正在测试发送晚安说说...")])
-            task_info = scheduledTasks.get("晚安", {"绘制图片": True})
+            task_info = dict(scheduledTasks.get("晚安", {"绘制图片": True}))
+            task_info["_force_test"] = True
             await task_executor("晚安", task_info)
         elif event.pure_text in ["测试日常", "发送日常"] and is_master:
             await bot.send(event, [Text("正在测试生成并发送Vtuber风格日常互动说说...")])
@@ -1766,11 +1880,13 @@ def main(bot: ExtendBot, config: YAMLManager):
             await set_cache(event)
         elif event.pure_text in ["测试早安", "发送早安"] and is_master:
             await bot.send(event, [Text("正在测试发送早安说说...")])
-            task_info = scheduledTasks.get("早安", {"绘制图片": True})
+            task_info = dict(scheduledTasks.get("早安", {"绘制图片": True}))
+            task_info["_force_test"] = True
             await task_executor("早安", task_info)
         elif event.pure_text in ["测试晚安", "发送晚安"] and is_master:
             await bot.send(event, [Text("正在测试发送晚安说说...")])
-            task_info = scheduledTasks.get("晚安", {"绘制图片": True})
+            task_info = dict(scheduledTasks.get("晚安", {"绘制图片": True}))
+            task_info["_force_test"] = True
             await task_executor("晚安", task_info)
         elif event.pure_text in ["测试日常", "发送日常"] and is_master:
             await bot.send(event, [Text("正在测试生成并发送Vtuber风格日常互动说说...")])
