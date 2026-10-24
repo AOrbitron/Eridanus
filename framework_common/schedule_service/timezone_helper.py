@@ -224,7 +224,7 @@ class TimezoneHelper:
 
     @classmethod
     def _get_timezone(cls, timezone_name: str) -> Optional[datetime.tzinfo]:
-        """优先使用系统/tzdata 的 IANA 规则，兼容 dateutil 的其他时区表达。"""
+        """优先使用现有系统 IANA 数据，缺失时沿用原有 dateutil 解析。"""
         try:
             return ZoneInfo(timezone_name)
         except (ZoneInfoNotFoundError, ValueError):
