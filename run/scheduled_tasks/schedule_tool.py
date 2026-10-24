@@ -120,8 +120,9 @@ async def call_create_schedule_task(
                 description=description,
             )
 
-        next_dt = datetime.datetime.fromtimestamp(task.next_run_timestamp)
-        _, tz_name, _ = TimezoneHelper.resolve_timezone(user_city)
+        task_city = (task.target_city or "").strip()
+        task_tz, tz_name, _ = TimezoneHelper.resolve_timezone(task_city or task.target_timezone)
+        next_dt = datetime.datetime.fromtimestamp(task.next_run_timestamp, tz=task_tz)
 
         recur_map = {
             "once": "单次任务",
@@ -131,10 +132,10 @@ async def call_create_schedule_task(
             "weekend": "周末循环 (周六和周日)",
             "yearly": "每年循环 (生日/纪念日)",
         }
-        recur_desc = recur_map.get(recur_type, recur_type)
+        recur_desc = recur_map.get(task.recur_type, task.recur_type)
 
         scope_desc = f"本群（群号 {target_id}）" if is_group else "私聊专属"
-        tz_note = f"（根据所在城市 [{user_city}] / {tz_name} 时区智能换算）" if user_city else ""
+        tz_note = f"（根据所在城市 [{task_city}] / {tz_name} 时区智能换算）" if task_city else f"（{tz_name}）"
 
         lines = [
             "已成功为您安排定时任务！",
@@ -142,7 +143,7 @@ async def call_create_schedule_task(
             f"任务内容：{task.description}",
             f"循环模式：{recur_desc}",
             f"设定时间：{task.time_str}{tz_note}",
-            f"下次触发时间：{next_dt.strftime('%Y-%m-%d %H:%M:%S')} (东八区时间)"
+            f"下次触发时间：{next_dt.strftime('%Y-%m-%d %H:%M:%S')} ({tz_name})"
         ]
         return "\n".join(lines)
     except Exception as e:
@@ -283,7 +284,8 @@ async def call_list_schedule_tasks(
         }
 
         def _format_task_entry(idx: int, t) -> str:
-            next_dt = datetime.datetime.fromtimestamp(t.next_run_timestamp)
+            task_tz, tz_name, _ = TimezoneHelper.resolve_timezone(t.target_city or t.target_timezone)
+            next_dt = datetime.datetime.fromtimestamp(t.next_run_timestamp, tz=task_tz)
             payload_info = ""
             if t.action_type in ("tool", "function_call"):
                 p_dict = t.get_payload_dict()
@@ -298,7 +300,7 @@ async def call_list_schedule_tasks(
             return (
                 f"{idx}. 「{t.description}」\n"
                 f"   设定时间: {t.time_str}{tz_tag} | 频次: {recur_str}\n"
-                f"   下次触发: {next_dt.strftime('%Y-%m-%d %H:%M:%S')}\n"
+                f"   下次触发: {next_dt.strftime('%Y-%m-%d %H:%M:%S')} ({tz_name})\n"
                 f"   任务类型: {t.action_type}{payload_info}"
             )
 
