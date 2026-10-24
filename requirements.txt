@@ -6,6 +6,8 @@ uvicorn
 fastapi
 ruamel.yaml
 requests
+python-dateutil>=2.8.2
+tzdata
 aiosqlite
 pillow
 xpinyin

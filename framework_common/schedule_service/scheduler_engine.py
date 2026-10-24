@@ -294,9 +294,13 @@ class DynamicScheduler:
                         return datetime.datetime(year, 2, 28, hh, mm, 0, tzinfo=user_tz)
                     return datetime.datetime(year, m, min(d, 28), hh, mm, 0, tzinfo=user_tz)
 
-            candidate = _build_yearly_dt(current_year, month, day, target_h, target_m)
+            candidate = TimezoneHelper.normalize_local_datetime(
+                _build_yearly_dt(current_year, month, day, target_h, target_m)
+            )
             if candidate.timestamp() <= now_ts:
-                candidate = _build_yearly_dt(current_year + 1, month, day, target_h, target_m)
+                candidate = TimezoneHelper.normalize_local_datetime(
+                    _build_yearly_dt(current_year + 1, month, day, target_h, target_m)
+                )
             return candidate.timestamp()
 
         # 1. 相对时间匹配（如 "now", "立即", "马上", "30m", "30分钟后", "2小时后", "+15m"）
@@ -319,6 +323,7 @@ class DynamicScheduler:
         if date_match:
             y, m, d, h, minute = map(int, date_match.groups())
             dt = datetime.datetime(y, m, d, h, minute, 0, tzinfo=user_tz)
+            dt = TimezoneHelper.normalize_local_datetime(dt)
             return dt.timestamp()
 
         # 3. 提取小时与分钟
@@ -370,7 +375,9 @@ class DynamicScheduler:
                         return datetime.datetime(year, 2, 28, hh, mm, 0, tzinfo=user_tz)
                     return datetime.datetime(year, m, min(d, 28), hh, mm, 0, tzinfo=user_tz)
 
-            next_candidate = _build_next_yearly_dt(next_year, month, day, target_h, target_m)
+            next_candidate = TimezoneHelper.normalize_local_datetime(
+                _build_next_yearly_dt(next_year, month, day, target_h, target_m)
+            )
             return next_candidate.timestamp()
 
         weekdays = task.get_weekdays_list()
