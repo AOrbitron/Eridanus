@@ -28,8 +28,11 @@ _🎊 基于 [OneBot](https://github.com/howmanybots/onebot/blob/master/README.m
 </p>
 
 # 部署
-[文档](https://eridanus.netlify.app)    
-[备用文档](https://eridanus-doc.netlify.app/)
+[文档](https://eridanus-doc.vercel.app)
+[文档 备用站1](https://eridanus.netlify.app)   
+[文档 备用站2](https://eridanus.apollodorus.xyz)   
+ 
+
 
 如使用快捷部署部署失败，请参照文档部署。
 # 交流
