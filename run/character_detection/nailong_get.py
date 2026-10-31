@@ -69,8 +69,24 @@ def main(bot, config):
         from run.character_detection.service.deepseek.deepseek import main as deepseek_main
         service_funcs["deepseek"] = deepseek_main
 
+    key_mapping = {
+        "nailong": "奶龙白名单",
+        "doro": "doro白名单",
+        "nanniang": "男娘白名单",
+        "deepseek": "deepseek白名单",
+    }
+
     # 读取群白名单（安全处理各种类型）
     def get_whitelist(name):
+        c_sets = get_censor_config()
+        wl_key = key_mapping.get(name, f"{name}白名单")
+        if wl_key in c_sets and isinstance(c_sets[wl_key], list):
+            return c_sets[wl_key]
+        if name in c_sets and isinstance(c_sets[name], list):
+            return c_sets[name]
+        wl_dict = c_sets.get("whitelist", {})
+        if isinstance(wl_dict, dict) and name in wl_dict and isinstance(wl_dict[name], list):
+            return wl_dict[name]
         val = getattr(config.character_detection, name, None)
         if isinstance(val, dict):
             return val.get("whitelist", [])
@@ -285,13 +301,13 @@ def main(bot, config):
         gid = event.group_id
         # 判断当前群开启了哪些类型的审核
         enabled_types = []
-        if if_nailong and gid in nailong_groups:
+        if if_nailong and gid in get_whitelist("nailong"):
             enabled_types.append("nailong")
-        if if_doro and gid in doro_groups:
+        if if_doro and gid in get_whitelist("doro"):
             enabled_types.append("doro")
-        if if_nanniang and (gid in nanniang_groups or event.user_id == 1270858640):
+        if if_nanniang and (gid in get_whitelist("nanniang") or event.user_id == 1270858640):
             enabled_types.append("nanniang")
-        if if_deepseek and gid in deepseek_groups:
+        if if_deepseek and gid in get_whitelist("deepseek"):
             enabled_types.append("deepseek")
 
         if not enabled_types:
