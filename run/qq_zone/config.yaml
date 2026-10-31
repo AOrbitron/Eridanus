@@ -26,7 +26,7 @@ vtuber日常互动:
 sd绘画设置:
   sdUrl: "" # Stable Diffusion API 地址
   apikey: "" #sd apikey，如果需要的话
-  steps: 28              # 采样步数
+  steps: 34              # 采样步数
   cfg_scale: 7.0         # 提示词引导系数(对齐SDXL)
   width: 1024            # 图片宽度
   height: 1024           # 图片高度
