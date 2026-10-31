@@ -27,7 +27,7 @@ embedding:
     query_instruction: ''
 archive:
   private_turns: 6  # 每6轮完整用户/Bot对话归档一次并抽取Mem0原子事实
-  group_messages: 15  # 群内累计15条用户消息归档，Bot发言一起沉淀
+  group_messages: 10  # 群内累计15条用户消息归档，Bot发言一起沉淀
   idle_seconds: 600  # 超过阈值但尾部空闲10分钟后归档；0表示关闭空闲补归档
   max_buffer_chars: 6000
   max_buffer_messages: 200
