@@ -25,13 +25,30 @@ def trim_tokens(text: str, budget: int) -> str:
     return text.encode("utf-8")[:max(0, budget)].decode("utf-8", errors="ignore")
 
 
+def _get_process_in_flight():
+    import sys
+    ids = getattr(sys, "_mai_rag_in_flight_ids", None)
+    lock = getattr(sys, "_mai_rag_in_flight_lock", None)
+    if ids is None or lock is None:
+        ids = set()
+        lock = threading.Lock()
+        sys._mai_rag_in_flight_ids = ids
+        sys._mai_rag_in_flight_lock = lock
+    return ids, lock
+
+
 class RAGMemory(EpisodeArchive, EpisodeRetrieval):
     _instance = None
     _initialized = False
 
     def __new__(cls, config=None, *args, **kwargs):
+        import sys
+        existing = getattr(sys, "_mai_rag_memory_singleton", None)
+        if existing is not None:
+            return existing
         if cls._instance is None:
             cls._instance = super(RAGMemory, cls).__new__(cls)
+            sys._mai_rag_memory_singleton = cls._instance
         return cls._instance
     """
     MaiReply 核心长期记忆系统 (Mem0 + RAG 架构)
@@ -43,7 +60,7 @@ class RAGMemory(EpisodeArchive, EpisodeRetrieval):
 
     def __init__(self, config):
         self.config = config
-        if self._initialized:
+        if getattr(self, "_initialized", False):
             return
         self.cfg = dict(getattr(config.mai_reply, "rag", None) or {})
         self.enable = bool(self.cfg.get("enable", False))
@@ -282,23 +299,40 @@ class RAGMemory(EpisodeArchive, EpisodeRetrieval):
         """后台守护线程：消费未向量化的记忆并批量调用 Embedding API"""
         batch_size = max(1, int(self.cfg.get("index", {}).get("batch_size", 16)))
         retry_seconds = max(5.0, float(self.cfg.get("index", {}).get("retry_seconds", 60.0)))
+        in_flight_ids, in_flight_lock = _get_process_in_flight()
         while not self._closed:
+            claimed_ids = set()
             try:
                 if self._cooldown > time.monotonic():
                     time.sleep(1.0)
                     continue
 
-                pending = self._run_db(self._pending, batch_size)
+                with in_flight_lock:
+                    exclude = set(in_flight_ids)
+
+                pending = self._run_db(lambda db: self._pending(db, batch_size, exclude_ids=exclude))
                 if not pending:
                     time.sleep(2.0)
                     continue
 
-                # 每次最多处理 batch_size 条，避免阻塞与长时间并发；短轮询等待 1.0 秒
+                # 每次最多处理 batch_size 条，避免阻塞与长时间并发；短轮询等待 1.0 秒以聚拢并发写入
                 if len(pending) < batch_size:
                     time.sleep(1.0)
-                    pending = self._run_db(self._pending, batch_size)
+                    with in_flight_lock:
+                        exclude = set(in_flight_ids)
+                    pending = self._run_db(lambda db: self._pending(db, batch_size, exclude_ids=exclude))
                     if not pending:
                         continue
+
+                # 立即认领本次待处理的所有 row_id，防止其他并发工作线程或重载实例重复抓取
+                with in_flight_lock:
+                    claimed = [r for r in pending if r[0] not in in_flight_ids]
+                    if not claimed:
+                        continue
+                    for r in claimed:
+                        in_flight_ids.add(r[0])
+                        claimed_ids.add(r[0])
+                    pending = claimed
 
                 # 1. 整理待处理条目
                 row_items = []
@@ -363,11 +397,15 @@ class RAGMemory(EpisodeArchive, EpisodeRetrieval):
                 self._cooldown = time.monotonic() + retry_seconds
                 self._warn("[MaiReply RAG] 向量化索引发生异常 (%s)，冷却等待 %.0fs: %s", type(exc).__name__, retry_seconds, exc)
                 time.sleep(2.0)
-
+            finally:
+                if claimed_ids:
+                    with in_flight_lock:
+                        in_flight_ids.difference_update(claimed_ids)
     def start(self):
-        if self._worker is None and self.enable:
-            self._worker = threading.Thread(target=self._index_worker, name="rag_index_worker", daemon=True)
-            self._worker.start()
+        with self._lock:
+            if self.enable and (self._worker is None or not self._worker.is_alive()):
+                self._worker = threading.Thread(target=self._index_worker, name="rag_index_worker", daemon=True)
+                self._worker.start()
 
     def close(self):
         self._closed = True
@@ -378,7 +416,7 @@ class RAGMemory(EpisodeArchive, EpisodeRetrieval):
                 except Exception:
                     pass
                 self._db = None
-
+            self._worker = None
     async def aclose(self):
         self.close()
 

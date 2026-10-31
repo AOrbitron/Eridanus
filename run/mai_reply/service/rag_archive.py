@@ -394,7 +394,14 @@ class EpisodeArchive:
             """, (now, fact_scope, target_id))
             self._log("[MaiReply RAG] Mem0 失效事实 scope=%s target=%s", fact_scope, target_name)
 
-    def _pending(self, db, limit: int = 16):
+    def _pending(self, db, limit: int = 16, exclude_ids: Optional[set] = None):
+        if exclude_ids:
+            placeholders = ",".join("?" for _ in exclude_ids)
+            return db.execute(f"""
+                SELECT id, text, scope, fact_type FROM memories
+                WHERE vector IS NULL AND namespace=? AND id NOT IN ({placeholders})
+                ORDER BY id ASC LIMIT ?
+            """, [self._namespace, *exclude_ids, limit]).fetchall()
         return db.execute("""
             SELECT id, text, scope, fact_type FROM memories
             WHERE vector IS NULL AND namespace=?
