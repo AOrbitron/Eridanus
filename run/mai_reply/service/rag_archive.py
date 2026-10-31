@@ -96,10 +96,13 @@ class EpisodeArchive:
         bot_reply: str,
         bot_name: Optional[str] = None,
         message_id: Optional[str] = None,
+        timestamp: Optional[float] = None,
+        ts: Optional[float] = None,
+        **kwargs,
     ):
         if not self.allowed(group_id):
             return
-        now = time.time()
+        now = ts if ts is not None else (timestamp if timestamp is not None else time.time())
         scope = self.scope_for(group_id, user_id)
         bot_label = bot_name or "Bot"
         events = [
@@ -115,15 +118,21 @@ class EpisodeArchive:
         user_name: str,
         user_text: str,
         message_id: Optional[str] = None,
+        role: str = "user",
+        timestamp: Optional[float] = None,
+        ts: Optional[float] = None,
+        **kwargs,
     ):
         if not self.allowed(group_id):
             return
         gcfg = self.cfg.get("group", {})
         if group_id is not None and not gcfg.get("observe_untriggered", True):
             return
-        now = time.time()
+        now = ts if ts is not None else (timestamp if timestamp is not None else time.time())
         scope = self.scope_for(group_id, user_id)
-        events = [self._event(user_name, str(user_id), user_text, is_bot=False, ts=now, message_id=message_id)]
+        is_bot = (role == "assistant")
+        speaker_id = "bot" if is_bot else str(user_id)
+        events = [self._event(user_name, speaker_id, user_text, is_bot=is_bot, ts=now, message_id=message_id)]
         self._append_events(scope, events, is_group=(group_id is not None), group_id=group_id, user_id=user_id)
 
     def _append_events(self, scope: str, events: List[Dict[str, Any]], is_group: bool, group_id: Optional[str], user_id: Any):
