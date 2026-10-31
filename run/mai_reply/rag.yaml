@@ -5,7 +5,7 @@ private:
   enable: true
 group:
   enable: true
-  whitelist_enabled: false  # false全开群；true配合下方名单，空白名单表示不开启任何群。
+  whitelist_enabled: false  # false全开群；true配合下方名单，为空时自动读取trigger_llm白名单群
   whitelist: []
   observe_untriggered: true  # 旁观消息也做语义分析并参与检索，但绝不替群友抢答
 embedding:

@@ -8,7 +8,7 @@ import sqlite3
 import threading
 import time
 from pathlib import Path
-from typing import List, Dict, Optional, Tuple, Any
+from typing import List, Dict, Optional, Tuple, Any, Union
 
 import httpx
 import numpy as np
@@ -42,6 +42,7 @@ class RAGMemory(EpisodeArchive, EpisodeRetrieval):
     """
 
     def __init__(self, config):
+        self.config = config
         if self._initialized:
             return
         self.cfg = dict(getattr(config.mai_reply, "rag", None) or {})
@@ -98,14 +99,20 @@ class RAGMemory(EpisodeArchive, EpisodeRetrieval):
                 logger.error("[MaiReply RAG] 数据库初始化失败 (%s)，已禁用 RAG", type(exc).__name__, exc_info=True)
 
         group = self.cfg.get("group", {})
+        wl_enabled = bool(group.get("whitelist_enabled", False))
+        wl = group.get("whitelist", [])
+        if wl_enabled:
+            wl_desc = ("白名单(%d个)" % len(wl)) if wl else "白名单(回退trigger_llm)"
+        else:
+            wl_desc = "全开"
+
         logger.info(
             "[MaiReply RAG] 就绪 | 状态=%s | 模式=%s | 库=%s | 私聊=%s | 群聊=%s | 模型=%s/%s",
             "启用" if self.enable else "禁用",
             self.cfg.get("integration_mode", "replace"),
             self.cfg.get("db_path", "(内存)"),
             "开启" if self.cfg.get("private", {}).get("enable", True) else "关闭",
-            ("白名单(%d个)" % len(group.get("whitelist", []))
-             if group.get("whitelist_enabled", True) else "全开"),
+            wl_desc,
             self._provider,
             e.get("model", "默认"),
         )
@@ -174,7 +181,7 @@ class RAGMemory(EpisodeArchive, EpisodeRetrieval):
         mode = str(self.cfg.get("integration_mode", "replace")).strip().lower()
         return mode == "replace"
 
-    def allowed(self, group_id: Optional[str] = None) -> bool:
+    def allowed(self, group_id: Optional[Union[str, int]] = None) -> bool:
         if not self.enable:
             return False
         if group_id is None:
@@ -182,10 +189,23 @@ class RAGMemory(EpisodeArchive, EpisodeRetrieval):
         gcfg = self.cfg.get("group", {})
         if not gcfg.get("enable", True):
             return False
-        if not gcfg.get("whitelist_enabled", True):
+        if not gcfg.get("whitelist_enabled", False):
             return True
-        wl = [str(x) for x in gcfg.get("whitelist", [])]
-        return str(group_id) in wl
+        wl = [str(x) for x in gcfg.get("whitelist", []) if str(x).strip()]
+        if wl:
+            return str(group_id) in wl
+
+        # 当开启白名单模式，且whitelist为空列表时，自动使用run/mai_reply/config.yaml中trigger_llm的whitelist
+        trig_cfg = {}
+        cfg_obj = getattr(self, "config", None)
+        if cfg_obj is not None:
+            mai_reply_obj = getattr(cfg_obj, "mai_reply", None)
+            if mai_reply_obj is not None and hasattr(mai_reply_obj, "config"):
+                trig_cfg = mai_reply_obj.config.get("trigger_llm", {}) or {}
+            elif isinstance(cfg_obj, dict):
+                trig_cfg = cfg_obj.get("trigger_llm", {}) or cfg_obj.get("config", {}).get("trigger_llm", {}) or {}
+        trig_wl = [str(x) for x in trig_cfg.get("whitelist", []) if str(x).strip()]
+        return str(group_id) in trig_wl
 
     def _run_db(self, fn, *args, **kwargs):
         with self._lock:
