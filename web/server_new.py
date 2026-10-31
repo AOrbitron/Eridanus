@@ -160,6 +160,10 @@ priority_keys = [
     "基础配置.basic_config",
     "mai_reply 新版ai对话.config",
     "tts_v2.config",
+    "mai_reply 新版ai对话.rag",
+    "mai_reply 新版ai对话.proactive",
+    "ai绘画.config",
+    "qq空间.config",
     #"live2d desktop pet.config",
 ]
 
