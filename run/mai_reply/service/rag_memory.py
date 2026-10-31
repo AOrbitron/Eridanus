@@ -174,7 +174,7 @@ class RAGMemory(EpisodeArchive, EpisodeRetrieval):
         mode = str(self.cfg.get("integration_mode", "replace")).strip().lower()
         return mode == "replace"
 
-    def allowed(self, group_id: Optional[str]) -> bool:
+    def allowed(self, group_id: Optional[str] = None) -> bool:
         if not self.enable:
             return False
         if group_id is None:
