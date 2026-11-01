@@ -27,6 +27,8 @@ breeze_tts:
     - breeze
     - breeze-tts
     - breeze-tts-2
+    - 莫宁
+    - 西格莉卡
 
 gpt_sovits:
   api_base: ""  # 填写自建或代理服务地址。例如 http://127.0.0.1:9880
