@@ -1,0 +1,26 @@
+{
+  "name": "google-lens-search",
+  "version": "1.0.0",
+  "description": "Google Lens 图像搜索与反向识图模块",
+  "type": "module",
+  "bin": {
+    "google-lens-search": "bin/lens_cli.mjs"
+  },
+  "main": "src/lens_core.js",
+  "exports": {
+    ".": "./src/lens_core.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "check": "node bin/lens_cli.mjs --check"
+  },
+  "keywords": [
+    "reverse-image-search",
+    "google-lens",
+    "saucenao"
+  ],
+  "license": "MIT",
+  "dependencies": {}
+}

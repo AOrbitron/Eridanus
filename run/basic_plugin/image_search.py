@@ -67,7 +67,7 @@ async def call_image_search(bot, event, config, image_url=None):
     if (not search_cfg.get("聚合搜图", True) and 
         not search_cfg.get("soutu_bot", True) and 
         not search_cfg.get("avscan", True) and 
-        not search_cfg.get("google_lens", True) and not search_cfg.get("fish_find_chicken", True)):
+        not search_cfg.get("google_lens", True) ):
         await bot.send(event, "没有开启任何搜图功能")
         return {"status": "error", "message": "没有开启任何搜图功能"}
 
@@ -118,7 +118,7 @@ async def call_image_search(bot, event, config, image_url=None):
         call_image_search2(bot, event, config, local_img_path),
         call_image_search3(bot, event, config, local_img_path),
     ]
-    if (search_cfg.get("google_lens", True) or search_cfg.get("fish_find_chicken", True) or search_cfg.get("谷歌识图", True) or search_cfg.get("coser搜图", True)):
+    if (search_cfg.get("google_lens", True)  or search_cfg.get("谷歌识图", True) or search_cfg.get("coser搜图", True)):
         functions.append(call_image_search_google_lens(bot, event, config, local_img_path))
     nsfw_search_operate_level = config.basic_plugin.config["搜图"]["nsfw_search_operate_level"]
     user_perm = getattr(user_info, "permission", 0) if user_info else 0
@@ -192,7 +192,8 @@ async def call_image_search2(bot, event, config, local_img_path):
     if not config.basic_plugin.config.get("搜图", {}).get("soutu_bot", True):
         return None
     bot.logger.info("调用soutu.bot搜索图片")
-    proxy = config.common_config.basic_config.get("proxy", {}).get("http_proxy")
+    proxy_cfg = config.common_config.basic_config.get("proxy", {}) or {}
+    proxy = proxy_cfg.get("http_proxy") or proxy_cfg.get("socks_proxy")
     if proxy and not str(proxy).strip():
         proxy = None
     forMeslist = []
@@ -258,7 +259,8 @@ async def call_image_search_avscan(bot, event, config, local_img_path):
         return None
 
     bot.logger.info("调用 AVScan 搜索番号 (本地文件上传模式)")
-    proxy = config.common_config.basic_config.get("proxy", {}).get("http_proxy")
+    proxy_cfg = config.common_config.basic_config.get("proxy", {}) or {}
+    proxy = proxy_cfg.get("http_proxy") or proxy_cfg.get("socks_proxy")
     if proxy and not str(proxy).strip():
         proxy = None
 
@@ -354,19 +356,20 @@ async def call_image_search_google_lens(bot, event, config, local_img_path):
     """
     search_cfg = config.basic_plugin.config.get("搜图", {})
     if (not search_cfg.get("google_lens", True) and
-            not search_cfg.get("fish_find_chicken", True) and
+            not 
             not search_cfg.get("谷歌识图", True) and
             not search_cfg.get("coser搜图", True)):
         return None
 
     bot.logger.info("调用 Google Lens Search 反查推特/Coser社媒账号")
-    proxy = config.common_config.basic_config.get("proxy", {}).get("http_proxy")
+    proxy_cfg = config.common_config.basic_config.get("proxy", {}) or {}
+    proxy = proxy_cfg.get("http_proxy") or proxy_cfg.get("socks_proxy")
     if proxy and not str(proxy).strip():
         proxy = None
 
-    timeout = int(search_cfg.get("google_lens_timeout", search_cfg.get("fish_find_timeout", 45)))
-    strict = bool(search_cfg.get("google_lens_strict", search_cfg.get("fish_find_strict", True)))
-    engines = search_cfg.get("google_lens_engines", search_cfg.get("fish_find_engines", None))
+    timeout = int(search_cfg.get("google_lens_timeout", 75))
+    strict = bool(search_cfg.get("google_lens_strict", True))
+    engines = search_cfg.get("google_lens_engines", None)
 
     try:
         res = await search_google_lens(
@@ -380,63 +383,78 @@ async def call_image_search_google_lens(bot, event, config, local_img_path):
         bot.logger.error(f"Google Lens 搜索发生异常: {e}")
         return {"engine": "google_lens", "status": "error", "message": str(e)}
 
-    if not res or res.get("status") != "success" or not res.get("accounts"):
-        bot.logger.info(f"Google Lens 未识别到有效账号: {res.get('message', '空结果') if res else 'None'}")
+    if not res or res.get("status") != "success":
+        bot.logger.info(f"Google Lens 搜索未成功: {res.get('message', '未知原因') if res else 'None'}")
         return {"engine": "google_lens", "status": "not_found", "message": res.get("message") if res else ""}
 
     accounts = res.get("accounts", [])
-    forMeslist = [
-        Node(content=[Text(
+    web_results = res.get("web_results", [])
+
+    if not accounts and not web_results:
+        bot.logger.info(f"Google Lens 未识别到有效账号或匹配网页: {res.get('message', '空结果')}")
+        return {"engine": "google_lens", "status": "not_found", "message": res.get("message") if res else ""}
+
+    forMeslist = []
+    if accounts:
+        forMeslist.append(Node(content=[Text(
             f"🎯【Google Lens 图像反向识别】\n"
             f"共识别到 {len(accounts)} 个匹配社媒账号：\n"
             f"（优先锁定原帖发布者与主轴人名）"
-        )])
-    ]
+        )]))
+        for acc in accounts:
+            platform = acc.get("platform", "unknown")
+            p_name = {
+                "twitter": "Twitter / X",
+                "weibo": "微博",
+                "bilibili": "哔哩哔哩",
+                "instagram": "Instagram",
+                "pixiv": "Pixiv（画作平台）"
+            }.get(platform, platform)
 
-    for acc in accounts:
-        platform = acc.get("platform", "unknown")
-        p_name = {
-            "twitter": "Twitter / X",
-            "weibo": "微博",
-            "bilibili": "哔哩哔哩",
-            "instagram": "Instagram",
-            "pixiv": "Pixiv（画作平台）"
-        }.get(platform, platform)
+            name = acc.get("authorName") or acc.get("handle") or "未知"
+            handle = acc.get("handle", "")
+            url = acc.get("url", "")
+            conf = acc.get("confidence", "")
+            conf_str = "【精准出处】" if conf == "direct" else ("【推断关联】" if conf == "inferred" else "【相似图】")
 
-        name = acc.get("authorName") or acc.get("handle") or "未知"
-        handle = acc.get("handle", "")
-        url = acc.get("url", "")
-        conf = acc.get("confidence", "")
-        conf_str = "【精准出处】" if conf == "direct" else ("【推断关联】" if conf == "inferred" else "【相似图】")
+            ev = acc.get("evidence", {}) or {}
+            engine_source = ev.get("engine", "")
+            src_url = ev.get("sourceUrl", "")
 
-        ev = acc.get("evidence", {}) or {}
-        engine_source = ev.get("engine", "")
-        src_url = ev.get("sourceUrl", "")
+            card_text = (
+                f"🌐【平台】：{p_name}\n"
+                f"👤【名字/作者】：{name}\n"
+                f"🆔【账号】：{handle}\n"
+                f"🔗【主页链接】：{url}\n"
+                f"✨【置信度】：{conf_str}"
+            )
+            if engine_source:
+                card_text += f"\n🔍【来源引擎】：{engine_source}"
+            if src_url:
+                card_text += f"\n📌【原帖/出处】：{src_url}"
 
-        card_text = (
-            f"🌐【平台】：{p_name}\n"
-            f"👤【名字/作者】：{name}\n"
-            f"🆔【账号】：{handle}\n"
-            f"🔗【主页链接】：{url}\n"
-            f"✨【置信度】：{conf_str}"
-        )
-        if engine_source:
-            card_text += f"\n🔍【来源引擎】：{engine_source}"
-        if src_url:
-            card_text += f"\n📌【原帖/出处】：{src_url}"
+            forMeslist.append(Node(content=[Text(card_text)]))
 
-        forMeslist.append(Node(content=[Text(card_text)]))
+    if web_results:
+        web_lines = [f"🌐【Google Lens 相似网页出处】(共 {len(web_results)} 条)："]
+        for idx, item in enumerate(web_results[:5], 1):
+            w_title = item.get("title", "").strip() or "网页出处"
+            w_url = item.get("url", "").strip()
+            web_lines.append(f"{idx}. {w_title}\n🔗 {w_url}")
+        forMeslist.append(Node(content=[Text("\n\n".join(web_lines))]))
 
-    await bot.send(event, forMeslist)
+    if forMeslist:
+        await bot.send(event, forMeslist)
+
     return {
         "engine": "google_lens",
         "status": "success",
         "accounts": accounts,
+        "web_results": web_results,
         "text": res.get("text", "")
     }
 
 # 兼容保留原有名称引用
-call_image_search_fish_chicken = call_image_search_google_lens
 
 def main(bot: ExtendBot, config: YAMLManager):
     @bot.on(GroupMessageEvent)
