@@ -3,6 +3,7 @@ import json
 import logging
 import os
 import shutil
+import subprocess
 from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger('google_lens_search')
@@ -70,6 +71,7 @@ async def search_google_lens(
     node_cmd = shutil.which('node')
     if not node_cmd:
         return {'status': 'error', 'message': '未检测到 Node.js 环境，请先安装 Node.js (推荐 v18/v20+) 并加入环境变量 PATH', 'accounts': []}
+
     cmd = [
         node_cmd,
         lens_bin,
@@ -95,19 +97,25 @@ async def search_google_lens(
     if browser_exe and os.path.exists(browser_exe):
         cmd.extend(['--browser', os.path.abspath(browser_exe)])
 
-    try:
-        proc = await asyncio.create_subprocess_exec(
-            *cmd,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
+    def _sync_exec() -> subprocess.CompletedProcess:
+        return subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            encoding='utf-8',
+            errors='replace',
+            timeout=timeout + 30,
         )
-        stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout + 30)
-        out_str = stdout.decode('utf-8', errors='replace').strip()
-        err_str = stderr.decode('utf-8', errors='replace').strip()
 
-        if proc.returncode != 0 and not out_str:
-            logger.warning(f'Google Lens 进程退出异常 {proc.returncode}: {err_str}')
-            return {'status': 'error', 'message': f'Google Lens 执行失败 (code {proc.returncode}): {err_str}', 'accounts': []}
+    try:
+        # 使用 asyncio.to_thread 兼容 Windows 下任何 EventLoopPolicy (如 SelectorEventLoopPolicy)
+        completed = await asyncio.to_thread(_sync_exec)
+        out_str = completed.stdout.strip()
+        err_str = completed.stderr.strip()
+
+        if completed.returncode != 0 and not out_str:
+            logger.warning(f'Google Lens 进程退出异常 {completed.returncode}: {err_str}')
+            return {'status': 'error', 'message': f'Google Lens 执行失败 (code {completed.returncode}): {err_str}', 'accounts': []}
 
         json_start = out_str.find('{')
         json_end = out_str.rfind('}')
@@ -126,12 +134,9 @@ async def search_google_lens(
 
         return {'status': 'error', 'message': f'解析返回结果失败: {out_str or err_str}', 'accounts': []}
 
-    except asyncio.TimeoutError:
-        try:
-            proc.kill()
-        except Exception:
-            pass
+    except subprocess.TimeoutExpired:
         return {'status': 'error', 'message': f'Google Lens 检索超时 ({timeout}s)', 'accounts': []}
     except Exception as e:
-        logger.error(f'执行 Google Lens 检索异常: {e}')
-        return {'status': 'error', 'message': str(e), 'accounts': []}
+        err_msg = str(e) or repr(e)
+        logger.error(f'执行 Google Lens 检索异常: {err_msg}')
+        return {'status': 'error', 'message': err_msg, 'accounts': []}

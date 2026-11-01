@@ -356,7 +356,6 @@ async def call_image_search_google_lens(bot, event, config, local_img_path):
     """
     search_cfg = config.basic_plugin.config.get("搜图", {})
     if (not search_cfg.get("google_lens", True) and
-            not 
             not search_cfg.get("谷歌识图", True) and
             not search_cfg.get("coser搜图", True)):
         return None
