@@ -480,10 +480,12 @@ class ContextManager:
         except Exception:
             return []
 
-    def build_group_context_snippet(self, group_id: int, bot_name: str) -> str:
+    def build_group_context_snippet(self, group_id: int, bot_name: str, max_lines: Optional[int] = None) -> str:
         window = self._load_group_window(group_id)
         if not window:
             return ""
+        if max_lines is not None and max_lines > 0:
+            window = window[-max_lines:]
         lines = []
         for item in window:
             sender = item.get("sender", "?")

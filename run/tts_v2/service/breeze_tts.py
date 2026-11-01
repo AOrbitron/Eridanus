@@ -468,9 +468,88 @@ class AsyncBreezeTTSClient:
         return self._cfg.get("model", "breeze-tts-2")
 
     @property
+    def default_speed(self) -> float:
+        """默认语速调节（支持 0.5 ~ 2.0，默认 1.0）"""
+        try:
+            spd = self._cfg.get("speed")
+            if spd is not None:
+                return float(spd)
+            vs = self._cfg.get("voice_settings")
+            if isinstance(vs, dict) and "speed" in vs:
+                return float(vs["speed"])
+        except (ValueError, TypeError):
+            pass
+        return 1.0
+
+    @property
+    def default_volume(self) -> float:
+        """默认音量调节（支持 0.1 ~ 2.0，默认 1.0）"""
+        try:
+            vol = self._cfg.get("volume")
+            if vol is not None:
+                return float(vol)
+            vs = self._cfg.get("voice_settings")
+            if isinstance(vs, dict) and "volume" in vs:
+                return float(vs["volume"])
+        except (ValueError, TypeError):
+            pass
+        return 1.0
+
+    @property
+    def default_voice_settings(self) -> Dict[str, Any]:
+        """从配置中组装 voice_settings 字典"""
+        raw_vs = self._cfg.get("voice_settings")
+        vs: Dict[str, Any] = {}
+        if isinstance(raw_vs, dict):
+            vs.update(raw_vs)
+        if "speed" not in vs and abs(self.default_speed - 1.0) > 1e-4:
+            vs["speed"] = self.default_speed
+        if "volume" not in vs and abs(self.default_volume - 1.0) > 1e-4:
+            vs["volume"] = self.default_volume
+        return vs
+
+    async def fetch_remote_speakers(self) -> List[str]:
+        """向上游微服务查询全部可用角色列表 (/breeze/speakers 或 /v1/speakers)"""
+        now = time.time()
+        if hasattr(self, "_remote_speakers_cache") and (now - getattr(self, "_last_speakers_fetch_time", 0.0) < 60.0):
+            return list(self._remote_speakers_cache)
+
+        is_gateway = (self.connection_mode == "gateway")
+        target_url = f"{self.gateway_url}/breeze/speakers" if is_gateway else f"{self.direct_url}/v1/speakers"
+        headers = {}
+        if is_gateway and self.api_key:
+            headers["Authorization"] = f"Bearer {self.api_key}"
+
+        try:
+            async with httpx.AsyncClient(timeout=5.0, trust_env=False) as client:
+                resp = await client.get(target_url, headers=headers)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    res_list = []
+                    if isinstance(data, list):
+                        res_list = [str(x) for x in data if x]
+                    elif isinstance(data, dict):
+                        cands = data.get("speakers") or data.get("data") or []
+                        if isinstance(cands, list):
+                            res_list = [str(x) for x in cands if x]
+                    if res_list:
+                        self._remote_speakers_cache = res_list
+                        self._last_speakers_fetch_time = now
+                        return list(res_list)
+        except Exception as e:
+            logger.debug(f"[BreezeTTS] 获取上游可用角色列表失败或上游未就绪: {e}")
+
+        return list(getattr(self, "_remote_speakers_cache", []))
+
+    @property
     def speakers(self) -> List[str]:
         spks = self._cfg.get("speakers", ["达妮娅", "dania", "breeze", "breeze-tts", "breeze-tts-2"])
-        return list(spks) if isinstance(spks, (list, tuple)) else ["达妮娅", "dania", "breeze"]
+        base_list = list(spks) if isinstance(spks, (list, tuple)) else ["达妮娅", "dania", "breeze"]
+        cached_remote = getattr(self, "_remote_speakers_cache", [])
+        for spk in cached_remote:
+            if spk not in base_list:
+                base_list.append(spk)
+        return base_list
 
     async def enrich_with_trigger_llm(
         self,
@@ -536,9 +615,10 @@ class AsyncBreezeTTSClient:
 
         chat_url = f"{llm_base_url.rstrip('/')}/chat/completions"
         headers = {
-            "Authorization": f"Bearer {llm_api_key}",
             "Content-Type": "application/json",
         }
+        if llm_api_key:
+            headers["Authorization"] = f"Bearer {llm_api_key}"
         payload = {
             "model": llm_model,
             "messages": [
@@ -595,6 +675,10 @@ class AsyncBreezeTTSClient:
         mode: Optional[str] = None,
         connection_mode: Optional[str] = None,
         voice: Optional[str] = None,
+        speaker: Optional[str] = None,
+        speed: Optional[float] = None,
+        volume: Optional[float] = None,
+        voice_settings: Optional[Union[Dict[str, Any], str]] = None,
         save_path: Optional[str] = None,
         auto_tag: bool = True,
         ref_audio: Optional[Union[str, bytes]] = None,
@@ -605,6 +689,8 @@ class AsyncBreezeTTSClient:
         """
         核心语音合成调度入口：
         支持网关模式与直连模式；
+        支持自选传入指定 speaker（官方注册音色、克隆音色）；
+        支持 voice_settings 规范化透传，支持调节 speed（语速）与 volume（音量）；
         支持 breeze_tts (/breeze/tts) 与 openai_speech (/v1/audio/speech) 两种模式；
         支持 ref_audio 与 ref_text 声音克隆 (Voice Clone) 模式。
         """
@@ -633,7 +719,44 @@ class AsyncBreezeTTSClient:
         else:
             scale = float(self.default_cfg_scale)
 
-        voice_name = voice or self.default_voice
+        # 发音人音色解析：支持自选传入更多 speaker
+        chosen_speaker = speaker or voice or self.default_voice
+        if str(chosen_speaker).lower() in ["breeze", "breeze-tts", "breeze-tts-2", "breeze_tts"]:
+            target_speaker = "dania"
+        else:
+            target_speaker = str(chosen_speaker).strip()
+
+        # 规范化并组装 voice_settings（支持 speed、volume）
+        vs_dict: Dict[str, Any] = {}
+        if isinstance(voice_settings, dict):
+            vs_dict.update(voice_settings)
+        elif isinstance(voice_settings, str) and voice_settings.strip():
+            try:
+                parsed = json.loads(voice_settings)
+                if isinstance(parsed, dict):
+                    vs_dict.update(parsed)
+            except Exception:
+                pass
+
+        # 语速调节 (speed)
+        act_speed = speed if speed is not None else vs_dict.get("speed", self.default_speed)
+        if act_speed is not None:
+            try:
+                spd_val = float(act_speed)
+                if abs(spd_val - 1.0) > 1e-4 or "speed" in vs_dict:
+                    vs_dict["speed"] = spd_val
+            except (ValueError, TypeError):
+                pass
+
+        # 音量调节 (volume)
+        act_volume = volume if volume is not None else vs_dict.get("volume", self.default_volume)
+        if act_volume is not None:
+            try:
+                vol_val = float(act_volume)
+                if abs(vol_val - 1.0) > 1e-4 or "volume" in vs_dict:
+                    vs_dict["volume"] = vol_val
+            except (ValueError, TypeError):
+                pass
 
         if not save_path:
             save_path = f"data/voice/cache/{uuid.uuid4().hex}.wav"
@@ -658,7 +781,7 @@ class AsyncBreezeTTSClient:
                 # 声音克隆模式：使用 multipart/form-data
                 target_url = f"{self.gateway_url}/breeze/tts" if is_gateway else f"{self.direct_url}/tts"
                 headers = {}
-                if is_gateway:
+                if is_gateway and self.api_key:
                     headers["Authorization"] = f"Bearer {self.api_key}"
 
                 form_data = {
@@ -666,10 +789,19 @@ class AsyncBreezeTTSClient:
                     "cfg_scale": str(scale),
                     "format": "wav",
                 }
+                if target_speaker:
+                    form_data["speaker"] = str(target_speaker)
+                    form_data["voice"] = str(target_speaker)
                 if ref_text:
                     form_data["ref_text"] = str(ref_text)
                 if instruction:
                     form_data["instruction"] = str(instruction)
+                if vs_dict:
+                    form_data["voice_settings"] = json.dumps(vs_dict, ensure_ascii=False)
+                if "speed" in vs_dict:
+                    form_data["speed"] = str(vs_dict["speed"])
+                if "volume" in vs_dict:
+                    form_data["volume"] = str(vs_dict["volume"])
 
                 files = {
                     "ref_audio": ("ref_audio.wav", ref_audio_bytes, "audio/wav")
@@ -677,8 +809,8 @@ class AsyncBreezeTTSClient:
 
                 logger.info(
                     f"[BreezeTTS] 发起语音克隆合成: 连接={'网关' if is_gateway else '直连'}, "
-                    f"URL={target_url}, ref_bytes={len(ref_audio_bytes)}, "
-                    f"ref_text='{ref_text or '无'}', text='{cleaned_text[:30]}...'"
+                    f"URL={target_url}, speaker={target_speaker}, ref_bytes={len(ref_audio_bytes)}, "
+                    f"vs={vs_dict or '无'}, text='{cleaned_text[:30]}...'"
                 )
                 resp = await client.post(target_url, data=form_data, files=files, headers=headers)
 
@@ -686,23 +818,30 @@ class AsyncBreezeTTSClient:
                 # Mode 2: OpenAI /v1/audio/speech 模式
                 target_url = f"{self.gateway_url}/v1/audio/speech" if is_gateway else f"{self.direct_url}/v1/audio/speech"
                 headers = {"Content-Type": "application/json"}
-                if is_gateway:
+                if is_gateway and self.api_key:
                     headers["Authorization"] = f"Bearer {self.api_key}"
 
                 payload: Dict[str, Any] = {
                     "model": self.default_model,
                     "input": cleaned_text,
                     "text": cleaned_text,
-                    "voice": voice_name,
+                    "voice": str(target_speaker),
+                    "speaker": str(target_speaker),
                     "response_format": "wav",
                     "cfg_scale": scale,
                 }
                 if instruction:
                     payload["instruction"] = instruction
+                if vs_dict:
+                    payload["voice_settings"] = vs_dict
+                if "speed" in vs_dict:
+                    payload["speed"] = vs_dict["speed"]
+                if "volume" in vs_dict:
+                    payload["volume"] = vs_dict["volume"]
 
                 logger.info(
                     f"[BreezeTTS] 发起 speech 合成: 连接={'网关' if is_gateway else '直连'}, "
-                    f"URL={target_url}, voice={voice_name}, text='{cleaned_text[:30]}...'"
+                    f"URL={target_url}, speaker={target_speaker}, vs={vs_dict or '无'}, text='{cleaned_text[:30]}...'"
                 )
                 resp = await client.post(target_url, json=payload, headers=headers)
 
@@ -710,20 +849,28 @@ class AsyncBreezeTTSClient:
                 # Mode 1: 原生 Breeze /breeze/tts 模式
                 target_url = f"{self.gateway_url}/breeze/tts" if is_gateway else f"{self.direct_url}/tts"
                 headers = {"Content-Type": "application/json"}
-                if is_gateway:
+                if is_gateway and self.api_key:
                     headers["Authorization"] = f"Bearer {self.api_key}"
 
-                payload = {
+                payload: Dict[str, Any] = {
                     "text": cleaned_text,
                     "format": "wav",
                     "cfg_scale": scale,
+                    "speaker": str(target_speaker),
+                    "voice": str(target_speaker),
                 }
                 if instruction:
                     payload["instruction"] = instruction
+                if vs_dict:
+                    payload["voice_settings"] = vs_dict
+                if "speed" in vs_dict:
+                    payload["speed"] = vs_dict["speed"]
+                if "volume" in vs_dict:
+                    payload["volume"] = vs_dict["volume"]
 
                 logger.info(
                     f"[BreezeTTS] 发起原生合成: 连接={'网关' if is_gateway else '直连'}, "
-                    f"URL={target_url}, instruction='{instruction or '无'}', text='{cleaned_text[:30]}...'"
+                    f"URL={target_url}, speaker={target_speaker}, vs={vs_dict or '无'}, instruction='{instruction or '无'}', text='{cleaned_text[:30]}...'"
                 )
                 resp = await client.post(target_url, json=payload, headers=headers)
 

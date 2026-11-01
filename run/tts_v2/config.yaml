@@ -16,6 +16,8 @@ breeze_tts:
   base_tone: "轻柔，温和，慵懒，俏皮" # 角色固有性格与声音基调: 自动生成 instruction 时以此基调为底色演变，保持人设一致
 
   cfg_scale: 4.0      # 带指导语/声音设计时推荐 4.0，无指导语时自动 1.0
+  speed: 1.0          # 语速调节 (默认 1.0，支持 0.5 ~ 2.0，对应 voice_settings.speed)
+  volume: 1.0         # 音量调节 (默认 1.0，支持 0.1 ~ 2.0，对应 voice_settings.volume)
   voice: "dania"      # 发音人音色标识 (dania / 达妮娅)
   model: "breeze-tts-2" # 模型名称
   format: "wav"       # 音频格式: wav / pcm

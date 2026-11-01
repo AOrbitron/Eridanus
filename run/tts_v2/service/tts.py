@@ -135,6 +135,13 @@ class BreezeTTSEngine(TTSEngine):
 
     async def get_speakers(self, bot=None):
         base_speakers = list(self.client.speakers)
+        try:
+            remote_spks = await self.client.fetch_remote_speakers()
+            for spk in remote_spks:
+                if spk not in base_speakers:
+                    base_speakers.append(spk)
+        except Exception:
+            pass
         cloned_speakers = [f"{s['speaker']} (克隆, 剩余{s['remaining_minutes']}分)" for s in self.clone_manager.list_cloned_speakers()]
         return base_speakers + cloned_speakers
 
@@ -154,6 +161,9 @@ class BreezeTTSEngine(TTSEngine):
         auto_tag: bool = True,
         ref_audio: Union[str, bytes, None] = None,
         ref_text: str | None = None,
+        speed: float | None = None,
+        volume: float | None = None,
+        voice_settings: dict | None = None,
         **kwargs,
     ) -> str:
         # 检查 speaker 是否命中 1 小时内临时克隆的角色
@@ -169,6 +179,10 @@ class BreezeTTSEngine(TTSEngine):
             mode=mode,
             connection_mode=connection_mode,
             voice=speaker,
+            speaker=speaker,
+            speed=speed,
+            volume=volume,
+            voice_settings=voice_settings,
             auto_tag=auto_tag,
             ref_audio=ref_audio,
             ref_text=ref_text,
@@ -423,11 +437,13 @@ class TTS:
         if cloned_info:
             logger.info(f"[TTS.resolve] 命中临时语音克隆角色: '{spk}' -> breeze_tts")
             return "breeze_tts", spk
-        # 1. 检查是否为 Breeze 角色（达妮娅、dania、breeze 等）
+        # 1. 检查是否为 Breeze 角色（达妮娅、dania、breeze 等，或其它 Breeze 注册发音人）
         breeze_engine = self.engines.get("breeze_tts")
         breeze_speakers = [s.lower() for s in await breeze_engine.get_speakers(bot)] if breeze_engine else []
-        if spk.lower() in ["达妮娅", "dania", "breeze", "breeze-tts", "breeze-tts-2", "breeze_tts"] or spk.lower() in breeze_speakers:
+        if spk.lower() in ["breeze", "breeze-tts", "breeze-tts-2", "breeze_tts"]:
             return "breeze_tts", "达妮娅"
+        if spk.lower() in ["达妮娅", "dania"] or spk.lower() in breeze_speakers or (breeze_engine and spk in breeze_engine.client.speakers):
+            return "breeze_tts", spk
 
         # 1.5 检查是否命中自建 GPT-SoVITS 专属角色
         gpt_engine = self.engines.get("gpt_sovits")
@@ -485,6 +501,9 @@ class TTS:
         auto_tag: Optional[bool] = None,
         ref_audio: Optional[Union[str, bytes]] = None,
         ref_text: Optional[str] = None,
+        speed: Optional[float] = None,
+        volume: Optional[float] = None,
+        voice_settings: Optional[Dict[str, Any]] = None,
         **kwargs,
     ) -> str:
         """
@@ -523,6 +542,9 @@ class TTS:
         effective_conn_mode = connection_mode or breeze_cfg.get("connection_mode", "gateway")
         effective_mode = mode or breeze_cfg.get("mode", "breeze_tts")
         effective_cfg_scale = cfg_scale if cfg_scale is not None else float(breeze_cfg.get("cfg_scale", 4.0))
+        effective_speed = speed if speed is not None else kwargs.get("speed", breeze_cfg.get("speed", 1.0))
+        effective_volume = volume if volume is not None else kwargs.get("volume", breeze_cfg.get("volume", 1.0))
+        effective_voice_settings = voice_settings or kwargs.get("voice_settings") or breeze_cfg.get("voice_settings")
         effective_auto_tag = auto_tag if auto_tag is not None else breeze_cfg.get("auto_add_audio_tags", True)
         auto_instruction = breeze_cfg.get("auto_generate_instruction", True)
         target_lang = lang_type or ("ZH" if engine_name == "breeze_tts" else cfg.get("lang_type", "JP"))
@@ -587,6 +609,9 @@ class TTS:
             auto_tag=False,  # 已经在确认 breeze_tts 后由 trigger_llm 完成结构化润色，避免二次调用
             ref_audio=ref_audio,
             ref_text=ref_text,
+            speed=effective_speed,
+            volume=effective_volume,
+            voice_settings=effective_voice_settings,
             **kwargs,
         )
 
@@ -605,6 +630,9 @@ class TTS:
         auto_tag: Optional[bool] = None,
         ref_audio: Optional[Union[str, bytes]] = None,
         ref_text: Optional[str] = None,
+        speed: Optional[float] = None,
+        volume: Optional[float] = None,
+        voice_settings: Optional[Dict[str, Any]] = None,
         **kwargs,
     ) -> Dict[str, Any]:
         """供消息事件或外部模块调用的便捷方法，合成并直接发送音频"""
@@ -624,6 +652,9 @@ class TTS:
                 auto_tag=auto_tag,
                 ref_audio=ref_audio,
                 ref_text=ref_text,
+                speed=speed,
+                volume=volume,
+                voice_settings=voice_settings,
                 **kwargs,
             )
             await bot.send(event, Record(file=path))
