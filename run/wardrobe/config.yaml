@@ -1,3 +1,4 @@
+# 系统总开关：true 开启衣橱管理与自动换装；false 使用默认设置
 enabled: true
 # 默认服装与当前生效着装状态
 default_outfit: 默认常服
@@ -47,18 +48,18 @@ outfits:
     category: daily
     season: autumn/winter
     occasion: casual, campus
-    clothing_tags: (cream oversized cable knit cardigan:1.1)或者oversize coat, 
-      off-white camisole, ribbed top, brown pleated wool skirt, (chocolate brown
+    clothing_tags: (cream oversized cable knit cardigan:1.1), off-white 
+      camisole, ribbed top, brown pleated wool skirt, (chocolate brown 
       beret:1.1), beige knee-high socks, retro loafer shoes, casual daily wear
     full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored 
       hair, blue hair, light purple-light blue mixed eyes, (Side swept 
       hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), (cream 
-      oversized cable knit cardigan:1.1)或者oversize coat, off-white camisole, 
-      ribbed top, brown pleated wool skirt, (chocolate brown beret:1.1), beige 
-      knee-high socks, retro loafer shoes, casual daily wear, (Rella:1.2), (chen
-      bin:1.3), virtual youtuber, (starshadowmagician:1.2), masterpiece, 
-      extremely detailed, lineart, (hand-drawn:1.3), (sketch:1.2), Picasso 
-      style, Van Gogh's almond blossoms, <lora:DeniaV1-Nuclear1811-IL:0.5>
+      oversized cable knit cardigan:1.1), off-white camisole, ribbed top, brown 
+      pleated wool skirt, (chocolate brown beret:1.1), beige knee-high socks, 
+      retro loafer shoes, casual daily wear, (Rella:1.2), (chen bin:1.3), 
+      virtual youtuber, (starshadowmagician:1.2), masterpiece, extremely 
+      detailed, lineart, (hand-drawn:1.3), (sketch:1.2), Picasso style, Van 
+      Gogh's almond blossoms, <lora:DeniaV1-Nuclear1811-IL:0.5>
   分层蛋糕裙:
     name: 分层蛋糕裙
     description: 轻甜层叠花边蛋糕裙（多层褶皱下摆、甜美少女风）
@@ -1213,6 +1214,175 @@ outfits:
       rabbit ears on hood, cute pom-pom tail, zippered front with heart pull, 
       hugging giant soft plushie bolster, warm fairy lights bedroom, adorable 
       sleepy expression, (Rella:1.2), (chen bin:1.3), virtual youtuber, 
+      (starshadowmagician:1.2), masterpiece, extremely detailed, lineart, 
+      (hand-drawn:1.3), (sketch:1.2), Picasso style, Van Gogh's almond blossoms,
+      <lora:DeniaV1-Nuclear1811-IL:0.5>
+  洛丽塔梦幻荷叶边睡裙:
+    name: 洛丽塔梦幻荷叶边睡裙
+    description: 软萌洛丽塔风格睡裙，多层轻纱蓬蓬下摆、精致蕾丝缎带与蝴蝶结，梦幻甜美公主感（免帽）
+    category: sleepwear
+    season: all
+    occasion: bedtime, sweet, lolita
+    no_hat: true
+    clothing_tags: sweet lolita nightdress, tiered ruffled hemline, soft pink 
+      ribbon bows, delicate lace trim, puffy short sleeves, baby doll style, 
+      frilled hem, dreamlike sweet bedtime, bedroom pillow
+    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored 
+      hair, blue hair, light purple-light blue mixed eyes, (Side swept 
+      hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), sweet lolita 
+      nightdress, tiered ruffled hemline, soft pink ribbon bows, delicate lace 
+      trim, puffy short sleeves, baby doll style, frilled hem, dreamlike sweet 
+      bedtime, bedroom pillow, (Rella:1.2), (chen bin:1.3), virtual youtuber, 
+      (starshadowmagician:1.2), masterpiece, extremely detailed, lineart, 
+      (hand-drawn:1.3), (sketch:1.2), Picasso style, Van Gogh's almond blossoms,
+      <lora:DeniaV1-Nuclear1811-IL:0.5>
+  半透明月光轻纱吊带睡裙:
+    name: 半透明月光轻纱吊带睡裙
+    description: 朦胧微透的月光白轻纱细吊带睡裙，双层薄纱下摆与镂空蕾丝罩纱，微露锁骨与轻熟朦胧美感（免帽）
+    category: sleepwear
+    season: summer/autumn
+    occasion: bedtime, sheer, alluring
+    no_hat: true
+    clothing_tags: semi-sheer nightdress, translucent white chiffon overlay, 
+      thin spaghetti straps, layered sheer tulle fabric, delicate floral lace 
+      bustier, soft ethereal glow, moonlight night, collarbone, bare shoulders, 
+      dreamy sheer sleepwear
+    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored 
+      hair, blue hair, light purple-light blue mixed eyes, (Side swept 
+      hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), semi-sheer 
+      nightdress, translucent white chiffon overlay, thin spaghetti straps, 
+      layered sheer tulle fabric, delicate floral lace bustier, soft ethereal 
+      glow, moonlight night, collarbone, bare shoulders, dreamy sheer sleepwear,
+      (Rella:1.2), (chen bin:1.3), virtual youtuber, (starshadowmagician:1.2), 
+      masterpiece, extremely detailed, lineart, (hand-drawn:1.3), (sketch:1.2), 
+      Picasso style, Van Gogh's almond blossoms, 
+      <lora:DeniaV1-Nuclear1811-IL:0.5>
+  黑天鹅半透明蕾丝吊带睡裙:
+    name: 黑天鹅半透明蕾丝吊带睡裙
+    description: 暗夜魅惑的黑天鹅微透蕾丝吊带睡裙，半透明薄纱侧开衩与精致黑玫瑰暗纹蕾丝，慵懒小性感（免帽）
+    category: sleepwear
+    season: all
+    occasion: bedtime, sexy, dark
+    no_hat: true
+    clothing_tags: semi-sheer black lace nightdress, translucent dark chiffon, 
+      delicate floral lace embroidery, thin slip straps, side slit sheer hem, 
+      sheer fabric, subtle silhouette, sultry bedroom, soft romantic night
+    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored 
+      hair, blue hair, light purple-light blue mixed eyes, (Side swept 
+      hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), semi-sheer 
+      black lace nightdress, translucent dark chiffon, delicate floral lace 
+      embroidery, thin slip straps, side slit sheer hem, sheer fabric, subtle 
+      silhouette, sultry bedroom, soft romantic night, (Rella:1.2), (chen 
+      bin:1.3), virtual youtuber, (starshadowmagician:1.2), masterpiece, 
+      extremely detailed, lineart, (hand-drawn:1.3), (sketch:1.2), Picasso 
+      style, Van Gogh's almond blossoms, <lora:DeniaV1-Nuclear1811-IL:0.5>
+  哥特轻纱洛丽塔睡裙:
+    name: 哥特轻纱洛丽塔睡裙
+    description: 暗黑轻甜哥特风轻纱睡裙，黑紫拼色双层轻薄欧根纱、微透蕾丝泡泡袖与十字缎带蝴蝶结（免帽）
+    category: sleepwear
+    season: all
+    occasion: bedtime, gothic, lolita
+    no_hat: true
+    clothing_tags: gothic lolita nightgown, sheer black organza, translucent 
+      purple accents, puffy sheer sleeves, delicate ruffles, criss-cross ribbon,
+      dark romance, vintage gothic sleepwear
+    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored 
+      hair, blue hair, light purple-light blue mixed eyes, (Side swept 
+      hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), gothic lolita
+      nightgown, sheer black organza, translucent purple accents, puffy sheer 
+      sleeves, delicate ruffles, criss-cross ribbon, dark romance, vintage 
+      gothic sleepwear, (Rella:1.2), (chen bin:1.3), virtual youtuber, 
+      (starshadowmagician:1.2), masterpiece, extremely detailed, lineart, 
+      (hand-drawn:1.3), (sketch:1.2), Picasso style, Van Gogh's almond blossoms,
+      <lora:DeniaV1-Nuclear1811-IL:0.5>
+  薄荷轻纱清凉吊带睡裙:
+    name: 薄荷轻纱清凉吊带睡裙
+    description: 清新薄荷绿双层透气轻纱吊带睡裙，淡雅碎褶飘逸轻纱与细锁骨吊带，初夏清凉可爱（免帽）
+    category: sleepwear
+    season: summer
+    occasion: bedtime, summer, fresh
+    no_hat: true
+    clothing_tags: mint green sheer chiffon nightdress, floating translucent 
+      fabric, delicate spaghetti straps, pleated sheer ruffle hem, lightweight 
+      airy nightwear, pastel tone, fresh morning breeze
+    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored 
+      hair, blue hair, light purple-light blue mixed eyes, (Side swept 
+      hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), mint green 
+      sheer chiffon nightdress, floating translucent fabric, delicate spaghetti 
+      straps, pleated sheer ruffle hem, lightweight airy nightwear, pastel tone,
+      fresh morning breeze, (Rella:1.2), (chen bin:1.3), virtual youtuber, 
+      (starshadowmagician:1.2), masterpiece, extremely detailed, lineart, 
+      (hand-drawn:1.3), (sketch:1.2), Picasso style, Van Gogh's almond blossoms,
+      <lora:DeniaV1-Nuclear1811-IL:0.5>
+  甜心猫耳奶绒开衫:
+    name: 甜心猫耳奶绒开衫
+    description: 软糯米白羊羔绒针织开衫搭配嫩粉百褶短裙，可爱小猫刺绣与软萌毛球配饰，甜美治愈日常私服
+    category: daily
+    season: autumn/winter
+    occasion: casual, sweet, daily
+    clothing_tags: soft fluffy cream oversized knit cardigan, cute cat 
+      embroidery, pastel pink pleated mini skirt, white collared inner shirt, 
+      knee-high socks, playful youthful style, cozy sweet daily wear
+    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored 
+      hair, blue hair, light purple-light blue mixed eyes, (Side swept 
+      hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), soft fluffy 
+      cream oversized knit cardigan, cute cat embroidery, pastel pink pleated 
+      mini skirt, white collared inner shirt, knee-high socks, playful youthful 
+      style, cozy sweet daily wear, (Rella:1.2), (chen bin:1.3), virtual 
+      youtuber, (starshadowmagician:1.2), masterpiece, extremely detailed, 
+      lineart, (hand-drawn:1.3), (sketch:1.2), Picasso style, Van Gogh's almond 
+      blossoms, <lora:DeniaV1-Nuclear1811-IL:0.5>
+  法式小碎花吊带连衣裙:
+    name: 法式小碎花吊带连衣裙
+    description: 清新鹅黄法式复古碎花细吊带收腰连衣裙，内搭泡泡短袖薄纱衬衫，可爱甜美日常约会穿搭
+    category: daily
+    season: spring/summer
+    occasion: casual, date, daily
+    clothing_tags: yellow floral spaghetti strap sundress, sweetheart neckline, 
+      white puff sleeve inner blouse, ruffled hem, high waist A-line silhouette,
+      cute dainty necklace, sunny street stroll, adorable summer fashion
+    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored 
+      hair, blue hair, light purple-light blue mixed eyes, (Side swept 
+      hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), yellow floral
+      spaghetti strap sundress, sweetheart neckline, white puff sleeve inner 
+      blouse, ruffled hem, high waist A-line silhouette, cute dainty necklace, 
+      sunny street stroll, adorable summer fashion, (Rella:1.2), (chen bin:1.3),
+      virtual youtuber, (starshadowmagician:1.2), masterpiece, extremely 
+      detailed, lineart, (hand-drawn:1.3), (sketch:1.2), Picasso style, Van 
+      Gogh's almond blossoms, <lora:DeniaV1-Nuclear1811-IL:0.5>
+  软萌娃娃领格纹背带裙:
+    name: 软萌娃娃领格纹背带裙
+    description: 日系减龄米咖色格子背带百褶裙内搭白色大翻娃娃领衬衫，胸口蝴蝶结领结，乖巧元气少女感
+    category: daily
+    season: all
+    occasion: casual, school, campus
+    clothing_tags: beige plaid overall pinafore dress, Peter Pan collar white 
+      blouse, tied ribbon bow tie, pleated skirt, cute layered styling, preppy 
+      casual daily, adorable girlish charm
+    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored 
+      hair, blue hair, light purple-light blue mixed eyes, (Side swept 
+      hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), beige plaid 
+      overall pinafore dress, Peter Pan collar white blouse, tied ribbon bow 
+      tie, pleated skirt, cute layered styling, preppy casual daily, adorable 
+      girlish charm, (Rella:1.2), (chen bin:1.3), virtual youtuber, 
+      (starshadowmagician:1.2), masterpiece, extremely detailed, lineart, 
+      (hand-drawn:1.3), (sketch:1.2), Picasso style, Van Gogh's almond blossoms,
+      <lora:DeniaV1-Nuclear1811-IL:0.5>
+  慵懒小熊露肩连帽卫衣:
+    name: 慵懒小熊露肩连帽卫衣
+    description: 奶咖色落肩露单肩宽松连帽卫衣搭配毛边牛仔短裤与小熊印花长筒袜，元气与慵懒兼备的可爱私服
+    category: daily
+    season: spring/autumn
+    occasion: casual, home, street
+    clothing_tags: oversized brown hoodie, one-shoulder off, cute bear graphic 
+      print, denim cutoff shorts, mismatched patterned knee socks, slouchy 
+      casual streetwear, youthful playful vibe
+    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored 
+      hair, blue hair, light purple-light blue mixed eyes, (Side swept 
+      hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), oversized 
+      brown hoodie, one-shoulder off, cute bear graphic print, denim cutoff 
+      shorts, mismatched patterned knee socks, slouchy casual streetwear, 
+      youthful playful vibe, (Rella:1.2), (chen bin:1.3), virtual youtuber, 
       (starshadowmagician:1.2), masterpiece, extremely detailed, lineart, 
       (hand-drawn:1.3), (sketch:1.2), Picasso style, Van Gogh's almond blossoms,
       <lora:DeniaV1-Nuclear1811-IL:0.5>
