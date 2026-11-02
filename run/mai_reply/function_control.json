@@ -14,8 +14,11 @@
     "parse_cloud_music",
     "search_with_official_api",
     "search_book_info",
-    "call_download_book",
-    "iwara_tendency"
+    "iwara_tendency",
+    "list_cloned_voices",
+    "get_breeze_tags",
+    "clone_voice"
+
   ],
   "disabled_skills": [
     "reply-live-test"
