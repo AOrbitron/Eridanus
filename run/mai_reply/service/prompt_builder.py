@@ -208,6 +208,16 @@ class PromptBuilder:
             group_name=group_name,
         )
 
+        # ---- 动态注入衣橱视觉与绘图规则 ----
+        try:
+            from run.wardrobe import get_wardrobe_manager
+            wardrobe_mgr = get_wardrobe_manager()
+            wardrobe_section = wardrobe_mgr.get_visual_prompt_section()
+            if wardrobe_section:
+                prompt += f"\n\n{wardrobe_section}"
+        except Exception:
+            pass
+
         if group_context_snippet:
             prompt += f"\n\n{group_context_snippet}"
 

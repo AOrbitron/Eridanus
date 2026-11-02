@@ -28,6 +28,10 @@ except ImportError:
     from chinese_calendar_helper import get_chinese_calendar_info, get_season_info, get_season_name
 
 from developTools.event.events import LifecycleMetaEvent, GroupMessageEvent, PrivateMessageEvent
+try:
+    from run.wardrobe import get_wardrobe_manager
+except Exception:
+    get_wardrobe_manager = None
 from developTools.message.message_components import Text, Image, Mface
 
 from framework_common.framework_util.websocket_fix import ExtendBot
@@ -864,15 +868,48 @@ def main(bot: ExtendBot, config: YAMLManager):
         default_outfit = rules.get("outfit", "")
         full_rules_text = rules.get("full_section", "")
 
+        # 结合衣橱系统同步当前形象与着装
+        wardrobe_mgr = get_wardrobe_manager() if get_wardrobe_manager else None
+        if wardrobe_mgr and wardrobe_mgr.is_enabled():
+            base_anchor = wardrobe_mgr.get_character_anchor() or base_anchor
+            art_anchor = wardrobe_mgr.get_art_anchor() or art_anchor
+            cur_outfit = wardrobe_mgr.get_current_outfit()
+            cur_tags = cur_outfit.get("clothing_tags", "")
+            if cur_tags:
+                default_outfit = cur_tags
+            if cur_outfit.get("no_hat", False):
+                full_rules_text += "\n当前为睡衣/居家场景，严格免帽。"
+
         # 结合动态文案与主题提示判断是否属于免帽场景（如睡衣/床上/沐浴/室内放松等）
         no_hat = is_no_hat_scene(post_text=post_text, theme_desc=theme_desc)
+        if wardrobe_mgr and wardrobe_mgr.is_enabled():
+            if wardrobe_mgr.get_current_outfit().get("no_hat", False):
+                no_hat = True
 
-        # 随机抽取一套结构化全色谱穿搭数据（全色谱配色种子 + 服饰款式模板 + 70% 概率细节配件变体）
+        # 1. 优先从衣橱系统挑选匹配主题的基准款式
+        shanghai_today = TimezoneHelper.get_user_local_time('Asia/Shanghai').strftime('%Y-%m-%d')
+        is_first_today = False
+        wardrobe_base = None
+        season_meta = get_current_season()
+        season_sd_full = season_meta.get("full_name", "") if season_meta else ""
+
+        if wardrobe_mgr and wardrobe_mgr.is_enabled():
+            is_first_today = (wardrobe_mgr._data.get("last_daily_date") != shanghai_today)
+            try:
+                wardrobe_base = wardrobe_mgr.pick_base_outfit_for_theme(
+                    theme_desc=theme_desc,
+                    post_text=post_text,
+                    is_first_today=is_first_today,
+                    season_name=season_sd_full
+                )
+            except Exception as e:
+                logger.warning(f"[Qzone SD] 从衣橱挑选基准服饰异常: {e}")
+
+        # 随机抽取一套结构化全色谱穿搭数据（作为色彩搭配种子与细节修饰）
         outfit_data = None
         get_outfit_data_fn = getattr(qzone_themes, "get_random_outfit_data", None)
         if callable(get_outfit_data_fn):
             try:
-                # 传入文案与主题 hint，确保种子抽取时若为室内/睡衣则绝对不分配帽子饰品
                 combined_hint = f"{post_text} {theme_desc}"
                 outfit_data = get_outfit_data_fn(combined_hint)
             except Exception as e:
@@ -882,7 +919,7 @@ def main(bot: ExtendBot, config: YAMLManager):
             palette_name = outfit_data.get("palette_name", "经典日常色")
             primary_color = outfit_data.get("primary_color", "navy blue")
             secondary_color = outfit_data.get("secondary_color", "white")
-            outfit_tags = outfit_data.get("outfit_tags", "")
+            fallback_tags = outfit_data.get("outfit_tags", "")
             outfit_detail = outfit_data.get("detail", "")
             category = outfit_data.get("category", "")
             if not no_hat and category in ["sleepwear", "loungewear"]:
@@ -891,8 +928,18 @@ def main(bot: ExtendBot, config: YAMLManager):
             palette_name = "焦糖驼色配米白"
             primary_color = "caramel camel brown"
             secondary_color = "warm off-white"
-            outfit_tags = "caramel camel brown slouchy chunky knit cardigan, warm off-white ribbed camisole, cozy shorts"
+            fallback_tags = "caramel camel brown slouchy chunky knit cardigan, warm off-white ribbed camisole, cozy shorts"
             outfit_detail = ""
+
+        # 若衣橱成功挑选出基准服饰，使用衣橱款式 tags 作为核心款式模板
+        base_outfit_name = "默认款式"
+        if wardrobe_base and wardrobe_base.get("clothing_tags"):
+            base_outfit_name = wardrobe_base.get("name", "衣橱款式")
+            outfit_tags = wardrobe_base["clothing_tags"]
+            if wardrobe_base.get("no_hat", False):
+                no_hat = True
+        else:
+            outfit_tags = fallback_tags
 
         # 如果判定为免帽场景，先清洗种子里的 outfit_tags 和 outfit_detail
         if no_hat:
@@ -1027,6 +1074,20 @@ def main(bot: ExtendBot, config: YAMLManager):
         # 免帽场景终极兜底保障：再次扫描 final_prompt，确保万无一失
         if no_hat:
             final_prompt = strip_hat_tags(final_prompt)
+
+        # 若衣橱已开启，将本次微调/抽选的提示词同步更新至衣橱
+        if wardrobe_mgr and wardrobe_mgr.is_enabled() and dynamic_scene_tags:
+            try:
+                if is_first_today:
+                    wardrobe_mgr.on_daily_first_post(shanghai_today, post_text, theme_desc)
+                    daily_label = f"今日限定·{base_outfit_name}" if base_outfit_name != "默认款式" else "今日限定"
+                    wardrobe_mgr.update_from_qzone_tags(daily_label, dynamic_scene_tags, is_daily_default=True, no_hat=no_hat)
+                else:
+                    # 白天动态若命中了特异性关键词换装，则切换到该款名；否则保留当前款名并更新微调tags
+                    target_name = base_outfit_name if (wardrobe_base and wardrobe_base.get("matched_by") == "keyword") else wardrobe_mgr.get_current_outfit().get("name", "常服1")
+                    wardrobe_mgr.update_from_qzone_tags(target_name, dynamic_scene_tags, is_daily_default=False, no_hat=no_hat)
+            except Exception as e:
+                logger.warning(f"[Qzone Wardrobe] 同步着装至衣橱失败: {e}")
 
         logger.info(f"[Qzone SD] 组合完成 SD Prompt (no_hat={no_hat}): {final_prompt}")
         return final_prompt
@@ -1323,6 +1384,14 @@ def main(bot: ExtendBot, config: YAMLManager):
         except Exception as e:
             logger.error(f"[Qzone] 发布动态异常: {e}")
 
+        # 触发衣橱动态着装判断（晚安换睡衣/早安恢复等）
+        try:
+            wm = get_wardrobe_manager() if get_wardrobe_manager else None
+            if wm and wm.is_enabled():
+                wm.on_post_change_check(task_name, post_content, sd_theme_hint)
+        except Exception as e:
+            logger.warning(f"[Qzone Wardrobe] 换装检测异常: {e}")
+
     # ---------------------------------------------------------
     # Vtuber 风格活人感日常互动动态机制
     # ---------------------------------------------------------
@@ -1507,6 +1576,14 @@ def main(bot: ExtendBot, config: YAMLManager):
             vtuber_post_count_today += 1
         except Exception as e:
             logger.error(f"[Qzone Vtuber日常] 发送异常: {e}")
+
+        # 触发衣橱日常换装检测
+        try:
+            wm = get_wardrobe_manager() if get_wardrobe_manager else None
+            if wm and wm.is_enabled():
+                wm.on_post_change_check("日常", daily_content, chosen_sd_hint)
+        except Exception as e:
+            logger.warning(f"[Qzone Wardrobe] 日常换装检测异常: {e}")
 
 
     # [已重构接入 DynamicScheduler] 原 start_vtuber_daily_monitor 由调度器统一按间隔驱动，此处保留空定义兼容历史调用
