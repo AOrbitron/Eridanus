@@ -1139,7 +1139,7 @@ class WardrobeManager:
                             if "outfits" in self._data:
                                 self._data["outfits"] = dict(self._data["outfits"])
                             loaded = True
-                            logger.info("[Wardrobe] 成功接入统一 YAMLManager 管理 wardrobe/config")
+                            #logger.info("[Wardrobe] 成功接入统一 YAMLManager 管理 wardrobe/config")
                 except Exception as e:
                     logger.debug(f"[Wardrobe] 从 YAMLManager 载入失败或未初始化，尝试直接读取: {e}")
 
