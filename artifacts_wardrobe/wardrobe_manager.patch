@@ -1,0 +1,130 @@
+--- a/run/wardrobe/wardrobe_manager.py
++++ b/run/wardrobe/wardrobe_manager.py
+@@ -21,6 +21,13 @@
+     import yaml
+ except ImportError:
+     yaml = None
++
++try:
++    from framework_common.framework_util.yamlLoader import YAMLManager
++    _has_yaml_manager = True
++except ImportError:
++    _has_yaml_manager = False
++    YAMLManager = None
+ 
+ logger = logging.getLogger("Wardrobe")
+ 
+@@ -1083,11 +1090,31 @@
+         self._data: Dict[str, Any] = {}
+         self._yaml_rt = None
+         self._commented_map = None
++        self._yaml_manager = None
++        self._registered_reload_cb = False
+         if _has_ruamel:
+             self._yaml_rt = YAML()
+             self._yaml_rt.preserve_quotes = True
+             self._yaml_rt.indent(mapping=2, sequence=4, offset=2)
+         self.load_config()
++        self._setup_yaml_manager_listener()
++
++    def _setup_yaml_manager_listener(self) -> None:
++        """若存在 YAMLManager，注册重载回调以支持 WebUI 或外部文件修改后的热重载"""
++        if not _has_yaml_manager or YAMLManager is None:
++            return
++        try:
++            ym = YAMLManager.get_instance()
++            if ym and not self._registered_reload_cb:
++                def on_yaml_reload(plugin_name: Optional[str]):
++                    if plugin_name == "wardrobe":
++                        logger.info("[Wardrobe] 检测到 wardrobe/config.yaml 被外部修改，正在同步热重载...")
++                        self.load_config()
++                ym.register_reload_callback(on_yaml_reload)
++                self._registered_reload_cb = True
++                self._yaml_manager = ym
++        except Exception as e:
++            logger.debug(f"[Wardrobe] 注册 YAMLManager 监听失败 (可能尚未完全初始化): {e}")
+ 
+     @classmethod
+     def get_instance(cls, yaml_path: str = YAML_CONFIG_PATH) -> 'WardrobeManager':
+@@ -1099,8 +1126,25 @@
+     def load_config(self) -> None:
+         with self._rw_lock:
+             loaded = False
+-            # 1. 优先使用 ruamel.yaml 读取 YAML 配置，严格保留所有注释与排版格式
+-            if self._yaml_rt and os.path.exists(self.yaml_path):
++            # 1. 优先使用统一 YAMLManager 实例管理 (支持热重载与 ruamel.yaml 无损注释)
++            if _has_yaml_manager and YAMLManager is not None:
++                try:
++                    ym = YAMLManager.get_instance()
++                    if ym is not None and hasattr(ym, "wardrobe") and hasattr(ym.wardrobe, "config"):
++                        doc = ym.wardrobe.config
++                        if doc is not None and "outfits" in doc:
++                            self._yaml_manager = ym
++                            self._commented_map = doc
++                            self._data = dict(doc)
++                            if "outfits" in self._data:
++                                self._data["outfits"] = dict(self._data["outfits"])
++                            loaded = True
++                            logger.info("[Wardrobe] 成功接入统一 YAMLManager 管理 wardrobe/config")
++                except Exception as e:
++                    logger.debug(f"[Wardrobe] 从 YAMLManager 载入失败或未初始化，尝试直接读取: {e}")
++
++            # 2. 独立/回退：使用 ruamel.yaml 直接读取 YAML 配置，严格保留所有注释与排版格式
++            if not loaded and self._yaml_rt and os.path.exists(self.yaml_path):
+                 try:
+                     with open(self.yaml_path, "r", encoding="utf-8") as f:
+                         doc = self._yaml_rt.load(f)
+@@ -1165,16 +1209,26 @@
+         }
+ 
+     def _save_to_disk(self) -> None:
+-        # 写入 YAML 权威配置文件（使用 ruamel.yaml 保留全部注释与键序，.tmp 原子替换防崩溃）
++        """将配置持久化至磁盘，优先通过统一 YAMLManager 保存，保留全部注释与排版"""
++        self._sync_to_commented_map()
++
++        # 1. 若当前受 YAMLManager 管理，优先使用 YAMLManager.save_yaml
++        if self._yaml_manager is not None:
++            try:
++                if hasattr(self._yaml_manager, "data") and "wardrobe" in self._yaml_manager.data:
++                    if self._commented_map is not None:
++                        self._yaml_manager.data["wardrobe"]["config"] = self._commented_map
++                    self._yaml_manager.save_yaml("config", "wardrobe")
++                    return
++            except Exception as e:
++                logger.warning(f"[Wardrobe] 通过 YAMLManager 保存配置失败，回退至独立写盘: {e}")
++
++        # 2. 回退写入 YAML 权威配置文件（使用 ruamel.yaml 保留全部注释与键序，.tmp 原子替换防崩溃）
+         try:
+             os.makedirs(os.path.dirname(os.path.abspath(self.yaml_path)), exist_ok=True)
+             tmp_yaml = f"{self.yaml_path}.tmp"
+             if self._yaml_rt:
+-                if self._commented_map is not None:
+-                    self._sync_to_commented_map()
+-                    target_obj = self._commented_map
+-                else:
+-                    target_obj = self._data
++                target_obj = self._commented_map if self._commented_map is not None else self._data
+                 with open(tmp_yaml, "w", encoding="utf-8") as f:
+                     self._yaml_rt.dump(target_obj, f)
+                 os.replace(tmp_yaml, self.yaml_path)
+@@ -1689,9 +1743,19 @@
+ def build_change_outfit_declaration(yaml_path: str = YAML_CONFIG_PATH, custom_outfits: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+     """
+     根据 config.yaml 动态构建 call_change_outfit 的 Function Calling 声明。
+-    提取当前已收录服饰总数与代表性款式，精简紧凑描述，避免硬编码巨幅长文本。
++    优先通过 YAMLManager 实时获取服饰列表，精简紧凑描述，避免硬编码巨幅长文本。
+     """
+     outfits = custom_outfits
++    if outfits is None and _has_yaml_manager and YAMLManager is not None:
++        try:
++            ym = YAMLManager.get_instance()
++            if ym and hasattr(ym, "wardrobe") and hasattr(ym.wardrobe, "config"):
++                doc = ym.wardrobe.config
++                if doc and "outfits" in doc:
++                    outfits = dict(doc["outfits"])
++        except Exception as e:
++            logger.debug(f"[Wardrobe] 从 YAMLManager 读取服饰列表失败: {e}")
++
+     if outfits is None:
+         try:
+             if _has_ruamel and os.path.exists(yaml_path):

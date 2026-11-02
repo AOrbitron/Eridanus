@@ -1,4 +1,4 @@
-﻿enable: false
+﻿enable: true
 check_interval: 1800  # 定时检查间隔（秒），默认1800秒（30分钟）
 initial_delay: 20     # 启动后首次检查延迟（秒），等待Bot连接就绪
 remote: "origin"      # 远程仓库名称，默认 origin

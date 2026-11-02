@@ -12,14 +12,26 @@ import threading
 from typing import Dict, Any, Optional
 
 try:
+    from ruamel.yaml import YAML
+    _has_ruamel = True
+except ImportError:
+    _has_ruamel = False
+
+try:
     import yaml
 except ImportError:
     yaml = None
 
+try:
+    from framework_common.framework_util.yamlLoader import YAMLManager
+    _has_yaml_manager = True
+except ImportError:
+    _has_yaml_manager = False
+    YAMLManager = None
+
 logger = logging.getLogger("Wardrobe")
 
 YAML_CONFIG_PATH = os.path.join("run", "wardrobe", "config.yaml")
-JSON_BACKUP_PATH = os.path.join("data", "system", "wardrobe.json")
 
 DEFAULT_CHARACTER_ANCHOR = (
     "1girl, teenager, solo, grey hair, gradient hair, multicolored hair, blue hair, "
@@ -1072,25 +1084,81 @@ class WardrobeManager:
     _instance: Optional['WardrobeManager'] = None
     _lock = threading.Lock()
 
-    def __init__(self, yaml_path: str = YAML_CONFIG_PATH, json_path: str = JSON_BACKUP_PATH):
+    def __init__(self, yaml_path: str = YAML_CONFIG_PATH):
         self.yaml_path = yaml_path
-        self.json_path = json_path
         self._rw_lock = threading.Lock()
         self._data: Dict[str, Any] = {}
+        self._yaml_rt = None
+        self._commented_map = None
+        self._yaml_manager = None
+        self._registered_reload_cb = False
+        if _has_ruamel:
+            self._yaml_rt = YAML()
+            self._yaml_rt.preserve_quotes = True
+            self._yaml_rt.indent(mapping=2, sequence=4, offset=2)
         self.load_config()
+        self._setup_yaml_manager_listener()
+
+    def _setup_yaml_manager_listener(self) -> None:
+        """若存在 YAMLManager，注册重载回调以支持 WebUI 或外部文件修改后的热重载"""
+        if not _has_yaml_manager or YAMLManager is None:
+            return
+        try:
+            ym = YAMLManager.get_instance()
+            if ym and not self._registered_reload_cb:
+                def on_yaml_reload(plugin_name: Optional[str]):
+                    if plugin_name == "wardrobe":
+                        logger.info("[Wardrobe] 检测到 wardrobe/config.yaml 被外部修改，正在同步热重载...")
+                        self.load_config()
+                ym.register_reload_callback(on_yaml_reload)
+                self._registered_reload_cb = True
+                self._yaml_manager = ym
+        except Exception as e:
+            logger.debug(f"[Wardrobe] 注册 YAMLManager 监听失败 (可能尚未完全初始化): {e}")
 
     @classmethod
-    def get_instance(cls, yaml_path: str = YAML_CONFIG_PATH, json_path: str = JSON_BACKUP_PATH) -> 'WardrobeManager':
+    def get_instance(cls, yaml_path: str = YAML_CONFIG_PATH) -> 'WardrobeManager':
         with cls._lock:
             if cls._instance is None:
-                cls._instance = WardrobeManager(yaml_path, json_path)
+                cls._instance = WardrobeManager(yaml_path)
             return cls._instance
 
     def load_config(self) -> None:
         with self._rw_lock:
             loaded = False
-            # 1. 优先读取 YAML 配置 (供 WebUI 统一解析与管理)
-            if yaml and os.path.exists(self.yaml_path):
+            # 1. 优先使用统一 YAMLManager 实例管理 (支持热重载与 ruamel.yaml 无损注释)
+            if _has_yaml_manager and YAMLManager is not None:
+                try:
+                    ym = YAMLManager.get_instance()
+                    if ym is not None and hasattr(ym, "wardrobe") and hasattr(ym.wardrobe, "config"):
+                        doc = ym.wardrobe.config
+                        if doc is not None and "outfits" in doc:
+                            self._yaml_manager = ym
+                            self._commented_map = doc
+                            self._data = dict(doc)
+                            if "outfits" in self._data:
+                                self._data["outfits"] = dict(self._data["outfits"])
+                            loaded = True
+                            logger.info("[Wardrobe] 成功接入统一 YAMLManager 管理 wardrobe/config")
+                except Exception as e:
+                    logger.debug(f"[Wardrobe] 从 YAMLManager 载入失败或未初始化，尝试直接读取: {e}")
+
+            # 2. 独立/回退：使用 ruamel.yaml 直接读取 YAML 配置，严格保留所有注释与排版格式
+            if not loaded and self._yaml_rt and os.path.exists(self.yaml_path):
+                try:
+                    with open(self.yaml_path, "r", encoding="utf-8") as f:
+                        doc = self._yaml_rt.load(f)
+                    if doc is not None and "outfits" in doc:
+                        self._commented_map = doc
+                        self._data = dict(doc)
+                        if "outfits" in self._data:
+                            self._data["outfits"] = dict(self._data["outfits"])
+                        loaded = True
+                except Exception as e:
+                    logger.warning(f"[Wardrobe] ruamel.yaml 加载 YAML 失败: {e}")
+
+            # 2. 回退使用 PyYAML 读取
+            if not loaded and yaml and os.path.exists(self.yaml_path):
                 try:
                     with open(self.yaml_path, "r", encoding="utf-8") as f:
                         data = yaml.safe_load(f)
@@ -1098,23 +1166,30 @@ class WardrobeManager:
                         self._data = data
                         loaded = True
                 except Exception as e:
-                    logger.warning(f"[Wardrobe] 加载 YAML 失败: {e}")
+                    logger.warning(f"[Wardrobe] PyYAML 加载 YAML 失败: {e}")
 
-            # 2. 回退读取 JSON 备份
-            if not loaded and os.path.exists(self.json_path):
-                try:
-                    with open(self.json_path, "r", encoding="utf-8") as f:
-                        data = json.load(f)
-                    if isinstance(data, dict) and "outfits" in data:
-                        self._data = data
-                        loaded = True
-                except Exception as e:
-                    logger.warning(f"[Wardrobe] 加载 JSON 失败: {e}")
-
-            # 3. 若均不存在或损坏，初始化默认结构并双写持久化
+            # 3. 若均不存在或损坏，初始化默认结构并持久化至 YAML
             if not loaded:
                 self._data = self._build_default_data()
                 self._save_to_disk()
+
+    def _sync_to_commented_map(self) -> None:
+        """将 self._data 的更新同步至 self._commented_map，完整保留原有 YAML 注释"""
+        if self._commented_map is None:
+            return
+        for k, v in self._data.items():
+            if k == "outfits" and isinstance(v, dict):
+                if "outfits" not in self._commented_map:
+                    self._commented_map["outfits"] = {}
+                for ok, ov in v.items():
+                    if ok not in self._commented_map["outfits"]:
+                        self._commented_map["outfits"][ok] = dict(ov)
+                    else:
+                        if isinstance(ov, dict):
+                            for fk, fv in ov.items():
+                                self._commented_map["outfits"][ok][fk] = fv
+            else:
+                self._commented_map[k] = v
 
     def _build_default_data(self) -> Dict[str, Any]:
         default_outfit = "常服1"
@@ -1134,26 +1209,35 @@ class WardrobeManager:
         }
 
     def _save_to_disk(self) -> None:
-        # 1. 写入 YAML 文件
+        """将配置持久化至磁盘，优先通过统一 YAMLManager 保存，保留全部注释与排版"""
+        self._sync_to_commented_map()
+
+        # 1. 若当前受 YAMLManager 管理，优先使用 YAMLManager.save_yaml
+        if self._yaml_manager is not None:
+            try:
+                if hasattr(self._yaml_manager, "data") and "wardrobe" in self._yaml_manager.data:
+                    if self._commented_map is not None:
+                        self._yaml_manager.data["wardrobe"]["config"] = self._commented_map
+                    self._yaml_manager.save_yaml("config", "wardrobe")
+                    return
+            except Exception as e:
+                logger.warning(f"[Wardrobe] 通过 YAMLManager 保存配置失败，回退至独立写盘: {e}")
+
+        # 2. 回退写入 YAML 权威配置文件（使用 ruamel.yaml 保留全部注释与键序，.tmp 原子替换防崩溃）
         try:
             os.makedirs(os.path.dirname(os.path.abspath(self.yaml_path)), exist_ok=True)
             tmp_yaml = f"{self.yaml_path}.tmp"
-            if yaml:
+            if self._yaml_rt:
+                target_obj = self._commented_map if self._commented_map is not None else self._data
+                with open(tmp_yaml, "w", encoding="utf-8") as f:
+                    self._yaml_rt.dump(target_obj, f)
+                os.replace(tmp_yaml, self.yaml_path)
+            elif yaml:
                 with open(tmp_yaml, "w", encoding="utf-8") as f:
                     yaml.dump(self._data, f, allow_unicode=True, sort_keys=False)
                 os.replace(tmp_yaml, self.yaml_path)
         except Exception as e:
             logger.error(f"[Wardrobe] 保存 YAML 配置失败: {e}")
-
-        # 2. 写入 JSON 备份
-        try:
-            os.makedirs(os.path.dirname(os.path.abspath(self.json_path)), exist_ok=True)
-            tmp_json = f"{self.json_path}.tmp"
-            with open(tmp_json, "w", encoding="utf-8") as f:
-                json.dump(self._data, f, ensure_ascii=False, indent=2)
-            os.replace(tmp_json, self.json_path)
-        except Exception as e:
-            logger.error(f"[Wardrobe] 保存 JSON 备份失败: {e}")
 
     def save_config(self) -> None:
         with self._rw_lock:
@@ -1654,3 +1738,82 @@ async def call_change_outfit(bot=None, event=None, config=None, outfit_name: str
             "outfit_name": target_name,
             "clothing_tags": custom_tags
         }
+
+
+def build_change_outfit_declaration(yaml_path: str = YAML_CONFIG_PATH, custom_outfits: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    """
+    根据 config.yaml 动态构建 call_change_outfit 的 Function Calling 声明。
+    优先通过 YAMLManager 实时获取服饰列表，精简紧凑描述，避免硬编码巨幅长文本。
+    """
+    outfits = custom_outfits
+    if outfits is None and _has_yaml_manager and YAMLManager is not None:
+        try:
+            ym = YAMLManager.get_instance()
+            if ym and hasattr(ym, "wardrobe") and hasattr(ym.wardrobe, "config"):
+                doc = ym.wardrobe.config
+                if doc and "outfits" in doc:
+                    outfits = dict(doc["outfits"])
+        except Exception as e:
+            logger.debug(f"[Wardrobe] 从 YAMLManager 读取服饰列表失败: {e}")
+
+    if outfits is None:
+        try:
+            if _has_ruamel and os.path.exists(yaml_path):
+                ryaml = YAML()
+                ryaml.preserve_quotes = True
+                with open(yaml_path, "r", encoding="utf-8") as f:
+                    doc = ryaml.load(f)
+                    if doc and "outfits" in doc:
+                        outfits = dict(doc["outfits"])
+            elif yaml and os.path.exists(yaml_path):
+                with open(yaml_path, "r", encoding="utf-8") as f:
+                    doc = yaml.safe_load(f)
+                    if doc and "outfits" in doc:
+                        outfits = doc["outfits"]
+        except Exception as e:
+            logger.warning(f"[Wardrobe] 从 {yaml_path} 读取服饰列表失败: {e}")
+
+    if not outfits:
+        outfits = DEFAULT_OUTFITS
+
+    count = len(outfits)
+    sample_candidates = ["常服1", "默认常服", "分层蛋糕裙", "甜美洛丽塔", "清凉小吊带", "优雅晚礼服", "哥特洛丽塔", "可爱粉彩睡衣"]
+    picked_samples = [name for name in sample_candidates if name in outfits]
+    if len(picked_samples) < 5:
+        for name in outfits.keys():
+            if name not in picked_samples:
+                picked_samples.append(name)
+            if len(picked_samples) >= 6:
+                break
+
+    samples_str = "、".join(picked_samples[:6])
+
+    optimized_outfit_desc = (
+        f"要更换的目标服装名称或风格描述。系统启动时已从衣橱配置(config.yaml)动态载入{count}套服饰"
+        f"（涵盖日常私服、四季特色、华丽礼服、汉元素及居家睡衣等，例如：{samples_str}等）。"
+        f"支持输入衣橱款式名，或输入任意自定义/模糊服装描述。"
+    )
+
+    return {
+        "name": "call_change_outfit",
+        "description": "切换或更换当前穿着的服装/衣橱搭配。当用户在聊天中要求换装、换衣服、穿上特定服饰，或希望你生成特定着装自拍/照片时必须协同调用此工具更新穿着状态。",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "outfit_name": {
+                    "type": "string",
+                    "description": optimized_outfit_desc
+                },
+                "custom_description": {
+                    "type": "string",
+                    "description": "特定服饰细节、颜色搭配或自定义 SD Prompt 关键词（可选，留空则使用对应服装的标准衣橱配置）"
+                }
+            },
+            "required": ["outfit_name"]
+        }
+    }
+
+
+def get_function_declarations(yaml_path: str = YAML_CONFIG_PATH) -> list:
+    """获取动态生成的 Function Declarations 声明列表"""
+    return [build_change_outfit_declaration(yaml_path=yaml_path)]
