@@ -10,7 +10,7 @@ breeze_tts:
   direct_url: ""
   api_key: ""
   mode: "breeze_tts"  # 接口模式: "breeze_tts" 或 "openai_speech"  /breeze/tts或/v1/audio/speech
-  auto_generate_instruction: false # 自动生成 instruction 开关: 由 trigger_llm 结合文本与情绪自动生成语气指导语
+  auto_generate_instruction: true # 自动生成 instruction 开关: 由 trigger_llm 结合文本与情绪自动生成语气指导语
   auto_add_audio_tags: true # 自动添加音频表现力标签开关: 由 trigger_llm 自动在台词中适度添加 [叹气]、[轻笑] 等表现力标签
   default_instruction: "轻柔，温和，慵懒，俏皮"   # 默认配音语气指导语 (当未显式指定且自动生成关闭或失败时使用)
   base_tone: "轻柔，温和，慵懒，俏皮" # 角色固有性格与声音基调: 自动生成 instruction 时以此基调为底色演变，保持人设一致
@@ -18,7 +18,6 @@ breeze_tts:
   cfg_scale: 4.0      # 带指导语/声音设计时推荐 4.0，无指导语时自动 1.0
   speed: 1.0          # 语速调节 (默认 1.0，支持 0.5 ~ 2.0，对应 voice_settings.speed)
   volume: 1.0         # 音量调节 (默认 1.0，支持 0.1 ~ 2.0，对应 voice_settings.volume)
-  voice: "dania"      # 发音人音色标识 (dania / 达妮娅)
   model: "breeze-tts-2" # 模型名称
   format: "wav"       # 音频格式: wav / pcm
   speakers:  # 可用发音人别名列表
@@ -31,6 +30,9 @@ breeze_tts:
     - 西格莉卡
     - 莫宁
     - 仇远
+    - 爱弥斯
+    - 洛可可
+    - 弗洛洛
 gpt_sovits:
   api_base: ""  # 填写自建或代理服务地址。例如 http://127.0.0.1:9880
   api_key: ""   # 留空=直连服务端；非空=经过API鉴权
