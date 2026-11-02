@@ -285,6 +285,9 @@ async function startBrowser({ timeoutMs = 25000, exe, headed = false, profileDir
   try { fs.rmSync(path.join(userDataDir, 'DevToolsActivePort'), { force: true }); } catch {}
   const args = [
     ...(headed ? [] : ['--headless=new']),
+    '--no-sandbox',
+    '--disable-setuid-sandbox',
+    '--disable-dev-shm-usage',
     '--disable-gpu',
     '--no-first-run',
     '--no-default-browser-check',
@@ -293,7 +296,6 @@ async function startBrowser({ timeoutMs = 25000, exe, headed = false, profileDir
     '--disable-blink-features=AutomationControlled',
     '--disable-features=Translate,MediaRouter',
     '--lang=zh-CN',
-    `--user-agent=${BROWSER_UA_CHROME}`,
     ...(proxy ? [`--proxy-server=${proxy}`] : []),
     '--remote-debugging-port=0',
     `--user-data-dir=${userDataDir}`,
@@ -375,7 +377,7 @@ async function ensureBrowser(options = {}) {
   if (!browserStarting) {
     browserStarting = (async () => {
       try {
-        return await startBrowser({ ...options, proxy: wantProxy, profileDir: BROWSER_PROFILE_DIR });
+        return await startBrowser({ ...options, proxy: wantProxy, profileDir: fs.mkdtempSync(path.join(os.tmpdir(), 'lens-browser-')) });
       } catch {
         // 固定 profile 被占用/损坏时就退回临时目录：宁可丢 cookie，也不能让整条命令失败
         return await startBrowser({ ...options, proxy: wantProxy, profileDir: fs.mkdtempSync(path.join(os.tmpdir(), 'lens-browser-')) });
@@ -388,12 +390,17 @@ async function ensureBrowser(options = {}) {
 export async function closeBrowser() {
   const state = browserState;
   browserState = null;
+  browserStarting = null;
   if (!state) return;
   try { state.ws.close(); } catch {}
-  // Edge 会派生一堆子进程，只 kill 主进程会留下占着 profile 的孤儿
+  // 跨平台杀掉浏览器进程及衍生子进程
   try {
     const { spawnSync } = await import('node:child_process');
-    spawnSync('taskkill', ['/PID', String(state.proc.pid), '/T', '/F'], { stdio: 'ignore', windowsHide: true });
+    if (process.platform === 'win32') {
+      spawnSync('taskkill', ['/PID', String(state.proc.pid), '/T', '/F'], { stdio: 'ignore', windowsHide: true });
+    } else {
+      spawnSync('kill', ['-9', String(state.proc.pid)], { stdio: 'ignore' });
+    }
   } catch {}
   try { state.proc.kill(); } catch {}
 }
@@ -503,6 +510,15 @@ export async function browserFileUploadHtml({ startUrl, filePath, fileSelector =
   const state = await ensureBrowser({ timeoutMs, exe });
   await state.send('Page.enable');
   await state.send('DOM.enable');
+  try {
+    await state.send('Page.addScriptToEvaluateOnNewDocument', {
+      source: `
+        Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+        window.chrome = { runtime: {}, loadTimes: function() {}, csi: function() {}, app: {} };
+        if (!window.Notification) window.Notification = { permission: 'default' };
+      `
+    });
+  } catch {}
   const loaded = new Promise((resolve) => {
     const timer = setTimeout(() => resolve(false), Math.min(timeoutMs, 25000));
     const onMessage = (event) => {
@@ -686,7 +702,7 @@ export const LENS_EXTRACT = `(() => {
  * 页面里 fetch 会被 CORS 挡死（跨域 302 → TypeError），所以让浏览器自己跳：
  * 开 Fetch 域拦请求，谷歌自己的请求放行，一旦出现非谷歌域名就记下来并中止加载 —— 不真的把目标页拉下来。
  */
-async function resolveLensGoto(state, wrapperUrl, { timeoutMs = 5000 } = {}) {
+async function resolveLensGoto(state, wrapperUrl, { timeoutMs = 2000 } = {}) {
   const isGoogleHost = (url) => {
     try { return /(^|\.)google\.[a-z.]+$/i.test(new URL(url).hostname); } catch { return true; }
   };
@@ -755,7 +771,7 @@ export async function googleLensSearch(bytes, mimeType, { hl = 'zh-CN', timeoutM
       prepareExpression: prepare,
       submitExpression: "document.getElementById('lensForm').submit()",
       // 跳转到结果页之后还有一段 JS 渲染：只看 URL 会抓到一张空壳，必须等结果卡片真落地
-      waitForExpression: 'document.body && ((document.body.innerText.length > 400 && document.querySelectorAll("a[href]").length > 25) || /unusual traffic|our systems have detected/i.test(document.body.innerText) || /\\/sorry\\//.test(location.href))',
+      waitForExpression: 'document.body && ((document.body.innerText.length > 300 && document.querySelectorAll("a[href]").length > 15) || /unusual traffic|our systems have detected/i.test(document.body.innerText) || /\\/sorry\\//.test(location.href) || /\\/search\\?/.test(location.href))',
       extractExpression: LENS_EXTRACT,
       settleMs: 2500,
       timeoutMs: Math.max(timeoutMs, 30000),
@@ -774,9 +790,9 @@ export async function googleLensSearch(bytes, mimeType, { hl = 'zh-CN', timeoutM
       if (!out2.cards.length) return out2.rows;
       // 社交卡片优先解：它们最可能就是原帖/作者；解够 6 条就停，别把时间花在文章页上
       const social = out2.cards.filter((card) => LENS_SOCIAL_RE.test(String(card.title ?? '')));
-      const queue = social.slice(0, 3).concat(out2.cards.filter((card) => !LENS_SOCIAL_RE.test(String(card.title ?? '')))).slice(0, 3);
+      const queue = social.slice(0, 2).concat(out2.cards.filter((card) => !LENS_SOCIAL_RE.test(String(card.title ?? '')))).slice(0, 2);
       for (const card of queue) {
-        const target = await resolveLensGoto(state, String(card.wrapper ?? ''), { timeoutMs: 5000 });
+        const target = await resolveLensGoto(state, String(card.wrapper ?? ''), { timeoutMs: 2000 });
         if (!target) continue;
         if (out2.rows.some((row) => String(row?.url ?? '') === target)) continue;
         const cardTitle = String(card.title ?? '').slice(0, 200);
@@ -1163,7 +1179,7 @@ export async function reverseSearch(bytes, mimeType, { engines, timeoutMs = 2500
     if (engine === 'iqdb') return iqdbSearch(bytes, mimeType, { timeoutMs, onLog });
     if (engine === 'tracemoe') return tracemoeSearch(bytes, mimeType, { timeoutMs, onLog });
     if (engine === 'lens') {
-      return googleLensSearch(bytes, mimeType, { timeoutMs: Math.max(timeoutMs, 30000), exe: browserExe, tempDir });
+      return googleLensSearch(bytes, mimeType, { timeoutMs: Math.min(timeoutMs, 20000), exe: browserExe, tempDir });
     }
     if (engine === 'baidu') {
       const dir = tempDir || os.tmpdir();

@@ -8,7 +8,8 @@ import {
   extractAccounts,
   formatReply,
   engineLabels,
-  ENGINE_IDS
+  ENGINE_IDS,
+  closeBrowser
 } from '../src/lens_core.js';
 import { safeFetchBuffer } from '../src/safe-fetch.js';
 
@@ -142,6 +143,7 @@ async function main() {
   }
 
   const image = await readImage(argv.image);
+  try {
   const started = Date.now();
   const verb = argv.json ? null : (text) => console.log(`  ${text}`);
   if (verb) console.log(`查图：${image.source}（${(image.bytes.length / 1024).toFixed(0)}KB ${image.mimeType}）`);
@@ -210,10 +212,13 @@ async function main() {
     console.log(`没出结果的：${result.failures.map((f) => `${f.engine}(${f.reason})`).join('、')}`);
   }
   return 0;
+  } finally {
+    try { await closeBrowser(); } catch {}
+  }
 }
 
 main().then(
-  (code) => { process.exitCode = code; },
+  (code) => { process.exit(typeof code === 'number' ? code : 0); },
   (error) => {
     console.error(`出错了：${error?.message ?? error}`);
     process.exit(1);
