@@ -15,14 +15,14 @@ from framework_common.framework_util.websocket_fix import ExtendBot
 from framework_common.manshuo_draw import RedisDatabase, manshuo_draw
 from framework_common.utils.random_str import random_str
 from framework_common.utils.utils import download_img
-from run.ai_llm.service.aiReplyCore import aiReplyCore
+from framework_common.framework_util.reply_config import legacy_reply as aiReplyCore, auxiliary_reply
 from run.anime_game_service.service.epicfree import epic_free_game_get
 from run.basic_plugin.service.life_service import bingEveryDay, danxianglii
 from run.basic_plugin.service.nasa_api import get_nasa_apod
 from run.basic_plugin.service.weather_query import free_weather_query
 from run.group_fun.service.lex_burner_Ninja import Lexburner_Ninja
-from run.mai_reply.service.reply_engine import ReplyEngine
-from run.mai_reply.service.simple_chat import simplified_chat
+from run.core_reply.service.reply_engine import ReplyEngine
+from run.core_reply.service.simple_chat import simplified_chat
 from run.resource_collector.service.asmr.asmr100 import random_asmr_100
 from run.resource_collector.service.jmComic.jmComic import (
     JM_ranking_today, JM_ranking_week,
@@ -111,7 +111,7 @@ def main(bot: ExtendBot, config):
                 filtered_users = friend_list
             for user in filtered_users:
                 try:
-                    if not config.mai_reply.config["enable"]:
+                    if not config.core_reply.config["enable"]:
                         r = await aiReplyCore(
                             [{"text": "道晚安，直接发送结果，无需对此条提示做出应答。"}],
                             int(user["user_id"]), config, bot=bot)
@@ -153,7 +153,7 @@ def main(bot: ExtendBot, config):
                         prompt = (f"请像你自己主动想起这位用户一样发送一条自然的早安消息，保持平时的角色和说话习惯。"
                                   f"顺便播报{city}今天的天气并给出贴心建议：{weather}"
                                   "不要提及定时任务或系统提示。")
-                    if not config.mai_reply.config["enable"]:
+                    if not config.core_reply.config["enable"]:
                         r = await aiReplyCore([{"text": prompt}],
                                               int(user["user_id"]), config, bot=bot)
                     else:
@@ -180,10 +180,10 @@ def main(bot: ExtendBot, config):
             img, text = await get_nasa_apod(
                 config.basic_plugin.config["nasa_api"]["api_key"],
                 config.common_config.basic_config["proxy"]["http_proxy"])
-            if config.mai_reply.config["enable"]:
-                model = config.mai_reply.config["trigger_llm"]["model"]
-                api_key = config.mai_reply.config["trigger_llm"]["api_key"]
-                base_url = config.mai_reply.config["trigger_llm"]["base_url"]
+            if config.core_reply.config["enable"]:
+                model = config.core_reply.config["trigger_llm"]["model"]
+                api_key = config.core_reply.config["trigger_llm"]["api_key"]
+                base_url = config.core_reply.config["trigger_llm"]["base_url"]
                 text = await simplified_chat(
                     base_url,
                     [{"role": "user", "content": f"翻译下面的文本，直接发送结果，不要发送'好的'之类的命令应答提示。要翻译的文本为：{text}"}],
@@ -304,10 +304,10 @@ def main(bot: ExtendBot, config):
                     continue
                 try:
                     fake_id = random.randint(1000000, 99999999)
-                    if config.mai_reply.config["enable"]:
-                        model = config.mai_reply.config["trigger_llm"]["model"]
-                        api_key = config.mai_reply.config["trigger_llm"]["api_key"]
-                        base_url = config.mai_reply.config["trigger_llm"]["base_url"]
+                    if config.core_reply.config["enable"]:
+                        model = config.core_reply.config["trigger_llm"]["model"]
+                        api_key = config.core_reply.config["trigger_llm"]["api_key"]
+                        base_url = config.core_reply.config["trigger_llm"]["base_url"]
                         r = await simplified_chat(
                             base_url,
                             [{"role": "user", "content": f"你现在是一个群机器人，向群内所有人道{task_name}，直接发送结果，不要发送多余内容"}],
@@ -627,9 +627,9 @@ def main(bot: ExtendBot, config):
             data = await trigger_tasks(bot, event, config, "nasa_daily")
             img = data["要发送的图片"]
             text = data["将下列文本翻译后发送"]
-            text = await aiReplyCore(
-                [{"text": f"翻译下面的文本，直接发送结果，不要发送'好的'之类的命令应答提示。要翻译的文本为：{text}"}],
-                random.randint(1000000, 99999999), config, bot=bot, tools=None)
+            text = await auxiliary_reply(
+                f"翻译下面的文本，直接发送结果，不要发送'好的'之类的命令应答提示。要翻译的文本为：{text}",
+                config, user_id=random.randint(1000000, 99999999), bot=bot, tools=None)
             await bot.send(event, [Text(text), Image(file=img)])
         elif event.pure_text == "单向历":
             await trigger_tasks(bot, event, config, "单向历")

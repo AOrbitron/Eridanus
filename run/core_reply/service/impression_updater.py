@@ -16,8 +16,8 @@ from typing import List, Dict, Optional, Any
 
 from framework_common.framework_util.yamlLoader import YAMLManager
 from framework_common.utils.system_logger import get_logger
-from run.mai_reply.service.simple_chat import simplified_chat
-from run.mai_reply.service.llm_client import LLMClient
+from run.core_reply.service.simple_chat import simplified_chat
+from run.core_reply.service.llm_client import LLMClient
 
 logger = get_logger(__name__)
 
@@ -153,11 +153,11 @@ class ImpressionUpdater:
         self._group_counters: Dict[int, int] = {}
 
         cfg = YAMLManager.get_instance()
-        ccfg = cfg.mai_reply.config.get("context", {})
+        ccfg = cfg.core_reply.config.get("context", {})
 
 
         # 读取主回复模型配置作为保底回退
-        lcfg = cfg.mai_reply.config.get("llm", {})
+        lcfg = cfg.core_reply.config.get("llm", {})
         provider = str(lcfg.get("provider", "openai")).lower()
         if provider == "gemini":
             main_model = str(lcfg.get("gemini", {}).get("model") or "gemini-2.0-flash-001").strip()
@@ -174,7 +174,7 @@ class ImpressionUpdater:
         slots_cfg = ccfg.get("Slots") or ccfg.get("slots") or {}
 
         # 记忆体系专用模型（优先读 memory_model 或 impression_model，留空则读 trigger_llm）
-        trig_cfg = cfg.mai_reply.config.get("trigger_llm", {}) or {}
+        trig_cfg = cfg.core_reply.config.get("trigger_llm", {}) or {}
         trig_model =str(trig_cfg.get("model")).strip()
         trig_base_url = str(trig_cfg.get("base_url") or "").strip().rstrip("/")
         trig_api_key = str(trig_cfg.get("api_key") or "").strip()
@@ -306,7 +306,7 @@ class ImpressionUpdater:
 
             # 若未填写，自动使用 trigger_llm 配置的 whitelist
             cfg = YAMLManager.get_instance()
-            trig_cfg = cfg.mai_reply.config.get("trigger_llm", {})
+            trig_cfg = cfg.core_reply.config.get("trigger_llm", {})
             trig_whitelist = [
                 int(x) for x in trig_cfg.get("whitelist", []) if str(x).isdigit()
             ]

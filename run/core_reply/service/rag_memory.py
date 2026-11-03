@@ -14,8 +14,8 @@ import httpx
 import numpy as np
 
 from framework_common.utils.system_logger import get_logger
-from run.mai_reply.service.rag_archive import EpisodeArchive
-from run.mai_reply.service.rag_retrieval import EpisodeRetrieval, RAG_PREFIX
+from run.core_reply.service.rag_archive import EpisodeArchive
+from run.core_reply.service.rag_retrieval import EpisodeRetrieval, RAG_PREFIX
 
 logger = get_logger(__name__)
 
@@ -62,7 +62,7 @@ class RAGMemory(EpisodeArchive, EpisodeRetrieval):
         self.config = config
         if getattr(self, "_initialized", False):
             return
-        self.cfg = dict(getattr(config.mai_reply, "rag", None) or {})
+        self.cfg = dict(getattr(config.core_reply, "rag", None) or {})
         self.enable = bool(self.cfg.get("enable", False))
         self._log_enabled = bool(self.cfg.get("logging", {}).get("enable", True))
         self._lock = threading.RLock()
@@ -212,13 +212,13 @@ class RAGMemory(EpisodeArchive, EpisodeRetrieval):
         if wl:
             return str(group_id) in wl
 
-        # 当开启白名单模式，且whitelist为空列表时，自动使用run/mai_reply/config.yaml中trigger_llm的whitelist
+        # 当开启白名单模式，且whitelist为空列表时，自动使用run/core_reply/config.yaml中trigger_llm的whitelist
         trig_cfg = {}
         cfg_obj = getattr(self, "config", None)
         if cfg_obj is not None:
-            mai_reply_obj = getattr(cfg_obj, "mai_reply", None)
-            if mai_reply_obj is not None and hasattr(mai_reply_obj, "config"):
-                trig_cfg = mai_reply_obj.config.get("trigger_llm", {}) or {}
+            core_reply_obj = getattr(cfg_obj, "core_reply", None)
+            if core_reply_obj is not None and hasattr(core_reply_obj, "config"):
+                trig_cfg = core_reply_obj.config.get("trigger_llm", {}) or {}
             elif isinstance(cfg_obj, dict):
                 trig_cfg = cfg_obj.get("trigger_llm", {}) or cfg_obj.get("config", {}).get("trigger_llm", {}) or {}
         trig_wl = [str(x) for x in trig_cfg.get("whitelist", []) if str(x).strip()]

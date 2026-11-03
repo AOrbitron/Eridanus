@@ -16,7 +16,7 @@ from framework_common.database_util.User import get_user
 from developTools.utils.logger import get_logger
 from framework_common.framework_util.websocket_fix import ExtendBot
 from run.groupManager import group_audit_rules
-from run.mai_reply.service.simple_chat import simplified_chat
+from run.core_reply.service.simple_chat import simplified_chat
 
 logger = get_logger()
 
@@ -41,9 +41,9 @@ JOIN_AUDIT_PROMPT_TEMPLATE = """你是QQ群「{group_id}」的加群审核员。
 
 async def judge_group_join(bot, config, group_id, user_id, comment, rule_text):
     try:
-        model = config.mai_reply.config["trigger_llm"]["model"]
-        api_key = config.mai_reply.config["trigger_llm"]["api_key"]
-        base_url = config.mai_reply.config["trigger_llm"]["base_url"]
+        model = config.core_reply.config["trigger_llm"]["model"]
+        api_key = config.core_reply.config["trigger_llm"]["api_key"]
+        base_url = config.core_reply.config["trigger_llm"]["base_url"]
 
         prompt = JOIN_AUDIT_PROMPT_TEMPLATE.format(
             group_id=group_id, user_id=user_id, comment=comment or "（未填写）", rule=rule_text,

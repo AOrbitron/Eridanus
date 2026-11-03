@@ -1,5 +1,5 @@
 """
-mai_reply/main.py
+core_reply/main.py
 MaiReply 插件主入口
 
 设计理念源自 MaiBot：
@@ -30,9 +30,9 @@ import io
 import re
 import uuid
 from framework_common.database_util.User import get_users_with_permission_above
-from run.mai_reply.service.proactive_service import ProactiveService
-from run.mai_reply.service.follow_up_service import FollowUpService
-from run.mai_reply.service.proactive import build_proactive_prompt, should_proactively_message
+from run.core_reply.service.proactive_service import ProactiveService
+from run.core_reply.service.follow_up_service import FollowUpService
+from run.core_reply.service.proactive import build_proactive_prompt, should_proactively_message
 
 from PIL import Image as PILImage
 
@@ -42,8 +42,8 @@ from framework_common.framework_util.websocket_fix import ExtendBot
 from framework_common.framework_util.yamlLoader import YAMLManager
 from framework_common.utils.utils import download_img, get_img
 
-from run.mai_reply.service.trigger import TriggerChecker
-from run.mai_reply.service.reply_engine import ReplyEngine
+from run.core_reply.service.trigger import TriggerChecker
+from run.core_reply.service.reply_engine import ReplyEngine
 
 
 def compress_image_to_b64(file_path: str, quality: int = 70) -> str:
@@ -165,9 +165,9 @@ async def extract_message_content(event, bot) -> tuple:
 
 
 def main(bot: ExtendBot, config: YAMLManager):
-    if not config.mai_reply.config["enable"]:
+    if not config.core_reply.config["enable"]:
         bot.logger.warning("[MaiReply] 功能未开启。使用旧版ai对话组件")
-        bot.logger.warning("[MaiReply] 如要启用新版ai对话请在配置文件中将 mai_reply.enable 设置为 true 随后重启bot")
+        bot.logger.warning("[MaiReply] 如要启用新版ai对话请在配置文件中将 core_reply.enable 设置为 true 随后重启bot")
         return
     engine = ReplyEngine(config)
     trigger = TriggerChecker(config, engine.context, engine.emotion)
@@ -473,21 +473,21 @@ def main(bot: ExtendBot, config: YAMLManager):
             pure_text, content = await extract_message_content(event, bot)
             clean_text = pure_text or "(艾特了你)"
 
-        elif prefix_check(text, config.mai_reply.config["trigger"]["prefix"]):
+        elif prefix_check(text, config.core_reply.config["trigger"]["prefix"]):
             should_reply = True
             pure_text, content = await extract_message_content(event, bot)
             clean_text = pure_text
 
         else:
-            if not config.mai_reply.config["trigger_llm"]["enable"]:
+            if not config.core_reply.config["trigger_llm"]["enable"]:
                 await add_to_context()
                 return
-            ignore_prefixes = config.mai_reply.config["trigger_llm"].get("ignore_prefixes", [])
+            ignore_prefixes = config.core_reply.config["trigger_llm"].get("ignore_prefixes", [])
             if any(text.strip().startswith(p) for p in ignore_prefixes if p):
                 await add_to_context()
                 return
-            if config.mai_reply.config["trigger_llm"]["whitelist_enabled"]:
-                if event.group_id not in config.mai_reply.config["trigger_llm"]["whitelist"]:
+            if config.core_reply.config["trigger_llm"]["whitelist_enabled"]:
+                if event.group_id not in config.core_reply.config["trigger_llm"]["whitelist"]:
                     await add_to_context()
                     return
             should_reply, clean_text = await trigger.check(
@@ -527,7 +527,7 @@ def main(bot: ExtendBot, config: YAMLManager):
         if await handle_clear_command(event, is_group=False):
             return
 
-        if not config.mai_reply.config.get("trigger", {}).get("private_trigger", True):
+        if not config.core_reply.config.get("trigger", {}).get("private_trigger", True):
             return
 
         pure_text, content = await extract_message_content(event, bot)

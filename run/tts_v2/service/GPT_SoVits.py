@@ -18,7 +18,7 @@ class AsyncGPTSoVITSClient:
         :param base_url: api_v2.py 服务端地址 (例如: http://123.45.67.89:9880)
 
         注意：不在此快照 speakers / api_key —— 改为 property 每次实时读取配置。
-        这样 tts_v2 配置热重载后，即便本实例被 mai_reply 等其它插件长期持有，
+        这样 tts_v2 配置热重载后，即便本实例被 core_reply 等其它插件长期持有，
         也会立即用上新配置，而不是停留在实例创建时的旧值（历史上的“热重载后仍用旧变量”）。
         """
         pass

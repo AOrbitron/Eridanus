@@ -59,14 +59,14 @@ def _build_runtime_from_files():
     run_dir = os.path.dirname(PLUGIN_DIR)  # run/
     live = _load_yaml(os.path.join(PLUGIN_DIR, "config.yaml"))
     tts_v2 = (_load_yaml(os.path.join(run_dir, "tts_v2", "config.yaml")).get("gpt_sovits", {}) or {})
-    mai = _load_yaml(os.path.join(run_dir, "mai_reply", "config.yaml"))
+    mai = _load_yaml(os.path.join(run_dir, "core_reply", "config.yaml"))
 
     # 模型（get_model_assets / resolve_model_dir 接受普通 dict）
     model_url, expr_names, motion_names = get_model_assets(live)
     model_dir = resolve_model_dir(live)
     model_entry = os.path.basename(model_url) if model_url else ""
 
-    # 表情 LLM 端点：live2d.expression 优先，否则复用 mai_reply 的 trigger_llm / 主 llm
+    # 表情 LLM 端点：live2d.expression 优先，否则复用 core_reply 的 trigger_llm / 主 llm
     exp = live.get("expression", {}) or {}
     base_url = (exp.get("base_url") or "").strip()
     api_key = (exp.get("api_key") or "").strip()

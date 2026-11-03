@@ -158,10 +158,10 @@ YAML_FILES.pop("定时任务.sheduled_tasks_push_groups_ordinary", None)
 # 指定前置顺序
 priority_keys = [
     "基础配置.basic_config",
-    "mai_reply 新版ai对话.config",
+    "core_reply 新版ai对话.config",
     "tts_v2.config",
-    "mai_reply 新版ai对话.rag",
-    "mai_reply 新版ai对话.proactive",
+    "core_reply 新版ai对话.rag",
+    "core_reply 新版ai对话.proactive",
     "ai绘画.config",
     "qq空间.config",
     #"live2d desktop pet.config",
@@ -1407,7 +1407,7 @@ def android_ask():
             if not os.path.exists(dest_path):
                 with open(dest_path, "wb") as wf:
                     wf.write(img_bytes)
-            # 采用标准本地 file:// 协议，让 mai_reply 和视觉模型直接原生加载
+            # 采用标准本地 file:// 协议，让 core_reply 和视觉模型直接原生加载
             abs_uri = f"file:///{os.path.abspath(dest_path).replace(chr(92), '/')}"
             msg_segments.append({
                 "type": "image",

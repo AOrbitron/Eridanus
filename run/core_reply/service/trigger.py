@@ -27,21 +27,21 @@ class TriggerChecker:
         self.ctx = context_manager  # 用于获取历史记录和判断消息ID
         self.emotion = emotion_system  # 用于获取当前心情和施加情绪波动
 
-        tcfg = config.mai_reply.config.get("trigger", {})
+        tcfg = config.core_reply.config.get("trigger", {})
         self.private_trigger: bool = tcfg.get("private_trigger", True)
         self.random_probability: int = int(tcfg.get("random_reply_probability", 3))
 
         # 提取人设名和配置中的别名
-        pcfg = config.mai_reply.config.get("persona", {})
+        pcfg = config.core_reply.config.get("persona", {})
         self.bot_persona_name: str = pcfg.get("name", "").strip()
         aliases = tcfg.get("aliases", [])
         self.aliases: list = aliases if isinstance(aliases, list) else[aliases]
 
-        hlcfg = config.mai_reply.config.get("human_like", {})
+        hlcfg = config.core_reply.config.get("human_like", {})
         self.base_ignore_prob: int = int(hlcfg.get("ignore_probability", 15))
 
         # --- LLM 判断专用配置 ---
-        llm_cfg = config.mai_reply.config.get("trigger_llm", {})
+        llm_cfg = config.core_reply.config.get("trigger_llm", {})
         self.api_key = llm_cfg.get("api_key", "")
         self.base_url = llm_cfg.get("base_url", "https://api.openai.com/v1").rstrip("/")
         self.model = llm_cfg.get("model", "gpt-3.5-turbo")

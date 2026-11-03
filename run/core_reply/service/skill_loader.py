@@ -46,7 +46,7 @@ class Skill:
 
 class SkillLoader:
     def __init__(self, config):
-        cfg = config.mai_reply.config.get("skills", {})
+        cfg = config.core_reply.config.get("skills", {})
         self.enabled: bool = bool(cfg.get("enable", True))
         self.skills_dir: Path = Path(cfg.get("skills_dir", "skills"))
         self.include_catalog: bool = bool(cfg.get("include_catalog", True))

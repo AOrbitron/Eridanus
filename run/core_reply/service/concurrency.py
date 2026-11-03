@@ -20,7 +20,7 @@ class ConcurrencyController:
 
     def __init__(self, config):
         self.cfg = config
-        ccfg = config.mai_reply.config.get("concurrency", {})
+        ccfg = config.core_reply.config.get("concurrency", {})
         max_concurrent: int = int(ccfg.get("max_concurrent", 20))
         self.merge_window_ms: int = int(ccfg.get("message_merge_window_ms", 1200))
         self.lock_timeout: int = int(ccfg.get("lock_timeout", 30))

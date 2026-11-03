@@ -32,7 +32,7 @@ from typing import Optional, List, Dict, Any
 
 
 
-from run.mai_reply.service.skill_loader import SkillLoader
+from run.core_reply.service.skill_loader import SkillLoader
 
 
 
@@ -104,7 +104,7 @@ class PromptBuilder:
 
         self.emotion = emotion_system
 
-        pcfg = config.mai_reply.config.get("persona", {})
+        pcfg = config.core_reply.config.get("persona", {})
 
         self._name_override: str = pcfg.get("name", "").strip()
 
@@ -120,7 +120,7 @@ class PromptBuilder:
 
         # trigger_llm 触发时的回复约束配置
 
-        tlcfg = config.mai_reply.config.get("trigger_llm", {})
+        tlcfg = config.core_reply.config.get("trigger_llm", {})
 
         self.trigger_max_chars: int = int(tlcfg.get("reply_max_chars", 60))
 

@@ -82,13 +82,13 @@ def _get_api_key_from_system() -> Optional[str]:
         key = cfg.tts_v2.config.get("breeze_tts", {}).get("api_key") or cfg.tts_v2.config.get("tts", {}).get("api_key")
         if key:
             return key
-        # 2. 从 mai_reply 的 trigger_llm 获取
-        mai_cfg = getattr(cfg, "mai_reply", None)
+        # 2. 从 core_reply 的 trigger_llm 获取
+        mai_cfg = getattr(cfg, "core_reply", None)
         if mai_cfg:
             key = mai_cfg.config.get("trigger_llm", {}).get("api_key")
             if key:
                 return key
-            # 3. 从 mai_reply 的 openai api_keys 获取
+            # 3. 从 core_reply 的 openai api_keys 获取
             keys = mai_cfg.config.get("llm", {}).get("openai", {}).get("api_keys", [])
             if keys and keys[0] and keys[0] != "xxx":
                 return keys[0]
@@ -385,8 +385,8 @@ class TTS:
             tts_cfg = cfg_obj.tts_v2.config.get("tts")
             if tts_cfg:
                 return tts_cfg
-        if hasattr(cfg_obj, "mai_reply") and hasattr(cfg_obj.mai_reply, "config"):
-            mai_tts = cfg_obj.mai_reply.config.get("tts")
+        if hasattr(cfg_obj, "core_reply") and hasattr(cfg_obj.core_reply, "config"):
+            mai_tts = cfg_obj.core_reply.config.get("tts")
             if mai_tts:
                 return mai_tts
         if hasattr(cfg_obj, "get"):

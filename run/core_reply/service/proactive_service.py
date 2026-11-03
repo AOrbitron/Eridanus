@@ -25,7 +25,7 @@ from typing import Dict, List, Optional, Tuple, Any
 
 from developTools.message.message_components import Text, Record
 from framework_common.utils.system_logger import get_logger
-from run.mai_reply.service.reply_processor import calc_typing_delay, split_message
+from run.core_reply.service.reply_processor import calc_typing_delay, split_message
 
 logger = get_logger(__name__)
 
@@ -139,12 +139,12 @@ class ProactiveService:
         self._last_proactive_time: Dict[int, float] = {}
 
     def get_proactive_config(self) -> dict:
-        """安全读取主动消息配置，优先从 YAMLManager 客户端读取，若缺失则直接回退读取 run/mai_reply/proactive.yaml"""
+        """安全读取主动消息配置，优先从 YAMLManager 客户端读取，若缺失则直接回退读取 run/core_reply/proactive.yaml"""
         p_cfg = None
-        if hasattr(self, "cfg") and hasattr(self.cfg, "mai_reply"):
-            p_cfg = getattr(self.cfg.mai_reply, "proactive", None)
-            if not isinstance(p_cfg, dict) and hasattr(self.cfg.mai_reply, "config") and isinstance(self.cfg.mai_reply.config, dict):
-                p_cfg = self.cfg.mai_reply.config.get("proactive", None)
+        if hasattr(self, "cfg") and hasattr(self.cfg, "core_reply"):
+            p_cfg = getattr(self.cfg.core_reply, "proactive", None)
+            if not isinstance(p_cfg, dict) and hasattr(self.cfg.core_reply, "config") and isinstance(self.cfg.core_reply.config, dict):
+                p_cfg = self.cfg.core_reply.config.get("proactive", None)
         if not isinstance(p_cfg, dict):
             try:
                 import os, yaml
@@ -504,7 +504,7 @@ class ProactiveService:
     async def _maybe_send_voice(self, bot, user_id: int, segments: List[str]) -> None:
         """合并并发送私聊语音"""
         try:
-            voice_cfg = self.cfg.mai_reply.config.get("tts", {})
+            voice_cfg = self.cfg.core_reply.config.get("tts", {})
             voice_prob = int(voice_cfg.get("voice_reply_probability", 0))
             if voice_prob <= 0 or random.randint(1, 100) > voice_prob:
                 return
@@ -516,7 +516,7 @@ class ProactiveService:
 
             speaker = voice_cfg.get("speaker", "natuki")
             lang_type = voice_cfg.get("lang_type", "JP")
-            api_key = self.cfg.mai_reply.config.get("trigger_llm", {}).get("api_key", "")
+            api_key = self.cfg.core_reply.config.get("trigger_llm", {}).get("api_key", "")
 
             from run.tts_v2.service.tts import TTS
             tts_engine = TTS()

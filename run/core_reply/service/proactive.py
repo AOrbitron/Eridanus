@@ -2,7 +2,7 @@ import time
 import random
 from datetime import datetime
 
-from run.mai_reply.service.context_manager import ContextManager
+from run.core_reply.service.context_manager import ContextManager
 
 
 def build_proactive_prompt(ctx: ContextManager, user_id: int, moment: str, max_idle_days: int = 7) -> str | None:

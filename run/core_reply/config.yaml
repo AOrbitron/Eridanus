@@ -1,15 +1,18 @@
-enable: True  # 开启后将自动禁用旧版ai回复
+# 旧 mai_reply 配置仅迁移一次，成功后自动设为 true，请勿手动重置。
+legacy_mai_reply_migrated:  False
+enable: true  # 开启后将自动禁用旧版ai回复
 llm:
   provider: openai  #接口类型
   stream: true   # 是否开启流式回复（需要模型支持）
   func_calling: true  # 是否开启函数调用功能（需要模型支持）
+  show_search_results: false  # 联网搜索工具是否向聊天发送原始结果
   max_tool_rounds: 10
   openai:
     api_keys:
       - xxx
     model: gemini-2.5-pro
     base_url: http://api.apollodorus.xyz/v1   #可以去我们的开发群1050663831获取免费apikey。
-    no_extra_paramters: False #启用后下边的参数都不会传入。适配各种中转
+    no_extra_paramters: false #启用后下边的参数都不会传入。适配各种中转
     temperature: 1.1
     max_tokens: 1024   #openai新版用的是max_completion_tokens，当max_completion_tokens配置项不为0时，自动使用max_completion_tokens
     max_completion_tokens: 0
@@ -34,7 +37,7 @@ trigger_llm:   #各种低级任务，留空默认回退上面配置的主回复�
   api_key: ""
   base_url: ""   # 可以去我们的开发群1050663831获取免费apikey。
   model: ""              # 建议使用低价、快速模型
-  stream: True
+  stream: true
   whitelist_enabled: true  # 是否启用白名单模式，启用后只有在白名单中的群聊才会触发ai回复
   whitelist:
     - 1050663831
@@ -136,7 +139,7 @@ redis: # 上下文存储db编号（避免和其他插件冲突）
   context_db: 5
   impression_db: 6
 sqlite:
-  context_db_path:    "data/database/context_store.db"
+  context_db_path: "data/database/context_store.db"
   impression_db_path: "data/database/impression_store.db"
 
 skills:  # LLM Skill 风格技能包动态加载。放在skills目录下

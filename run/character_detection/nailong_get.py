@@ -183,11 +183,11 @@ def main(bot, config):
             except Exception as e:
                 bot.logger.warning(f"Character Detection: 撤回消息失败: {e}")
 
-        # 2. 回复与表达不满（如果开启了use_ai，则调用mai_reply使用当前bot人设并计入上下文）
+        # 2. 回复与表达不满（如果开启了use_ai，则调用core_reply使用当前bot人设并计入上下文）
         ai_replied = False
         if use_ai:
             try:
-                from run.mai_reply.service.reply_engine import ReplyEngine
+                from run.core_reply.service.reply_engine import ReplyEngine
                 engine = ReplyEngine(config)
 
                 # 获取发送者昵称
@@ -234,9 +234,9 @@ def main(bot, config):
                             pass
 
             except Exception as e:
-                bot.logger.error(f"Character Detection: 调用 mai_reply 表达不满失败: {e}", exc_info=True)
+                bot.logger.error(f"Character Detection: 调用 core_reply 表达不满失败: {e}", exc_info=True)
 
-        # 若未开启 use_ai，或调用 mai_reply 失败，且开启了反击语录总开关，则发送语录反击
+        # 若未开启 use_ai，或调用 core_reply 失败，且开启了反击语录总开关，则发送语录反击
         if not ai_replied and enable_attack_quotes:
             if attack_list:
                 try:

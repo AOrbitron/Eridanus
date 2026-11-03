@@ -410,7 +410,7 @@ class AsyncBreezeTTSClient:
             k = cfg.tts_v2.config.get("tts", {}).get("api_key")
             if k:
                 return k
-            mai = getattr(cfg, "mai_reply", None)
+            mai = getattr(cfg, "core_reply", None)
             if mai:
                 k = mai.config.get("trigger_llm", {}).get("api_key")
                 if k:
@@ -574,7 +574,7 @@ class AsyncBreezeTTSClient:
 
         try:
             cfg_obj = config or YAMLManager.get_instance()
-            mai_cfg = getattr(cfg_obj, "mai_reply", None)
+            mai_cfg = getattr(cfg_obj, "core_reply", None)
             if mai_cfg:
                 t_cfg = mai_cfg.config.get("trigger_llm", {}) or {}
                 if t_cfg.get("api_key"):

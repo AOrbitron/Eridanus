@@ -1,14 +1,14 @@
 # -*- coding: utf-8 -*-
 """
 func_collection.py
-函数调用集合 —— 供 Eridanus ai_llm / mai_reply 插件的函数调用体系使用
+函数调用集合 —— 供 Eridanus ai_llm / core_reply 插件的函数调用体系使用
 """
 
 from framework_common.framework_util.websocket_fix import ExtendBot
 from framework_common.framework_util.yamlLoader import YAMLManager
 
-from run.mai_reply.service.context_manager import ContextManager
-from run.mai_reply.service.emotion_system import EmotionSystem
+from run.core_reply.service.context_manager import ContextManager
+from run.core_reply.service.emotion_system import EmotionSystem
 
 
 async def clear_chat_history(bot: ExtendBot, event, config: YAMLManager):

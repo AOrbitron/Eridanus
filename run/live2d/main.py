@@ -29,15 +29,15 @@ from run.live2d.service.process_manager import Live2DProcessManager, find_model_
 
 
 def _resolve_expr_endpoint(config):
-    """解析表情控制用的 LLM 端点：live2d.expression 优先，否则复用 mai_reply 的
-    trigger_llm（快/省），再否则复用 mai_reply 主 llm。让“LLM 控制表情”开箱即用。"""
+    """解析表情控制用的 LLM 端点：live2d.expression 优先，否则复用 core_reply 的
+    trigger_llm（快/省），再否则复用 core_reply 主 llm。让“LLM 控制表情”开箱即用。"""
     live = (config.live2d.config.get("expression", {}) or {})
     base = (live.get("base_url") or "").strip()
     key = (live.get("api_key") or "").strip()
     model = (live.get("model") or "").strip()
     enable = live.get("enable", True)
     try:
-        mr = config.mai_reply.config
+        mr = config.core_reply.config
     except Exception:
         mr = {}
     tl = (mr.get("trigger_llm") or {}) if mr else {}

@@ -1,6 +1,6 @@
 """
 mcp_client.py
-MCP stdio 客户端，用于把 MCP server 的 tools 暴露给 mai_reply 的函数调用系统。
+MCP stdio 客户端，用于把 MCP server 的 tools 暴露给 core_reply 的函数调用系统。
 
 当前实现覆盖最常见的 MCP stdio 形态：
 - command + args + env 启动 server
@@ -198,7 +198,7 @@ class MCPStdioClient:
 
 class MCPManager:
     def __init__(self, config):
-        cfg = config.mai_reply.config.get("mcp", {})
+        cfg = config.core_reply.config.get("mcp", {})
         self.enabled = bool(cfg.get("enable", False))
         self.startup_timeout = float(cfg.get("startup_timeout_seconds", 30))
         self.tool_call_timeout = float(cfg.get("tool_call_timeout_seconds", 60))

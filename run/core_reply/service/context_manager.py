@@ -18,7 +18,7 @@ from typing import List, Dict, Optional
 
 from framework_common.database_util.RedisCacheManager import create_custom_cache_manager
 from framework_common.utils.system_logger import get_logger
-from run.mai_reply.service.memory_slot_manager import MemorySlotManager
+from run.core_reply.service.memory_slot_manager import MemorySlotManager
 
 logger = get_logger(__name__)
 
@@ -85,7 +85,7 @@ class ContextManager:
 
     def __init__(self, config):
         self.cfg = config
-        ccfg = config.mai_reply.config.get("context", {})
+        ccfg = config.core_reply.config.get("context", {})
         self.max_turns: int = ccfg.get("max_turns", 20)
         self.group_window: int = ccfg.get("group_context_window", 15)
         self.session_ttl: int = ccfg.get("session_ttl", 7200)
@@ -114,7 +114,7 @@ class ContextManager:
         )
         self.group_reply_impression_count: int = self.group_reply_speaker_memory_count
 
-        db_cfg = config.mai_reply.config.get("redis", {})
+        db_cfg = config.core_reply.config.get("redis", {})
         ctx_db = db_cfg.get("context_db", 5)
         imp_db = db_cfg.get("impression_db", 6)
 
@@ -122,7 +122,7 @@ class ContextManager:
         self._imp_cache = create_custom_cache_manager(db_number=imp_db, cache_ttl=self.impression_ttl)
 
         # SQLite 持久层
-        sqlite_cfg = config.mai_reply.config.get("sqlite", {})
+        sqlite_cfg = config.core_reply.config.get("sqlite", {})
         ctx_sqlite_path  = sqlite_cfg.get("context_db_path",    "data/context_store.db")
         imp_sqlite_path  = sqlite_cfg.get("impression_db_path", "data/impression_store.db")
 
@@ -571,7 +571,7 @@ class ContextManager:
                 return gid in self.group_memory_whitelist
 
             # 若未填写，自动使用 trigger_llm 配置的 whitelist
-            trig_cfg = self.cfg.mai_reply.config.get('trigger_llm', {})
+            trig_cfg = self.cfg.core_reply.config.get('trigger_llm', {})
             trig_whitelist = [
                 int(x) for x in trig_cfg.get('whitelist', []) if str(x).isdigit()
             ]

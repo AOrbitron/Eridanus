@@ -281,18 +281,18 @@ def main(bot: ExtendBot, config: YAMLManager):
     _GLOBAL_QZONE_INSTANCE = current_instance
 
     # ---------------------------------------------------------
-    # 尝试加载 mai_reply 的 ContextManager 和 LLMClient
+    # 尝试加载 core_reply 的 ContextManager 和 LLMClient
     # ---------------------------------------------------------
     mai_context = None
     mai_llm = None
     try:
-        from run.mai_reply.service.context_manager import ContextManager
-        from run.mai_reply.service.llm_client import LLMClient
+        from run.core_reply.service.context_manager import ContextManager
+        from run.core_reply.service.llm_client import LLMClient
         mai_context = ContextManager(config)
         mai_llm = LLMClient(config)
-        logger.info("[Qzone] 成功连接 mai_reply 记忆管理与 LLMClient")
+        logger.info("[Qzone] 成功连接 core_reply 记忆管理与 LLMClient")
     except Exception as e:
-        logger.warning(f"[Qzone] 加载 mai_reply 组件失败: {e}")
+        logger.warning(f"[Qzone] 加载 core_reply 组件失败: {e}")
 
     # ---------------------------------------------------------
     # 本地 Cookie 缓存管理与 OneBot 接口无感免密获取
@@ -774,10 +774,10 @@ def main(bot: ExtendBot, config: YAMLManager):
         bot_name = config.common_config.basic_config.get("bot", "小助手")
         chara_text = ""
         try:
-            pcfg = config.mai_reply.config.get("persona", {})
+            pcfg = config.core_reply.config.get("persona", {})
             chara_file_name = pcfg.get("chara_file", "").strip()
             if not chara_file_name:
-                chara_cfg = config.mai_reply.config.get("chara", {})
+                chara_cfg = config.core_reply.config.get("chara", {})
                 cur = chara_cfg.get("current", "")
                 if cur:
                     chara_file_name = f"{cur}.txt" if not cur.endswith(".txt") else cur
@@ -1133,7 +1133,7 @@ def main(bot: ExtendBot, config: YAMLManager):
     # 定时早晚发空间任务
     # ---------------------------------------------------------
     async def sync_post_to_global_memory(content_text: str):
-        """提炼动态日常存入 mai_reply 的全局独立生活记忆层（严格限制在25字内）"""
+        """提炼动态日常存入 core_reply 的全局独立生活记忆层（严格限制在25字内）"""
         if mai_context and mai_llm:
             try:
                 mem_prompt = (
@@ -1512,7 +1512,7 @@ def main(bot: ExtendBot, config: YAMLManager):
             "time": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         })
 
-        # 提炼日常存入 mai_reply 全局独立生活记忆层
+        # 提炼日常存入 core_reply 全局独立生活记忆层
         await sync_post_to_global_memory(daily_content)
 
         # 概率配图
@@ -1990,7 +1990,7 @@ def main(bot: ExtendBot, config: YAMLManager):
 
                     logger.info(f"[Qzone 评论互动] 发现新{'子评论' if is_sub else '根评论'} 来自: {comment_name}({comment_uid}) -> {comment_content}")
 
-                    # 获取用户在 mai_reply 的对话历史与用户印象
+                    # 获取用户在 core_reply 的对话历史与用户印象
                     user_impression = ""
                     recent_chat_snippet = ""
                     if mai_context:
@@ -2011,7 +2011,7 @@ def main(bot: ExtendBot, config: YAMLManager):
                                         recent_chat_snippet = "\n".join(recent_lines)
                                         break
                         except Exception as e:
-                            logger.warning(f"[Qzone] 读取 mai_reply 对话上下文失败: {e}")
+                            logger.warning(f"[Qzone] 读取 core_reply 对话上下文失败: {e}")
 
                     # 同动态防车轱辘复读判定
                     all_prior_replies = existing_bot_replies + recent_replies_for_this_post

@@ -1,16 +1,18 @@
-import asyncio
-from datetime import datetime
+from framework_common.framework_util.reply_config import core_reply_enabled
 
 from developTools.event.events import GroupMessageEvent
 from framework_common.database_util.Group import add_to_group
 
 
 def main(bot,config):
-    message = {"user_name": "test", "user_id": 000000, "message": [{"text": "test"}]}
-    asyncio.run(add_to_group(000000, message))
     @bot.on(GroupMessageEvent)
     async def add_message_to_db(event: GroupMessageEvent):
-        if not config.ai_llm.config["llm"].get("读取群聊上下文", False):
+        if core_reply_enabled(config):
+            enabled = config.core_reply.config.get("context", {}).get("group_context_window", 15) > 0
+        else:
+            legacy = getattr(config, "ai_llm", None)
+            enabled = bool(legacy and legacy.config.get("llm", {}).get("读取群聊上下文", False))
+        if not enabled:
             return
         try:
             user_name=event.sender.nickname

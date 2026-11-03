@@ -13,6 +13,7 @@ from developTools.message.message_components import Image, Node, Text
 from run.ai_generated_art.service.modelscope_text2img import modelscope_drawer
 from run.ai_generated_art.service.hf_t2i import hf_drawer
 from run.ai_generated_art.service.setu_moderate import pic_audit_standalone
+from run.ai_generated_art.service.audit_policy import requires_nsfw_audit
 from run.basic_plugin.service.ai_text2img import bing_dalle3, flux_ultra, doubao
 from framework_common.database_util.User import get_user, User
 from framework_common.utils.random_str import random_str
@@ -41,7 +42,6 @@ config = YAMLManager.get_instance()
 
 aiDrawController = config.ai_generated_art.config.get("ai绘画")
 ckpt = aiDrawController.get("sd默认启动模型") if aiDrawController else None
-allow_nsfw_groups = [int(item) for item in aiDrawController.get("allow_nsfw_groups", [])] if aiDrawController else []
 
 
 async def call_text2img(bot, event, config, prompt):
@@ -226,7 +226,8 @@ async def call_aiArtModerate(bot, event, config, img_url):
             r = f"aiArtModerate调用成功，ai生成的可能性为：{r}"
         except Exception as e:
             r = f"aiArtModerate调用失败。{e}"
-        if config.ai_llm.config["llm"]["aiReplyCore"]:
+        from framework_common.framework_util.reply_config import core_reply_enabled, active_llm_config
+        if core_reply_enabled(config) or active_llm_config(config).get("aiReplyCore", False):
             return {"msg": f"api调用结果为，{res}\n{r}"}
         else:
             await bot.send(event, f"图片为ai创作的可能性为{r}%", True)
@@ -438,8 +439,7 @@ def main(bot, config):
                                                                                                               '.webp')
                     try:
                         base64_image, bytes_image = await download_img1(image_url)
-                        if event.group_id not in allow_nsfw_groups and config.ai_generated_art.config['ai绘画'][
-                            "禁止nsfw"]:
+                        if requires_nsfw_audit(config.ai_generated_art.config['ai绘画'], event.group_id):
                             if config.ai_generated_art.config['ai绘画']['sd审核和反推api']:
                                 try:
                                     audit_result = await pic_audit_standalone(base64_image, return_none=True, url=

@@ -1,10 +1,10 @@
 """
-function_control.py —— mai_reply 函数调用 / skill 开关的「单一数据源」。
+function_control.py —— core_reply 函数调用 / skill 开关的「单一数据源」。
 
-被 Web 后端（列出 / 保存）与 mai_reply（发给 LLM 前过滤）共用。仅在导入期依赖标准库，
-导入零副作用，因此放在 framework_common 里，两侧都能干净引用，也不会牵入 run.mai_reply 的包导入链。
+被 Web 后端（列出 / 保存）与 core_reply（发给 LLM 前过滤）共用。仅在导入期依赖标准库，
+导入零副作用，因此放在 framework_common 里，两侧都能干净引用，也不会牵入 run.core_reply 的包导入链。
 
-开关状态存在 run/mai_reply/function_control.json：
+开关状态存在 run/core_reply/function_control.json：
     {"disabled": ["func_name", ...], "disabled_skills": ["skill_name", ...]}
 - "disabled"        —— 被禁用的函数（tool）名。
 - "disabled_skills" —— 被禁用的 skill 包名（对应 SKILL.md frontmatter 的 name）。
@@ -22,7 +22,7 @@ import threading
 # 以本文件位置反推项目根：framework_common/framework_util/function_control.py -> 上三级
 _ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 RUN_DIR = os.path.join(_ROOT, "run")
-CONTROL_FILE = os.path.join(RUN_DIR, "mai_reply", "function_control.json")
+CONTROL_FILE = os.path.join(RUN_DIR, "core_reply", "function_control.json")
 
 _lock = threading.Lock()
 _cache = {"mtime": None, "disabled": frozenset(), "disabled_skills": frozenset()}
@@ -200,12 +200,12 @@ def list_all_functions():
 
 
 def _resolve_skills_dir():
-    """定位 skills 目录。默认 <root>/skills；尽力从 mai_reply 配置读取 skills.skills_dir。
+    """定位 skills 目录。默认 <root>/skills；尽力从 core_reply 配置读取 skills.skills_dir。
 
     与 skill_loader.SkillLoader 的解析保持一致：skills_dir 为相对路径时相对项目根。
     """
     skills_dir = "skills"
-    cfg_path = os.path.join(RUN_DIR, "mai_reply", "config.yaml")
+    cfg_path = os.path.join(RUN_DIR, "core_reply", "config.yaml")
     try:
         from ruamel.yaml import YAML
         with open(cfg_path, "r", encoding="utf-8") as f:

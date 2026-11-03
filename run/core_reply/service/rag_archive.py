@@ -52,7 +52,7 @@ class EpisodeArchive:
         self._flushing_scopes = set()
 
         # 加载轻量 LLM (trigger_llm) 配置供 Mem0 抽取事实使用
-        ccfg = getattr(config.mai_reply, "config", {})
+        ccfg = getattr(config.core_reply, "config", {})
         trig_cfg = ccfg.get("trigger_llm", {}) or {}
         self._trig_model = str(trig_cfg.get("model", "")).strip() or "qwen3.8-flash"
         self._trig_base_url = str(trig_cfg.get("base_url", "")).strip().rstrip("/") or "http://api.apollodorus.xyz/v1"

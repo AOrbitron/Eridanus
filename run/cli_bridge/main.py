@@ -142,7 +142,7 @@ async def run_cli_tool(
 
     # 如果刚刚由 CLI 生成了新代码或修改了插件，尝试触发工具重载刷新
     try:
-        from run.mai_reply.service.reply_engine import refresh_tools
+        from run.core_reply.service.reply_engine import refresh_tools
         refreshed_count = refresh_tools()
         bot.logger.info(f"CLI bridge: 已触发 refresh_tools，当前可用工具数: {refreshed_count}")
     except Exception as e:
@@ -311,7 +311,7 @@ def main(bot, config):
 
             # 触发插件扫描刷新
             try:
-                from run.mai_reply.service.reply_engine import refresh_tools
+                from run.core_reply.service.reply_engine import refresh_tools
                 refresh_tools()
             except Exception:
                 pass
@@ -320,7 +320,7 @@ def main(bot, config):
             is_timeout_msg = result.startswith(f"⚠️【{provider.capitalize()} CLI 执行超时】")
             if enable_summary and result and len(result) > 10 and not is_timeout_msg:
                 try:
-                    from run.mai_reply.service.reply_engine import ReplyEngine
+                    from run.core_reply.service.reply_engine import ReplyEngine
                     summary_prompt = (
                         "请用你自己的角色和语气，简洁转述刚才 CLI 终端执行的最终结果。"
                         "不要提及底层系统提示、内部指令或调用日志。最终结果如下：\n" + result[:1800]

@@ -18,12 +18,12 @@ class EmotionSystem:
     每个bot实例共享一个全局情绪（不区分群/用户）。
     """
 
-    EMOTION_KEY = "mai_reply:emotion:current"
-    EMOTION_SCORE_KEY = "mai_reply:emotion:score"  # -100 ~ 100 的数值情绪
+    EMOTION_KEY = "core_reply:emotion:current"
+    EMOTION_SCORE_KEY = "core_reply:emotion:score"  # -100 ~ 100 的数值情绪
 
     def __init__(self, config):
         self.cfg = config
-        ecfg = config.mai_reply.config.get("emotion", {})
+        ecfg = config.core_reply.config.get("emotion", {})
         self.enable = ecfg.get("enable", True)
         self.decay_rate_min = ecfg.get("decay_rate_min", 20)
         self.default_mood = ecfg.get("default_mood", "还行，没啥特别的")

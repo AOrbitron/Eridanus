@@ -2,7 +2,7 @@
   default_speaker: "natuki"   # 默认发音人（未指定角色时使用，支持达妮娅/natuki等）
   length_limit: 150           # 最大单次合成字符长度上限（超长自动截断）
   lang_type: "JP"             # 目标发音语言（JP / ZH 等），JP 会将中文自动翻译为自然日文
-  api_key: ""                 # 翻译/在线接口 API Key，留空则自动继承 mai_reply 中的 trigger_llm/openai key
+  api_key: ""                 # 翻译/在线接口 API Key，留空则自动继承 core_reply 中的 trigger_llm/openai key
 
 breeze_tts:
   connection_mode: "gateway"  # 连接模式: "gateway" (走网关需 api_key) 或 "direct" (直连自建服务端无需 api_key)

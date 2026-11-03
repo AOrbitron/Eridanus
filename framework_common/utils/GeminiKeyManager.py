@@ -6,9 +6,10 @@ import logging
 
 from developTools.utils.logger import get_logger
 from framework_common.framework_util.yamlLoader import YAMLManager
+from framework_common.framework_util.reply_config import active_llm_config
 
 logger=get_logger("GeminiKeyManager")
-base_url = YAMLManager.get_instance().ai_llm.config["llm"]["gemini"]["base_url"]
+base_url = active_llm_config(YAMLManager.get_instance())["gemini"]["base_url"]
 GEMINI_API_MODELS_URL = f"{base_url}/v1beta/models"
 proxy=YAMLManager.get_instance().common_config.basic_config["proxy"]["http_proxy"]
 
@@ -197,7 +198,7 @@ class GeminiKeyManager:
             if cls._instance is None:
                 try:
                     config = YAMLManager.get_instance()
-                    initial_keys_from_config = config.ai_llm.config["llm"]["gemini"]["api_keys"]
+                    initial_keys_from_config = active_llm_config(config)["gemini"]["api_keys"]
                     cls._instance = cls(initial_keys_from_config)
                     # 等待初始检测完成
                     await asyncio.sleep(3)
@@ -223,7 +224,7 @@ class GeminiKeyManager:
 if __name__ == "__main__":
 
     config = YAMLManager("run")
-    initial_keys_from_config = config.ai_llm.config["llm"]["gemini"]["api_keys"]
+    initial_keys_from_config = active_llm_config(config)["gemini"]["api_keys"]
 
 
 

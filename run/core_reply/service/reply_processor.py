@@ -96,7 +96,7 @@ class ReplyProcessor:
         self.cfg = config
         self.ctx = context_manager  # 保存上下文管理器，用于写入 Bot 发过的消息 ID
 
-        hlcfg = config.mai_reply.config.get("human_like", {})
+        hlcfg = config.core_reply.config.get("human_like", {})
         self.typing_ms_per_char: int = int(hlcfg.get("typing_delay_ms_per_char", 30))
         self.typing_max_ms: int = int(hlcfg.get("typing_delay_max_ms", 4000))
         self.split_threshold: int = int(hlcfg.get("split_threshold", 60))

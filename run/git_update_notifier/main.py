@@ -27,7 +27,7 @@ def _get_plugin_config(config) -> Dict[str, Any]:
         "initial_delay": 20,
         "remote": "origin",
         "branch": "auto",
-        "use_mai_reply": True,
+        "use_core_reply": True,
         "notify_master": True,
         "master_id": None,
         "max_commit_log_count": 15,
@@ -60,19 +60,19 @@ async def send_to_master(bot: ExtendBot, master_id: int, message: str):
         logger.error(f"[GitNotifier] 向 master ({master_id}) 发送通知失败: {e}")
 
 
-async def report_update_via_mai_reply(bot: ExtendBot, config, master_id: int, update_info: Dict[str, Any]) -> bool:
+async def report_update_via_core_reply(bot: ExtendBot, config, master_id: int, update_info: Dict[str, Any]) -> bool:
     try:
-        mai_cfg = getattr(config, "mai_reply", None)
+        mai_cfg = getattr(config, "core_reply", None)
         if not mai_cfg:
-            logger.info("[GitNotifier] mai_reply 插件未找到，回退到普通文本播报")
+            logger.info("[GitNotifier] core_reply 插件未找到，回退到普通文本播报")
             return False
 
         mai_dict = getattr(mai_cfg, "config", {})
         if not isinstance(mai_dict, dict) or not mai_dict.get("enable", False):
-            logger.info("[GitNotifier] mai_reply 未启用，回退到普通文本播报")
+            logger.info("[GitNotifier] core_reply 未启用，回退到普通文本播报")
             return False
 
-        from run.mai_reply.service.reply_engine import ReplyEngine
+        from run.core_reply.service.reply_engine import ReplyEngine
 
         engine = ReplyEngine(config)
         event = AnyEvent()
@@ -96,12 +96,12 @@ async def report_update_via_mai_reply(bot: ExtendBot, config, master_id: int, up
             f"（注意：本次仅为检测汇报通知，请只发送汇报文字，不要在本次汇报中直接调用 update_system 工具）。"
         )
 
-        logger.info(f"[GitNotifier] 正在调用 mai_reply 向管理员 master ({master_id}) 生成更新播报 (包含 {update_info['ahead_count']} 个提交)...")
+        logger.info(f"[GitNotifier] 正在调用 core_reply 向管理员 master ({master_id}) 生成更新播报 (包含 {update_info['ahead_count']} 个提交)...")
         await engine.handle(bot, event, prompt)
         return True
 
     except Exception as e:
-        logger.error(f"[GitNotifier] 调用 mai_reply 生成播报失败: {e}", exc_info=True)
+        logger.error(f"[GitNotifier] 调用 core_reply 生成播报失败: {e}", exc_info=True)
         return False
 
 
@@ -128,7 +128,7 @@ async def perform_update_check(
     branch = plugin_cfg.get("branch", "auto")
     max_commits = int(plugin_cfg.get("max_commit_log_count", 15))
     fetch_timeout = int(plugin_cfg.get("fetch_timeout", 45))
-    use_mai = plugin_cfg.get("use_mai_reply", True)
+    use_mai = plugin_cfg.get("use_core_reply", True)
     notify_master = plugin_cfg.get("notify_master", True)
 
     master_id = _get_master_id(config, plugin_cfg)
@@ -162,7 +162,7 @@ async def perform_update_check(
     if notify_master and master_id:
         reported = False
         if use_mai:
-            reported = await report_update_via_mai_reply(bot, config, master_id, update_info)
+            reported = await report_update_via_core_reply(bot, config, master_id, update_info)
 
         if not reported:
             await report_update_fallback(bot, config, master_id, update_info)

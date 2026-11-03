@@ -184,7 +184,7 @@ def main(bot, config):
     recent_interactions = {}  # 记录最近交互的用户 {user_id: group_id}
     portrait_updating = set()  # 正在更新画像的用户集合
     summary_updating = set()  # 正在更新群总结的群组集合
-    if config.mai_reply.config["enable"]:
+    if config.core_reply.config["enable"]:
         bot.logger.info("[MaiReply] 功能开启，原版aiReply暂时禁用")
         return
 

@@ -8,9 +8,9 @@ import time
 from typing import List, Tuple
 from developTools.message.message_components import Text, Record
 from framework_common.utils.system_logger import get_logger
-from run.mai_reply.service.reply_processor import calc_typing_delay
-from run.mai_reply.service.simple_chat import simplified_chat
-from run.mai_reply.service.reply_engine import ReplyEngine
+from run.core_reply.service.reply_processor import calc_typing_delay
+from run.core_reply.service.simple_chat import simplified_chat
+from run.core_reply.service.reply_engine import ReplyEngine
 
 logger = get_logger(__name__)
 
@@ -56,7 +56,7 @@ class FollowUpService:
         self._bootstrapped = False
 
     def _config(self):
-        cfg = getattr(self.cfg, "mai_reply", {})
+        cfg = getattr(self.cfg, "core_reply", {})
         return (cfg.config if hasattr(cfg, "config") else cfg) or {}
 
     def get_follow_up_config(self) -> dict:
@@ -149,7 +149,7 @@ class FollowUpService:
 
     def _get_trigger_llm_params(self) -> Tuple[str, str, str]:
         """获取 trigger_llm 独立配置的模型与接口"""
-        m_cfg = getattr(self.cfg, "mai_reply", None)
+        m_cfg = getattr(self.cfg, "core_reply", None)
         cfg_dict = m_cfg.config if (m_cfg and hasattr(m_cfg, "config")) else (m_cfg if isinstance(m_cfg, dict) else {})
         trig_cfg = cfg_dict.get("trigger_llm", {}) or {}
         lcfg = cfg_dict.get("llm", {}) or {}
@@ -166,7 +166,7 @@ class FollowUpService:
     async def _maybe_send_voice(self, bot, user_id: int, segments: List[str], is_current) -> None:
         """合成并发送私聊语音（可选）"""
         try:
-            m_cfg = getattr(self.cfg, "mai_reply", None)
+            m_cfg = getattr(self.cfg, "core_reply", None)
             cfg_dict = m_cfg.config if (m_cfg and hasattr(m_cfg, "config")) else (m_cfg if isinstance(m_cfg, dict) else {})
             voice_cfg = cfg_dict.get("tts", {}) or {}
             voice_prob = int(voice_cfg.get("voice_reply_probability", 0))

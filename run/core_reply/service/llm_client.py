@@ -27,8 +27,8 @@ class LLMClient:
         self.cfg = config
         if custom_llm_cfg is not None:
             lcfg = custom_llm_cfg
-        elif hasattr(config, "mai_reply") and hasattr(config.mai_reply, "config"):
-            lcfg = config.mai_reply.config.get("llm", {})
+        elif hasattr(config, "core_reply") and hasattr(config.core_reply, "config"):
+            lcfg = config.core_reply.config.get("llm", {})
         elif isinstance(config, dict):
             lcfg = config.get("llm", {})
         else:

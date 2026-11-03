@@ -10,7 +10,7 @@ from typing import List, Dict
 
 from framework_common.framework_util.yamlLoader import YAMLManager
 from framework_common.utils.system_logger import get_logger
-from run.mai_reply.service.simple_chat import simplified_chat
+from run.core_reply.service.simple_chat import simplified_chat
 
 logger = get_logger(__name__)
 
@@ -47,13 +47,13 @@ class AuditSystem:
 
         # 读取审核配置
 
-        self.enable = config.mai_reply.config["context"]["anti_nsfw"]["enable"]
+        self.enable = config.core_reply.config["context"]["anti_nsfw"]["enable"]
         if self.enable:
             logger.info("[MaiReply Audit] 内容审查已启用，每 %d 轮对话触发一次审查，使用模型: %s",)
-        self.model = config.mai_reply.config["trigger_llm"]["model"]
-        self.api_key = config.mai_reply.config["trigger_llm"]["api_key"]
-        self.base_url = config.mai_reply.config["trigger_llm"]["base_url"]
-        self.trigger_turns = config.mai_reply.config["context"]["anti_nsfw"]["trigger_turns"]
+        self.model = config.core_reply.config["trigger_llm"]["model"]
+        self.api_key = config.core_reply.config["trigger_llm"]["api_key"]
+        self.base_url = config.core_reply.config["trigger_llm"]["base_url"]
+        self.trigger_turns = config.core_reply.config["context"]["anti_nsfw"]["trigger_turns"]
 
     def _counter_key(self, user_id: int, group_id) -> str:
         return f"{group_id or 'priv'}:{user_id}"

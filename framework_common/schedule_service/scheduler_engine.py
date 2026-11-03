@@ -7,7 +7,7 @@ scheduler_engine.py
 - 结合 TimezoneHelper，原生支持多用户时区差异化换算
 - 支持预输入 Function Calling 嵌套工具执行（到点执行任意已注册 Function，如 call_asmr 等）
 - 支持自然语言 Prompt 驱动生成个性化问候/提醒消息
-- 支持与 mai_reply 深度联动的主动私聊排期 (proactive_chat)
+- 支持与 core_reply 深度联动的主动私聊排期 (proactive_chat)
 - 提供统一的增删改查及全局单例调度器
 """
 
@@ -803,15 +803,15 @@ class DynamicScheduler:
                 prompt = payload.get("prompt") or payload.get("message") or task.description
                 sent = False
 
-                # 优先走 mai_reply 的 ReplyEngine.handle 核心流程：
+                # 优先走 core_reply 的 ReplyEngine.handle 核心流程：
                 # 保持上下文记忆追踪、人设印象、TTS语音及情绪管理；
                 # 关键优化：
                 # 1. include_tools=False：纯提醒/消息生成不注入庞大的工具列表，节约大量 token 并彻底杜绝幻觉乱调用工具；
                 # 2. 若任务在 payload 中特别指定了 target_tools / tools_override，则通过 tools_override 针对性开放工具；
                 # 3. system_prompt_prefix 强指令：明确告知这是系统定时触发，严禁误判为对方发言（彻底根除“你怎么抢我台词”的误解）。
-                if config and hasattr(config, "mai_reply") and config.mai_reply.config.get("enable", False):
+                if config and hasattr(config, "core_reply") and config.core_reply.config.get("enable", False):
                     try:
-                        from run.mai_reply.service.reply_engine import ReplyEngine
+                        from run.core_reply.service.reply_engine import ReplyEngine
                         engine = ReplyEngine(config)
 
                         # 构造系统提示前缀，防误判
@@ -857,8 +857,8 @@ class DynamicScheduler:
                 if not sent:
                     # 降级备用：调用 aiReplyCore 进行拟人回复生成
                     try:
-                        from run.ai_llm.service.aiReplyCore import aiReplyCore
-                        text = await aiReplyCore([{"text": prompt}], task.target_id, config, bot=bot)
+                        from framework_common.framework_util.reply_config import auxiliary_reply
+                        text = await auxiliary_reply(prompt, config, user_id=task.target_id, bot=bot)
                     except Exception as fallback_err:
                         logger.warning(f"[DynamicScheduler] 降级调用 aiReplyCore 异常: {fallback_err}，直接发送原始提示词")
                         text = prompt
@@ -871,20 +871,20 @@ class DynamicScheduler:
             # 3. 主动私聊决策联动 (proactive_chat)
             elif task.action_type == "proactive_chat":
                 proactive_enabled = False
-                if config and hasattr(config, "mai_reply") and config.mai_reply.config.get("enable", False):
-                    p_cfg = getattr(config.mai_reply, "proactive", {})
+                if config and hasattr(config, "core_reply") and config.core_reply.config.get("enable", False):
+                    p_cfg = getattr(config.core_reply, "proactive", {})
                     if not isinstance(p_cfg, dict):
-                        p_cfg = config.mai_reply.config.get("proactive", {})
+                        p_cfg = config.core_reply.config.get("proactive", {})
                     if isinstance(p_cfg, dict) and p_cfg.get("enable", False):
                         proactive_enabled = True
 
                 if not proactive_enabled:
-                    logger.info(f"[DynamicScheduler] mai_reply 或 proactive 开关未启动，跳过执行主动关怀任务 {task.task_id}")
+                    logger.info(f"[DynamicScheduler] core_reply 或 proactive 开关未启动，跳过执行主动关怀任务 {task.task_id}")
                     return
 
                 if True:
-                    from run.mai_reply.service.proactive_service import ProactiveService
-                    from run.mai_reply.service.reply_engine import ReplyEngine
+                    from run.core_reply.service.proactive_service import ProactiveService
+                    from run.core_reply.service.reply_engine import ReplyEngine
                     engine = ReplyEngine(config)
                     proactive_svc = ProactiveService(engine)
 

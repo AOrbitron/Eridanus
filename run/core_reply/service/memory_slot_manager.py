@@ -205,8 +205,8 @@ class MemorySlotManager:
         # 读取配置项
         ccfg = {}
         if config:
-            if hasattr(config, "mai_reply") and hasattr(config.mai_reply, "config"):
-                ccfg = config.mai_reply.config.get("context", {})
+            if hasattr(config, "core_reply") and hasattr(config.core_reply, "config"):
+                ccfg = config.core_reply.config.get("context", {})
             elif isinstance(config, dict):
                 ccfg = config.get("context", {})
 

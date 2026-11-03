@@ -23,22 +23,22 @@ from developTools.message.message_components import Record
 from framework_common.database_util.User import get_user
 from framework_common.framework_util.function_control import load_disabled
 from framework_common.utils.system_logger import get_logger
-from run.mai_reply.service.audit_censor import AuditSystem
+from run.core_reply.service.audit_censor import AuditSystem
 
-from run.mai_reply.service.context_manager import ContextManager
-from run.mai_reply.service.emotion_system import EmotionSystem
-from run.mai_reply.service.llm_client import LLMClient
-from run.mai_reply.service.mcp_client import MCPManager
-from run.mai_reply.service.prompt_builder import PromptBuilder
-from run.mai_reply.service.reply_processor import ReplyProcessor
-from run.mai_reply.service.impression_updater import ImpressionUpdater
-from run.mai_reply.service.concurrency import ConcurrencyController
-from run.mai_reply.service.rag_memory import RAGMemory
+from run.core_reply.service.context_manager import ContextManager
+from run.core_reply.service.emotion_system import EmotionSystem
+from run.core_reply.service.llm_client import LLMClient
+from run.core_reply.service.mcp_client import MCPManager
+from run.core_reply.service.prompt_builder import PromptBuilder
+from run.core_reply.service.reply_processor import ReplyProcessor
+from run.core_reply.service.impression_updater import ImpressionUpdater
+from run.core_reply.service.concurrency import ConcurrencyController
+from run.core_reply.service.rag_memory import RAGMemory
 
 logger = get_logger(__name__)
 
-# 不在模块级固定持有 tts_v2 的客户端实例：那样 tts_v2 热重载后，mai_reply 仍握着旧实例/旧配置
-# （历史 bug：“tts_v2 配置更新了，但 mai_reply 这边用的还是旧变量”）。改为惰性获取——
+# 不在模块级固定持有 tts_v2 的客户端实例：那样 tts_v2 热重载后，core_reply 仍握着旧实例/旧配置
+# （历史 bug：“tts_v2 配置更新了，但 core_reply 这边用的还是旧变量”）。改为惰性获取——
 # 每次从当前 sys.modules 取最新的 AsyncGPTSoVITSClient 类；仅当类对象本身变化（tts_v2 代码被
 # 热重载）时才重建实例。配置层面再由该客户端的 property 实时读取，双重保证不会用到过期值。
 _gpt_sovits_client = None
@@ -129,7 +129,7 @@ class ReplyEngine:
         return None
 
     def _cache_set(self, key: str, value: str) -> None:
-        ttl = self.cfg.mai_reply.config.get("concurrency", {}).get("name_cache_ttl", 300)
+        ttl = self.cfg.core_reply.config.get("concurrency", {}).get("name_cache_ttl", 300)
         now = time.monotonic()
         if len(self._name_cache) > 5000:
             self._name_cache = {k: v for k, v in self._name_cache.items() if v[1] > now}
@@ -164,7 +164,7 @@ class ReplyEngine:
     def _load_tools(self):
         tools = {}
         try:
-            if self.cfg.mai_reply.config.get("llm", {}).get("func_calling", False):
+            if self.cfg.core_reply.config.get("llm", {}).get("func_calling", False):
                 from framework_common.framework_util.func_map_loader import build_tool_map, get_tool_declarations
                 funcs = build_tool_map()
                 # 将 Gemini 格式的 declaration 列表转成 name -> decl 的索引
@@ -243,7 +243,7 @@ class ReplyEngine:
         user_id: int = event.user_id
 
         # ---------- 权限检查
-        perm_cfg = self.cfg.mai_reply.config.get("permission", {})
+        perm_cfg = self.cfg.core_reply.config.get("permission", {})
         required_level = perm_cfg.get("group_reply_level" if is_group else "private_reply_level", 0)
         if required_level > 0:
             user_info = await get_user(user_id)
@@ -291,7 +291,7 @@ class ReplyEngine:
         rag_turn_recorded = False
         try:
             # 【关键修复 3】：恢复被误删的 Redis 锁，防止同一个用户的上下文数据库写冲突
-            lock_timeout = self.cfg.mai_reply.config.get("concurrency", {}).get("lock_timeout", 30)
+            lock_timeout = self.cfg.core_reply.config.get("concurrency", {}).get("lock_timeout", 30)
             lock_acquired = await self.context.acquire_lock(session_key, lock_timeout)
             if not lock_acquired:
                 return
@@ -305,7 +305,7 @@ class ReplyEngine:
                 self.context.push_group_window(group_id, user_name, final_text, user_id=user_id)
 
             # 提取历史对话上下文：群聊被@时精简提取少量私聊/群聊上下文（默认2-3轮），把宝贵窗口留给群公屏
-            max_turns = self.cfg.mai_reply.config.get("context", {}).get("max_turns", 20)
+            max_turns = self.cfg.core_reply.config.get("context", {}).get("max_turns", 20)
             max_history_msgs = max_turns * 2
 
             if is_group:
@@ -448,9 +448,9 @@ class ReplyEngine:
                 await self.processor.send_with_delay(bot, event, segments, quote_message_id=None if sent_reply_segments else msg_id)
 
             # TTS
-            voice_cfg = self.cfg.mai_reply.config["tts"]
+            voice_cfg = self.cfg.core_reply.config["tts"]
             voice_prob = int(voice_cfg.get("voice_reply_probability", 0))
-            translate_api_key = self.cfg.mai_reply.config["trigger_llm"]["api_key"]
+            translate_api_key = self.cfg.core_reply.config["trigger_llm"]["api_key"]
             voice_cfg["translate_api_key"] = translate_api_key
             all_sent_segments = sent_reply_segments + segments
             if voice_prob > 0 and random.randint(1, 100) <= voice_prob:
@@ -559,7 +559,7 @@ class ReplyEngine:
         api_key = voice_cfg.get("translate_api_key", "")
         if not api_key:
             try:
-                api_key = self.cfg.mai_reply.config.get("trigger_llm", {}).get("api_key", "")
+                api_key = self.cfg.core_reply.config.get("trigger_llm", {}).get("api_key", "")
             except Exception:
                 api_key = ""
 
