@@ -10,6 +10,7 @@ import json
 import logging
 import threading
 from typing import Dict, Any, Optional
+from run.wardrobe.outfit_policy import normalize_outfit, clothing_tags as extract_clothing_tags, scene_kind
 
 try:
     from ruamel.yaml import YAML
@@ -32,6 +33,7 @@ except ImportError:
 logger = logging.getLogger("Wardrobe")
 
 YAML_CONFIG_PATH = os.path.join("run", "wardrobe", "config.yaml")
+OUTFITS_KEY = "outfits_v2"
 
 DEFAULT_CHARACTER_ANCHOR = (
     "1girl, teenager, solo, grey hair, gradient hair, multicolored hair, blue hair, "
@@ -135,18 +137,9 @@ DEFAULT_OUTFITS = {   '万圣节小恶魔装': {   'category': 'festival',
                      'occasion': 'traditional, festival, lantern',
                      'season': 'winter'},
     '冬日加厚白羽绒服': {   'category': 'seasonal',
-                    'clothing_tags': 'winter clothing, oversized puffy white down jacket, chunky thick knit muffler '
-                                     'scarf wrapped around neck, fluffy earmuffs, woolen mittens, snowy city street '
-                                     'background, gentle snowflakes falling, breath vapor',
+                    'clothing_tags': 'winter clothing, oversized puffy white down jacket, chunky thick knit muffler scarf wrapped around neck, fluffy earmuffs, woolen mittens, snowy city street background, gentle snowflakes falling, breath vapor, charcoal wool straight-leg trousers, brown winter ankle boots',
                     'description': '冬日加厚米白立领羽绒服搭配厚毛线围巾与毛绒耳罩（初雪街头、呵气成霜）',
-                    'full_prompt': '1girl, teenager, solo, grey hair, gradient hair, multicolored hair, blue hair, '
-                                   'light purple-light blue mixed eyes, (Side swept hair:1.6), ahoge, bangs, middle '
-                                   'long hair, (round face:1.2), winter clothing, oversized puffy white down jacket, '
-                                   'chunky thick knit muffler scarf wrapped around neck, fluffy earmuffs, woolen '
-                                   'mittens, snowy city street background, gentle snowflakes falling, breath vapor, '
-                                   '(Rella:1.2), (chen bin:1.3), virtual youtuber, (starshadowmagician:1.2), '
-                                   'masterpiece, extremely detailed, lineart, (hand-drawn:1.3), (sketch:1.2), Picasso '
-                                   "style, Van Gogh's almond blossoms, <lora:DeniaV1-Nuclear1811-IL:0.5>",
+                    'full_prompt': "1girl, teenager, solo, grey hair, gradient hair, multicolored hair, blue hair, light purple-light blue mixed eyes, (Side swept hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), winter clothing, oversized puffy white down jacket, chunky thick knit muffler scarf wrapped around neck, fluffy earmuffs, woolen mittens, snowy city street background, gentle snowflakes falling, breath vapor, charcoal wool straight-leg trousers, brown winter ankle boots, (Rella:1.2), (chen bin:1.3), virtual youtuber, (starshadowmagician:1.2), masterpiece, extremely detailed, lineart, (hand-drawn:1.3), (sketch:1.2), Picasso style, Van Gogh's almond blossoms, <lora:DeniaV1-Nuclear1811-IL:0.5>",
                     'name': '冬日加厚白羽绒服',
                     'occasion': 'outdoor, snow, winter',
                     'season': 'winter'},
@@ -1080,6 +1073,23 @@ DEFAULT_OUTFITS = {   '万圣节小恶魔装': {   'category': 'festival',
                 'occasion': 'casual, campus',
                 'season': 'autumn/winter'}}
 
+def _read_catalog(doc):
+    if OUTFITS_KEY in doc:
+        outfits = dict(doc[OUTFITS_KEY])
+        for name, value in doc.get("outfits", {}).items():
+            if name not in DEFAULT_OUTFITS and name not in outfits:
+                outfits[name] = value
+        return outfits
+    # Known legacy presets cannot overwrite the new version. Preserve custom
+    # entries and the user's finished default outfit.
+    import copy
+    outfits = copy.deepcopy(DEFAULT_OUTFITS)
+    for name, value in doc.get("outfits", {}).items():
+        if name not in outfits or name == "默认常服":
+            outfits[name] = copy.deepcopy(value)
+    return outfits
+
+
 class WardrobeManager:
     _instance: Optional['WardrobeManager'] = None
     _lock = threading.Lock()
@@ -1132,12 +1142,12 @@ class WardrobeManager:
                     ym = YAMLManager.get_instance()
                     if ym is not None and hasattr(ym, "wardrobe") and hasattr(ym.wardrobe, "config"):
                         doc = ym.wardrobe.config
-                        if doc is not None and "outfits" in doc:
+                        if doc is not None and (OUTFITS_KEY in doc or "outfits" in doc):
                             self._yaml_manager = ym
                             self._commented_map = doc
                             self._data = dict(doc)
-                            if "outfits" in self._data:
-                                self._data["outfits"] = dict(self._data["outfits"])
+                            if OUTFITS_KEY in self._data:
+                                self._data[OUTFITS_KEY] = dict(self._data[OUTFITS_KEY])
                             loaded = True
                             #logger.info("[Wardrobe] 成功接入统一 YAMLManager 管理 wardrobe/config")
                 except Exception as e:
@@ -1148,11 +1158,11 @@ class WardrobeManager:
                 try:
                     with open(self.yaml_path, "r", encoding="utf-8") as f:
                         doc = self._yaml_rt.load(f)
-                    if doc is not None and "outfits" in doc:
+                    if doc is not None and (OUTFITS_KEY in doc or "outfits" in doc):
                         self._commented_map = doc
                         self._data = dict(doc)
-                        if "outfits" in self._data:
-                            self._data["outfits"] = dict(self._data["outfits"])
+                        if OUTFITS_KEY in self._data:
+                            self._data[OUTFITS_KEY] = dict(self._data[OUTFITS_KEY])
                         loaded = True
                 except Exception as e:
                     logger.warning(f"[Wardrobe] ruamel.yaml 加载 YAML 失败: {e}")
@@ -1162,11 +1172,26 @@ class WardrobeManager:
                 try:
                     with open(self.yaml_path, "r", encoding="utf-8") as f:
                         data = yaml.safe_load(f)
-                    if isinstance(data, dict) and "outfits" in data:
+                    if isinstance(data, dict) and (OUTFITS_KEY in data or "outfits" in data):
                         self._data = data
                         loaded = True
                 except Exception as e:
                     logger.warning(f"[Wardrobe] PyYAML 加载 YAML 失败: {e}")
+
+            if loaded:
+                self._data[OUTFITS_KEY] = _read_catalog(self._data)
+            if loaded:
+                for name, outfit in self._data.get(OUTFITS_KEY, {}).items():
+                    if name != "默认常服":
+                        old = outfit.get("clothing_tags", "")
+                        clean = normalize_outfit(old, outfit.get("category", ""))
+                        outfit["clothing_tags"] = clean
+                        if old and outfit.get("full_prompt"):
+                            outfit["full_prompt"] = outfit["full_prompt"].replace(old, clean)
+                for name_key, tag_key in (("current_outfit", "current_outfit_tags"),
+                                          ("today_default_outfit", "today_default_tags")):
+                    if self._data.get(name_key) != "默认常服" and self._data.get(tag_key):
+                        self._data[tag_key] = normalize_outfit(extract_clothing_tags(self._data[tag_key]))
 
             # 3. 若均不存在或损坏，初始化默认结构并持久化至 YAML
             if not loaded:
@@ -1178,16 +1203,16 @@ class WardrobeManager:
         if self._commented_map is None:
             return
         for k, v in self._data.items():
-            if k == "outfits" and isinstance(v, dict):
-                if "outfits" not in self._commented_map:
-                    self._commented_map["outfits"] = {}
+            if k == OUTFITS_KEY and isinstance(v, dict):
+                if OUTFITS_KEY not in self._commented_map:
+                    self._commented_map[OUTFITS_KEY] = {}
                 for ok, ov in v.items():
-                    if ok not in self._commented_map["outfits"]:
-                        self._commented_map["outfits"][ok] = dict(ov)
+                    if ok not in self._commented_map[OUTFITS_KEY]:
+                        self._commented_map[OUTFITS_KEY][ok] = dict(ov)
                     else:
                         if isinstance(ov, dict):
                             for fk, fv in ov.items():
-                                self._commented_map["outfits"][ok][fk] = fv
+                                self._commented_map[OUTFITS_KEY][ok][fk] = fv
             else:
                 self._commented_map[k] = v
 
@@ -1205,7 +1230,7 @@ class WardrobeManager:
             "character_anchor": DEFAULT_CHARACTER_ANCHOR,
             "art_anchor": DEFAULT_ART_ANCHOR,
             "negative_prompt": DEFAULT_NEGATIVE_PROMPT,
-            "outfits": dict(DEFAULT_OUTFITS)
+            OUTFITS_KEY: dict(DEFAULT_OUTFITS)
         }
 
     def _save_to_disk(self) -> None:
@@ -1266,17 +1291,17 @@ class WardrobeManager:
 
     def get_outfits(self) -> Dict[str, Any]:
         with self._rw_lock:
-            return dict(self._data.get("outfits", {}))
+            return dict(self._data.get(OUTFITS_KEY, {}))
 
     def get_outfit(self, name: str) -> Optional[Dict[str, Any]]:
         with self._rw_lock:
-            return self._data.get("outfits", {}).get(name)
+            return self._data.get(OUTFITS_KEY, {}).get(name)
 
     def get_current_outfit(self) -> Dict[str, Any]:
         with self._rw_lock:
             if not self._data.get("enabled", True):
                 name = self._data.get("default_outfit", "常服1")
-                outfit = self._data.get("outfits", {}).get(name, {})
+                outfit = self._data.get(OUTFITS_KEY, {}).get(name, {})
                 tags = outfit.get("clothing_tags", "")
                 return {
                     "name": name,
@@ -1286,7 +1311,7 @@ class WardrobeManager:
                     "description": outfit.get("description", "")
                 }
             name = self._data.get("current_outfit", "常服1")
-            outfit = self._data.get("outfits", {}).get(name, {})
+            outfit = self._data.get(OUTFITS_KEY, {}).get(name, {})
             tags = self._data.get("current_outfit_tags") or outfit.get("clothing_tags", "")
             no_hat = self._data.get("current_outfit_no_hat")
             if no_hat is None:
@@ -1302,7 +1327,7 @@ class WardrobeManager:
     def get_today_default_outfit(self) -> Dict[str, Any]:
         with self._rw_lock:
             name = self._data.get("today_default_outfit") or self._data.get("default_outfit", "常服1")
-            outfit = self._data.get("outfits", {}).get(name, {})
+            outfit = self._data.get(OUTFITS_KEY, {}).get(name, {})
             tags = self._data.get("today_default_tags") or outfit.get("clothing_tags", "")
             no_hat = self._data.get("today_default_no_hat")
             if no_hat is None:
@@ -1319,7 +1344,7 @@ class WardrobeManager:
         with self._rw_lock:
             if not self._data.get("enabled", True):
                 return False
-            outfit = self._data.get("outfits", {}).get(outfit_name)
+            outfit = self._data.get(OUTFITS_KEY, {}).get(outfit_name)
             if not outfit and not custom_tags:
                 return False
             self._data["current_outfit"] = outfit_name
@@ -1333,13 +1358,16 @@ class WardrobeManager:
                 self._data["current_outfit_no_hat"] = outfit.get("no_hat", False)
             else:
                 self._data.pop("current_outfit_no_hat", None)
+            if outfit_name != "默认常服":
+                self._data["current_outfit_tags"] = normalize_outfit(
+                    self._data.get("current_outfit_tags", ""), (outfit or {}).get("category", ""))
             self._save_to_disk()
             logger.info(f"[Wardrobe] 当前穿着已切换至: {outfit_name}")
             return True
 
     def set_today_default_outfit(self, outfit_name: str, custom_tags: Optional[str] = None) -> bool:
         with self._rw_lock:
-            outfit = self._data.get("outfits", {}).get(outfit_name)
+            outfit = self._data.get(OUTFITS_KEY, {}).get(outfit_name)
             if not outfit and not custom_tags:
                 return False
             self._data["today_default_outfit"] = outfit_name
@@ -1356,7 +1384,7 @@ class WardrobeManager:
         if not query:
             return None
         q = query.strip().lower()
-        outfits = self._data.get("outfits", {})
+        outfits = self._data.get(OUTFITS_KEY, {})
 
         # 1. 精确匹配
         if query in outfits:
@@ -1366,7 +1394,7 @@ class WardrobeManager:
                 return k
 
         # 2. 睡衣系列智能选择 (全部带免帽属性)
-        if any(w in q for w in ["睡衣", "睡裙", "睡袍", "浴袍", "甚平", "寝衣", "晚安", "睡觉", "睡了", "好梦", "被窝", "困了", "sleep", "bed", "pajama", "night", "nightgown", "bathrobe", "sheer", "translucent", "半透明", "轻纱", "薄纱", "透视"]):
+        if scene_kind(q) == "sleepwear" or any(w in q for w in ["甚平", "寝衣", "浴袍"]):
             # 新增：轻纱、半透明、吊带与洛丽塔睡裙（具体特征优先）
             if any(w in q for w in ["薄荷", "薄荷轻纱", "薄荷绿", "清凉吊带睡裙", "mint"]):
                 return "薄荷轻纱清凉吊带睡裙"
@@ -1493,10 +1521,13 @@ class WardrobeManager:
         4. 兜底：返回 default_outfit ("常服1")。
         """
         combined = f"{theme_desc} {post_text}".strip()
-        outfits = self._data.get("outfits", {})
+        outfits = self._data.get(OUTFITS_KEY, {})
+        kind = scene_kind(combined)
 
         # 1. 优先度 1：语义/关键词特异性匹配
         matched_name = self.match_outfit(combined)
+        if kind == "sporty" and "运动活力" in outfits:
+            matched_name = "运动活力"
         if matched_name and matched_name in outfits:
             matched_obj = outfits[matched_name]
             logger.info(f"[Wardrobe] Qzone 主题/文案精确命中衣橱款式: [{matched_name}]")
@@ -1551,6 +1582,14 @@ class WardrobeManager:
 
         # 3. 优先度 3：若是白天日常动态（非首发，无强特异场景），平滑继承今日当前穿着
         current = self.get_current_outfit()
+        if kind in {"outdoor", "daily", "sporty"} and (
+                current.get("category") == "sleepwear" or
+                scene_kind(current.get("clothing_tags", "")) == "sleepwear"):
+            current = self.get_today_default_outfit()
+            if (current.get("category") == "sleepwear" or
+                    scene_kind(current.get("clothing_tags", "")) == "sleepwear"):
+                name = self._data.get("default_outfit", "默认常服")
+                current = dict(outfits.get(name, {}), name=name)
         return {
             "name": current.get("name", "常服1"),
             "clothing_tags": current.get("clothing_tags", ""),
@@ -1570,7 +1609,9 @@ class WardrobeManager:
                 return
             if not clothing_tags or not clothing_tags.strip():
                 return
-            clean_tags = clothing_tags.strip()
+            clean_tags = normalize_outfit(extract_clothing_tags(clothing_tags))
+            if not clean_tags:
+                return
             self._data["current_outfit"] = outfit_name
             self._data["current_outfit_tags"] = clean_tags
             if no_hat is not None:
@@ -1597,7 +1638,7 @@ class WardrobeManager:
                 return False
             self._data["last_daily_date"] = date_str
             default_outfit = self._data.get("default_outfit", "常服1")
-            outfit_info = self._data.get("outfits", {}).get(default_outfit, {})
+            outfit_info = self._data.get(OUTFITS_KEY, {}).get(default_outfit, {})
             base_tags = outfit_info.get("clothing_tags", "")
             self._data["today_default_outfit"] = default_outfit
             self._data["today_default_tags"] = base_tags
@@ -1621,8 +1662,7 @@ class WardrobeManager:
         combined = f"{task_name} {post_content} {theme_desc}".lower()
 
         # 1. 晚安/睡眠场景
-        sleep_kw = ["晚安", "睡觉", "睡了", "好梦", "失眠", "洗漱", "躺下", "困了", "床头", "被窝", "sleep", "bed", "pajama", "night"]
-        if task_name == "晚安" or any(k in combined for k in sleep_kw):
+        if task_name == "晚安" or scene_kind(combined) == "sleepwear":
             target_sleepwear = self.match_outfit(combined) or "可爱粉彩睡衣"
             current = self.get_current_outfit()
             if current.get("name") != target_sleepwear:
@@ -1640,7 +1680,7 @@ class WardrobeManager:
         # 3. 运动/跑步/健身场景
         sport_kw = ["跑步", "慢跑", "运动", "健身", "夜跑", "晨跑", "gym", "workout", "sport"]
         if any(k in combined for k in sport_kw):
-            if "运动活力" in self._data.get("outfits", {}):
+            if "运动活力" in self._data.get(OUTFITS_KEY, {}):
                 current = self.get_current_outfit()
                 if current.get("name") != "运动活力":
                     self.set_current_outfit("运动活力")
@@ -1649,7 +1689,7 @@ class WardrobeManager:
         # 4. 修车/街头/骑行场景
         street_kw = ["修车", "扳手", "电瓶车", "机车", "街头", "工装", "scooter", "wrench", "street"]
         if any(k in combined for k in street_kw):
-            if "常服1" in self._data.get("outfits", {}):
+            if "常服1" in self._data.get(OUTFITS_KEY, {}):
                 current = self.get_current_outfit()
                 if current.get("name") != "常服1":
                     self.set_current_outfit("常服1")
@@ -1668,7 +1708,7 @@ class WardrobeManager:
 
         if not self.is_enabled():
             default_name = self._data.get("default_outfit", "常服1")
-            outfit = self._data.get("outfits", {}).get(default_name, {})
+            outfit = self._data.get(OUTFITS_KEY, {}).get(default_name, {})
             clothing_tags = outfit.get("clothing_tags", "")
             clothing_header = f"3. 默认服装设定（衣橱未启用，默认穿着: {default_name}）："
         else:
@@ -1697,6 +1737,7 @@ Prompt 公式：
 
 ⚠️ 绘图原则与换装规则：
 - 构图要有变化（不要全是正面大头照，可以尝试不同视角）。
+- 穿搭以当前完整套装为准；睡衣不混入外出毛衣、围巾或靴子；裙装不叠加无关长裤。
 - 保留手绘风格 lineart, (hand-drawn:1.3), (sketch:1.2)。
 - 调用绘图必须严格遵守函数调用规则，不要直接把提示词丢到正文。
 - 【重点·换装联动】：当用户明确要求换装、换衣服、穿上特定服饰，或者在请求自拍/合照时指定了新服装，你在调用绘图工具（call_text2img）生成图片的同时，必须同时调用 call_change_outfit 工具更新衣橱穿着！这样你之后的日常状态和后续照片就会一直保持这套新穿搭。"""
@@ -1769,8 +1810,8 @@ def build_change_outfit_declaration(yaml_path: str = YAML_CONFIG_PATH, custom_ou
             ym = YAMLManager.get_instance()
             if ym and hasattr(ym, "wardrobe") and hasattr(ym.wardrobe, "config"):
                 doc = ym.wardrobe.config
-                if doc and "outfits" in doc:
-                    outfits = dict(doc["outfits"])
+                if doc and (OUTFITS_KEY in doc or "outfits" in doc):
+                    outfits = _read_catalog(doc)
         except Exception as e:
             logger.debug(f"[Wardrobe] 从 YAMLManager 读取服饰列表失败: {e}")
 
@@ -1781,13 +1822,13 @@ def build_change_outfit_declaration(yaml_path: str = YAML_CONFIG_PATH, custom_ou
                 ryaml.preserve_quotes = True
                 with open(yaml_path, "r", encoding="utf-8") as f:
                     doc = ryaml.load(f)
-                    if doc and "outfits" in doc:
-                        outfits = dict(doc["outfits"])
+                    if doc and (OUTFITS_KEY in doc or "outfits" in doc):
+                        outfits = _read_catalog(doc)
             elif yaml and os.path.exists(yaml_path):
                 with open(yaml_path, "r", encoding="utf-8") as f:
                     doc = yaml.safe_load(f)
-                    if doc and "outfits" in doc:
-                        outfits = doc["outfits"]
+                    if doc and (OUTFITS_KEY in doc or "outfits" in doc):
+                        outfits = _read_catalog(doc)
         except Exception as e:
             logger.warning(f"[Wardrobe] 从 {yaml_path} 读取服饰列表失败: {e}")
 

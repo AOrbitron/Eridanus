@@ -11155,6 +11155,7 @@ POST_STRUCTURE_ARCHETYPES = [
 # ---------------------------------------------------------------------------
 
 import random
+from run.wardrobe.outfit_policy import scene_kind, has_terms
 
 
 
@@ -11250,7 +11251,7 @@ OUTFIT_STYLE_SEEDS = [
 
     {"template": "{p} oversized drawstring hoodie, {s} loose sweatpants, cozy indoor vibes", "category": "loungewear"},
 
-    {"template": "{p} off-the-shoulder loose knit sweater, {s} soft pajama shorts", "category": "sleepwear"},
+    {"template": "{p} soft cotton pajama top, matching {s} cotton pajama pants", "category": "sleepwear"},
 
     {"template": "{p} waffle-knit long sleeve henley top, {s} lounge pants", "category": "loungewear"},
 
@@ -11412,7 +11413,15 @@ def get_random_outfit_data(scene_hint: str = "") -> dict:
 
     """
 
-    style = random.choice(OUTFIT_STYLE_SEEDS)
+    kind = scene_kind(scene_hint)
+    allowed = {
+        "sleepwear": {"sleepwear"},
+        "indoor": {"loungewear", "casual", "preppy", "girlish"},
+        "sporty": {"sporty"},
+        "outdoor": {"casual", "streetwear", "preppy", "girlish"},
+        "daily": {"casual", "streetwear", "preppy", "girlish"},
+    }[kind]
+    style = random.choice([s for s in OUTFIT_STYLE_SEEDS if s["category"] in allowed])
 
     palette = random.choice(OUTFIT_PALETTE_SEEDS)
 
@@ -11428,25 +11437,8 @@ def get_random_outfit_data(scene_hint: str = "") -> dict:
 
     is_indoor_or_sleep = cat in ["sleepwear", "loungewear"]
 
-    if scene_hint:
-
-        hint_lower = scene_hint.lower()
-
-        indoor_kw = [
-
-            "pajama", "sleep", "bed", "bath", "indoor", "room", "night", "home",
-
-            "睡衣", "睡裙", "睡袍", "床上", "被窝", "洗澡", "泡澡", "客厅", "卧室",
-
-            "沙发", "赖床", "晚安", "刚醒", "早安", "做梦", "困倦", "护肤"
-
-        ]
-
-        if any(k in hint_lower for k in indoor_kw):
-
-            is_indoor_or_sleep = True
-
-
+    if kind in {"indoor", "sleepwear"}:
+        is_indoor_or_sleep = True
 
     # 70% 概率随机叠加高质感配件或细节变体，避免穿搭呆板单一
 
@@ -11468,7 +11460,9 @@ def get_random_outfit_data(scene_hint: str = "") -> dict:
 
             else:
 
-                detail = random.choice(OUTFIT_GENERAL_DETAILS)
+                details = [d for d in OUTFIT_GENERAL_DETAILS
+                           if not has_terms(d, ("scarf", "warmers", "shirt hem", "cuffs", "socks", "headphones"))]
+                detail = random.choice(details)
 
 
 

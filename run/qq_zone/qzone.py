@@ -6,6 +6,7 @@ import datetime
 import json
 import random
 import re
+from run.wardrobe.outfit_policy import normalize_outfit, clothing_tags, scene_tags, scene_kind
 import traceback
 import uuid
 from asyncio import sleep
@@ -877,14 +878,11 @@ def main(bot: ExtendBot, config: YAMLManager):
             cur_tags = cur_outfit.get("clothing_tags", "")
             if cur_tags:
                 default_outfit = cur_tags
-            if cur_outfit.get("no_hat", False):
+            if cur_outfit.get("no_hat", False) and scene_kind(f"{post_text} {theme_desc}") in {"sleepwear", "indoor"}:
                 full_rules_text += "\n当前为睡衣/居家场景，严格免帽。"
 
         # 结合动态文案与主题提示判断是否属于免帽场景（如睡衣/床上/沐浴/室内放松等）
         no_hat = is_no_hat_scene(post_text=post_text, theme_desc=theme_desc)
-        if wardrobe_mgr and wardrobe_mgr.is_enabled():
-            if wardrobe_mgr.get_current_outfit().get("no_hat", False):
-                no_hat = True
 
         # 1. 优先从衣橱系统挑选匹配主题的基准款式
         shanghai_today = TimezoneHelper.get_user_local_time('Asia/Shanghai').strftime('%Y-%m-%d')
@@ -922,13 +920,15 @@ def main(bot: ExtendBot, config: YAMLManager):
             fallback_tags = outfit_data.get("outfit_tags", "")
             outfit_detail = outfit_data.get("detail", "")
             category = outfit_data.get("category", "")
-            if not no_hat and category in ["sleepwear", "loungewear"]:
+            if not wardrobe_base and not no_hat and category in ["sleepwear", "loungewear"]:
                 no_hat = True
         else:
             palette_name = "焦糖驼色配米白"
             primary_color = "caramel camel brown"
             secondary_color = "warm off-white"
-            fallback_tags = "caramel camel brown slouchy chunky knit cardigan, warm off-white ribbed camisole, cozy shorts"
+            fallback_tags = ("matching cotton pajama top, matching cotton pajama pants"
+                             if scene_kind(f"{post_text} {theme_desc}") == "sleepwear"
+                             else default_outfit or "cream cotton shirt, brown straight-leg trousers, white sneakers")
             outfit_detail = ""
 
         # 若衣橱成功挑选出基准服饰，使用衣橱款式 tags 作为核心款式模板
@@ -936,10 +936,14 @@ def main(bot: ExtendBot, config: YAMLManager):
         if wardrobe_base and wardrobe_base.get("clothing_tags"):
             base_outfit_name = wardrobe_base.get("name", "衣橱款式")
             outfit_tags = wardrobe_base["clothing_tags"]
+            # An unrelated random seed supplies no accessories to a wardrobe set.
+            outfit_detail = ""
             if wardrobe_base.get("no_hat", False):
                 no_hat = True
         else:
             outfit_tags = fallback_tags
+
+        outfit_tags = normalize_outfit(clothing_tags(outfit_tags or default_outfit))
 
         # 如果判定为免帽场景，先清洗种子里的 outfit_tags 和 outfit_detail
         if no_hat:
@@ -967,26 +971,16 @@ def main(bot: ExtendBot, config: YAMLManager):
                     )
 
                 prompt_generator = (
-                    f"你是一名专业动漫 Stable Diffusion 提示词专家。角色是：{bot_name}。\n"
-                    f"根据角色动态文案，仅提取【当前情绪与表情】+【当前动作/场景/日常服饰穿搭】的纯英文 tags。\n"
-                    f"角色卡绘图规则参考：\n{full_rules_text if full_rules_text else '日常场景参考: casual clothes, sitting on sofa, cozy room. 视角表情: slight blush, upper body'}\n"
-                    f"当前主题建议：{theme_desc}\n"
-                    f"当前季节时令：{season_sd_full}\n"
-                    f"【本次系统指定的服饰与色系种子（核心硬性约束）】：\n"
-                    f"- 配色方案名称：{palette_name}\n"
-                    f"- 本次指定主色：{primary_color}，指定辅色：{secondary_color}\n"
-                    f"- 款式模板与细节参考：{outfit_tags}\n"
-                    f"当前动态文案：{post_text}\n\n"
-                    f"要求：\n"
-                    f"1. 绝对不要重复生成发色、发型、眼睛等基础面部特征设定（系统已全局保留）。\n"
-                    f"2. 服饰穿搭必须严格使用上述系统分配的色系（主色：{primary_color}，辅色：{secondary_color}），严禁随意篡改色系！\n"
-                    f"3. 【重点严禁】：绝对严禁千篇一律偏向薄荷绿（mint green / pastel green / light green 等单一刻板偏见）！本次服饰主色必须明确使用指定的【{primary_color}】（如：{primary_color} 卫衣/毛衣/大衣/睡衣/衬衫等），展现全色谱多样性！\n"
-                    f"4. 可根据动态文案微调款式细节（如睡前可使用 {primary_color} 睡衣/家居服，外出/晨起使用相应外套/风衣），但服装主色必须忠实保持为 {primary_color}。\n"
-                    f"5. 服饰厚度、冷暖层次与环境细节大体契合时令即可，杜绝反季节违和常识（如寒冬穿单薄夏装短裤、盛夏裹羽绒服烤火）。\n"
-                    f"6. {hat_constraint}"
-                    f"7. 【画面要素与背景严禁单一刻板】：切忌因为时令而在每个画面都硬塞入枯燥重复的季节符号（例如：绝对不要千篇一律全是枫叶 maple leaf、落叶 fallen leaves、枯叶或红叶，已造成严重审美疲劳）！画面背景、道具与生活情境应保持丰富多样、松弛自然（如温馨房间、书桌、窗台、咖啡店、日常街景、便利店、走廊等各类日常切面均可），不要强行添加枫叶等刻板季节要素。\n"
-                    f"8. 仅输出情绪状态、服饰穿搭（含指定颜色与款式）、动作和场景，不要解释，不要输出任何中文。\n"
-                    f"9. 仅输出纯英文 tags，用英文逗号分隔。"
+                    f"Generate English comma-separated Stable Diffusion scene tags for {bot_name}.\n"
+                    f"Post: {post_text}\nScene reference: {theme_desc}\nSeason: {season_sd_full}\n"
+                    f"The system will insert this complete outfit unchanged: {outfit_tags}\n"
+                    "Output only expression, emotion, pose, action, camera angle, lighting and background. "
+                    "Do not output clothing, accessories, headwear, garment colors or character appearance. "
+                    "Do not replace or mix the selected outfit. Sleepwear belongs indoors at bedtime; "
+                    "streetwear and sportswear must suit the actual activity. "
+                    "Use the post's concrete setting; do not add seasonal leaves or snow automatically. "
+                    "Do not explain, output Chinese, markdown, or a second outfit.\n"
+                    f"{hat_constraint}"
                 )
                 sd_tags = await mai_llm.chat(
                     messages=[{"role": "user", "content": prompt_generator}],
@@ -1002,21 +996,7 @@ def main(bot: ExtendBot, config: YAMLManager):
         if not dynamic_scene_tags:
             dynamic_scene_tags = theme_desc
 
-        # 色彩纠偏与防薄荷绿复现机制：
-        is_green_palette = ("green" in primary_color.lower()) or ("green" in secondary_color.lower())
-        if not is_green_palette and dynamic_scene_tags:
-            dynamic_scene_tags = re.sub(
-                r"\b(?:mint|pastel|light|pale)\s+green\b",
-                primary_color,
-                dynamic_scene_tags,
-                flags=re.IGNORECASE
-            )
-            dynamic_scene_tags = re.sub(
-                r"\bmint\s+(sweater|hoodie|cardigan|coat|dress|skirt|pajamas|sleepwear|shirt|jacket|top|pants|t-shirt|tee|camisole)\b",
-                rf"{primary_color} \1",
-                dynamic_scene_tags,
-                flags=re.IGNORECASE
-            )
+        dynamic_scene_tags = scene_tags(dynamic_scene_tags)
 
         # 结合 LLM 生成的 tags 再次全面校验是否为免帽场景
         if not no_hat and is_no_hat_scene(post_text=post_text, theme_desc=theme_desc, dynamic_tags=dynamic_scene_tags):
@@ -1034,35 +1014,10 @@ def main(bot: ExtendBot, config: YAMLManager):
         if base_anchor:
             prompt_elements.append(base_anchor)
 
-        # 扩充服饰款式关键词，若 LLM 生成已包含明确服饰，则进行色彩与细节协同；若无明确服饰，则注入种子穿搭
-        cloth_keywords = [
-            "pajamas", "dress", "clothes", "hoodie", "shirt", "skirt", "jacket", "outfit",
-            "robe", "apron", "sweater", "cardigan", "coat", "uniform", "blouse", "vest",
-            "sleeves", "tank top", "crop top", "swimsuit", "kimono", "hanfu", "loungewear",
-            "sportswear", "windbreaker", "overalls", "dungarees", "jersey", "parka", "tunic",
-            "pants", "shorts", "trousers", "jeans", "nightdress"
-        ]
-        has_custom_clothing = any(ck in dynamic_scene_tags.lower() for ck in cloth_keywords)
-
-        if not has_custom_clothing:
-            outfit_to_use = outfit_tags or default_outfit
-            if no_hat and outfit_to_use:
-                outfit_to_use = strip_hat_tags(outfit_to_use)
-            if outfit_to_use:
-                prompt_elements.append(outfit_to_use)
-        else:
-            # 若 LLM 生成了衣服但未体现指定的主色或辅色，补充主色强调标签，防止色彩漂移
-            has_palette_color = (
-                primary_color.lower() in dynamic_scene_tags.lower()
-                or secondary_color.lower() in dynamic_scene_tags.lower()
-            )
-            if not has_palette_color:
-                prompt_elements.append(f"({primary_color} clothing:1.1)")
-
-            # 若本次种子抽取了 70% 概率细节/配件变体，且 LLM tags 中尚未包含，则注入丰富细节（免帽场景下已预先清洗）
-            clean_detail = strip_hat_tags(outfit_detail) if no_hat else outfit_detail
-            if clean_detail and clean_detail.lower() not in dynamic_scene_tags.lower():
-                prompt_elements.append(clean_detail)
+        # One authoritative complete outfit; reject model-added wearable tags.
+        outfit_to_use = strip_hat_tags(outfit_tags) if no_hat else outfit_tags
+        if outfit_to_use:
+            prompt_elements.append(outfit_to_use)
 
         if dynamic_scene_tags:
             prompt_elements.append(dynamic_scene_tags)
@@ -1076,16 +1031,16 @@ def main(bot: ExtendBot, config: YAMLManager):
             final_prompt = strip_hat_tags(final_prompt)
 
         # 若衣橱已开启，将本次微调/抽选的提示词同步更新至衣橱
-        if wardrobe_mgr and wardrobe_mgr.is_enabled() and dynamic_scene_tags:
+        if wardrobe_mgr and wardrobe_mgr.is_enabled() and outfit_to_use:
             try:
                 if is_first_today:
                     wardrobe_mgr.on_daily_first_post(shanghai_today, post_text, theme_desc)
                     daily_label = f"今日限定·{base_outfit_name}" if base_outfit_name != "默认款式" else "今日限定"
-                    wardrobe_mgr.update_from_qzone_tags(daily_label, dynamic_scene_tags, is_daily_default=True, no_hat=no_hat)
+                    wardrobe_mgr.update_from_qzone_tags(daily_label, outfit_to_use, is_daily_default=True, no_hat=no_hat)
                 else:
                     # 白天动态若命中了特异性关键词换装，则切换到该款名；否则保留当前款名并更新微调tags
-                    target_name = base_outfit_name if (wardrobe_base and wardrobe_base.get("matched_by") == "keyword") else wardrobe_mgr.get_current_outfit().get("name", "常服1")
-                    wardrobe_mgr.update_from_qzone_tags(target_name, dynamic_scene_tags, is_daily_default=False, no_hat=no_hat)
+                    target_name = base_outfit_name if wardrobe_base else wardrobe_mgr.get_current_outfit().get("name", "常服1")
+                    wardrobe_mgr.update_from_qzone_tags(target_name, outfit_to_use, is_daily_default=False, no_hat=no_hat)
             except Exception as e:
                 logger.warning(f"[Qzone Wardrobe] 同步着装至衣橱失败: {e}")
 
