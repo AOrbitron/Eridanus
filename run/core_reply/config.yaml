@@ -1,5 +1,5 @@
-# 旧 mai_reply 配置仅迁移一次，成功后自动设为 true，请勿手动重置。
-legacy_mai_reply_migrated:  False
+
+legacy_mai_reply_migrated:  False   #请勿手动修改此项。旧 mai_reply 配置仅迁移一次，成功后自动设为 true
 enable: true  # 开启后将自动禁用旧版ai回复
 llm:
   provider: openai  #接口类型
