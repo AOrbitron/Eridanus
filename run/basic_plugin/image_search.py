@@ -14,7 +14,7 @@ from run.basic_plugin.service.imgae_search.eridanus_img_search_server import sea
 from run.basic_plugin.service.imgae_search.image_search2 import fetch_results
 from run.basic_plugin.service.imgae_search.soutubot import async_search_by_image
 from run.basic_plugin.service.imgae_search.avscan import search_avscan
-from run.basic_plugin.service.imgae_search.google_lens_search import search_google_lens
+
 
 def get_local_file_path(url: str) -> str:
     """解析本地 URI / 绝对路径 / 兼容反斜杠与 URL 解码"""
@@ -62,12 +62,11 @@ async def call_image_search(bot, event, config, image_url=None):
     """
     user_info = await get_user(event.user_id, event.sender.nickname)
     bot.logger.info("接收来自 用户：" + str(event.sender.user_id) + " 的搜图指令")
-    
+
     search_cfg = config.basic_plugin.config.get("搜图", {})
-    if (not search_cfg.get("聚合搜图", True) and 
-        not search_cfg.get("soutu_bot", True) and 
-        not search_cfg.get("avscan", True) and 
-        not search_cfg.get("google_lens", True) ):
+    if (not search_cfg.get("聚合搜图", True) and
+            not search_cfg.get("soutu_bot", True) and
+            not search_cfg.get("avscan", True)):
         await bot.send(event, "没有开启任何搜图功能")
         return {"status": "error", "message": "没有开启任何搜图功能"}
 
@@ -111,15 +110,13 @@ async def call_image_search(bot, event, config, image_url=None):
             return {"status": "error", "message": f"图片下载失败: {e}"}
 
     recall_id = await bot.send(event, "正在搜索图片，请等待结果返回.....")
-    
+
     # 3. 所有搜图引擎统一接收本地图片路径，走上传接口
     functions = [
         call_image_search1(bot, event, config, local_img_path),
         call_image_search2(bot, event, config, local_img_path),
         call_image_search3(bot, event, config, local_img_path),
     ]
-    if (search_cfg.get("google_lens", True)  or search_cfg.get("谷歌识图", True) or search_cfg.get("coser搜图", True)):
-        functions.append(call_image_search_google_lens(bot, event, config, local_img_path))
     nsfw_search_operate_level = config.basic_plugin.config["搜图"]["nsfw_search_operate_level"]
     user_perm = getattr(user_info, "permission", 0) if user_info else 0
     if user_perm >= nsfw_search_operate_level:
@@ -166,7 +163,9 @@ async def call_image_search1(bot, event, config, local_img_path):
             for item in result:
                 try:
                     path = "data/pictures/cache/" + random_str() + ".png"
-                    imgpath = await download_img(item[0], path, proxy=config.common_config.basic_config["proxy"]["http_proxy"], gray_layer=True)
+                    imgpath = await download_img(item[0], path,
+                                                 proxy=config.common_config.basic_config["proxy"]["http_proxy"],
+                                                 gray_layer=True)
                     node_list.append(Node(content=[Image(file=imgpath), Text(item[1])]))
                 except Exception as e:
                     bot.logger.error(f"Error in extract_data: {e}")
@@ -220,7 +219,8 @@ async def call_image_search2(bot, event, config, local_img_path):
             bot.logger.error("图片下载失败")
             forMeslist.append(Node(content=[Text(sst)]))
     await bot.send(event, forMeslist)
-    await bot.send(event, [Text(f"最高相似度:{r[0]['similarity']}\n标题：{r[0]['title']}\n页码：{r[0]['page']}\n\n")], True)
+    await bot.send(event, [Text(f"最高相似度:{r[0]['similarity']}\n标题：{r[0]['title']}\n页码：{r[0]['page']}\n\n")],
+                   True)
     return {"engine": "soutu_bot", "status": "success", "data": r[:5]}
 
 
@@ -349,117 +349,13 @@ async def call_image_search_avscan(bot, event, config, local_img_path):
     }
 
 
-
-async def call_image_search_google_lens(bot, event, config, local_img_path):
-    """
-    调用 Google Lens Search (谷歌识图/Google Lens 反向识别 Coser 及推特社媒账号)
-    """
-    search_cfg = config.basic_plugin.config.get("搜图", {})
-    if (not search_cfg.get("google_lens", True) and
-            not search_cfg.get("谷歌识图", True) and
-            not search_cfg.get("coser搜图", True)):
-        return None
-
-    bot.logger.info("调用 Google Lens Search 反查推特/Coser社媒账号")
-    proxy_cfg = config.common_config.basic_config.get("proxy", {}) or {}
-    proxy = proxy_cfg.get("http_proxy") or proxy_cfg.get("socks_proxy")
-    if proxy and not str(proxy).strip():
-        proxy = None
-
-    timeout = int(search_cfg.get("google_lens_timeout", 75))
-    strict = bool(search_cfg.get("google_lens_strict", True))
-    engines = search_cfg.get("google_lens_engines", None)
-
-    try:
-        res = await search_google_lens(
-            image_path=local_img_path,
-            proxy=proxy,
-            engines=engines,
-            timeout=timeout,
-            strict=strict
-        )
-    except Exception as e:
-        bot.logger.error(f"Google Lens 搜索发生异常: {e}")
-        return {"engine": "google_lens", "status": "error", "message": str(e)}
-
-    if not res or res.get("status") != "success":
-        bot.logger.info(f"Google Lens 搜索未成功: {res.get('message', '未知原因') if res else 'None'}")
-        return {"engine": "google_lens", "status": "not_found", "message": res.get("message") if res else ""}
-
-    accounts = res.get("accounts", [])
-    web_results = res.get("web_results", [])
-
-    if not accounts and not web_results:
-        bot.logger.info(f"Google Lens 未识别到有效账号或匹配网页: {res.get('message', '空结果')}")
-        return {"engine": "google_lens", "status": "not_found", "message": res.get("message") if res else ""}
-
-    forMeslist = []
-    if accounts:
-        forMeslist.append(Node(content=[Text(
-            f"🎯【Google Lens 图像反向识别】\n"
-            f"共识别到 {len(accounts)} 个匹配社媒账号：\n"
-            f"（优先锁定原帖发布者与主轴人名）"
-        )]))
-        for acc in accounts:
-            platform = acc.get("platform", "unknown")
-            p_name = {
-                "twitter": "Twitter / X",
-                "weibo": "微博",
-                "bilibili": "哔哩哔哩",
-                "instagram": "Instagram",
-                "pixiv": "Pixiv（画作平台）"
-            }.get(platform, platform)
-
-            name = acc.get("authorName") or acc.get("handle") or "未知"
-            handle = acc.get("handle", "")
-            url = acc.get("url", "")
-            conf = acc.get("confidence", "")
-            conf_str = "【精准出处】" if conf == "direct" else ("【推断关联】" if conf == "inferred" else "【相似图】")
-
-            ev = acc.get("evidence", {}) or {}
-            engine_source = ev.get("engine", "")
-            src_url = ev.get("sourceUrl", "")
-
-            card_text = (
-                f"🌐【平台】：{p_name}\n"
-                f"👤【名字/作者】：{name}\n"
-                f"🆔【账号】：{handle}\n"
-                f"🔗【主页链接】：{url}\n"
-                f"✨【置信度】：{conf_str}"
-            )
-            if engine_source:
-                card_text += f"\n🔍【来源引擎】：{engine_source}"
-            if src_url:
-                card_text += f"\n📌【原帖/出处】：{src_url}"
-
-            forMeslist.append(Node(content=[Text(card_text)]))
-
-    if web_results:
-        web_lines = [f"🌐【Google Lens 相似网页出处】(共 {len(web_results)} 条)："]
-        for idx, item in enumerate(web_results[:5], 1):
-            w_title = item.get("title", "").strip() or "网页出处"
-            w_url = item.get("url", "").strip()
-            web_lines.append(f"{idx}. {w_title}\n🔗 {w_url}")
-        forMeslist.append(Node(content=[Text("\n\n".join(web_lines))]))
-
-    if forMeslist:
-        await bot.send(event, forMeslist)
-
-    return {
-        "engine": "google_lens",
-        "status": "success",
-        "accounts": accounts,
-        "web_results": web_results,
-        "text": res.get("text", "")
-    }
-
 # 兼容保留原有名称引用
 
 def main(bot: ExtendBot, config: YAMLManager):
     @bot.on(GroupMessageEvent)
     async def search_image(event):
         text = str(event.pure_text).strip()
-        commands = {"搜图", "搜番号", "查番号", "avscan", "搜车牌", "搜coser", "反查coser", "福利姬", "查推特", "推特搜图", "lens", "google lens", "谷歌识图"}
+        commands = {"搜图", "搜番号", "查番号", "avscan", "搜车牌"}
 
         is_search_command = text in commands or (
                 event.get("at")
@@ -470,7 +366,8 @@ def main(bot: ExtendBot, config: YAMLManager):
 
         try:
             if is_search_command and not event.get('image'):
-                recall_id = await bot.send(event, "请发送要搜索的图片（支持插画搜源或截图搜番号），nsfw图片可能无法发送到qq，建议自行打码后发送。")
+                recall_id = await bot.send(event,
+                                           "请发送要搜索的图片（支持插画搜源或截图搜番号），nsfw图片可能无法发送到qq，建议自行打码后发送。")
                 image_search[event.sender.user_id] = recall_id
                 return
         except Exception:

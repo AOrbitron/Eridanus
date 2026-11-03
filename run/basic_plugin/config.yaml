@@ -36,8 +36,5 @@ tarot:
   聚合搜图: true          #搜单图
   soutu_bot: true       #搜本子
   avscan: true          #AVScan 截图搜番号
-  google_lens: true        # Google Lens 反向识别推特/Coser/社媒账号
-  google_lens_timeout: 45  # 检索超时时间(秒)
-  google_lens_strict: true # 严格人名共识过滤(避免误报他人推特)
 self_condition:         #bot自身状态检测
   enable: False         #目前该模块打开会导致内存增加，请依据自身情况打开

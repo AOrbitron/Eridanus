@@ -1134,7 +1134,7 @@ def _read_catalog(doc):
     outfits = copy.deepcopy(dict(doc[OUTFITS_KEY]) if current else DEFAULT_OUTFITS)
     # Read earlier versions for custom entries only. Old presets cannot override
     # new templates, and removed presets cannot reappear as "custom" entries.
-    for legacy_key in ("outfits_v2", "outfits"):
+    for legacy_key in ("outfits_v3", "outfits"):
         for name, value in doc.get(legacy_key, {}).items():
             if name not in outfits and name not in DEFAULT_OUTFITS and name not in removed:
                 outfits[name] = copy.deepcopy(value)
@@ -1199,7 +1199,7 @@ class WardrobeManager:
                     ym = YAMLManager.get_instance()
                     if ym is not None and hasattr(ym, "wardrobe") and hasattr(ym.wardrobe, "config"):
                         doc = ym.wardrobe.config
-                        if doc is not None and (OUTFITS_KEY in doc or "outfits_v2" in doc or "outfits" in doc):
+                        if doc is not None and (OUTFITS_KEY in doc or "outfits_v3" in doc or "outfits" in doc):
                             self._yaml_manager = ym
                             self._commented_map = doc
                             self._data = dict(doc)
@@ -1215,7 +1215,7 @@ class WardrobeManager:
                 try:
                     with open(self.yaml_path, "r", encoding="utf-8") as f:
                         doc = self._yaml_rt.load(f)
-                    if doc is not None and (OUTFITS_KEY in doc or "outfits_v2" in doc or "outfits" in doc):
+                    if doc is not None and (OUTFITS_KEY in doc or "outfits_v3" in doc or "outfits" in doc):
                         self._commented_map = doc
                         self._data = dict(doc)
                         if OUTFITS_KEY in self._data:
@@ -1229,7 +1229,7 @@ class WardrobeManager:
                 try:
                     with open(self.yaml_path, "r", encoding="utf-8") as f:
                         data = yaml.safe_load(f)
-                    if isinstance(data, dict) and (OUTFITS_KEY in data or "outfits_v2" in data or "outfits" in data):
+                    if isinstance(data, dict) and (OUTFITS_KEY in data or "outfits_v3" in data or "outfits" in data):
                         self._data = data
                         loaded = True
                 except Exception as e:
@@ -1878,7 +1878,7 @@ def build_change_outfit_declaration(yaml_path: str = YAML_CONFIG_PATH, custom_ou
             ym = YAMLManager.get_instance()
             if ym and hasattr(ym, "wardrobe") and hasattr(ym.wardrobe, "config"):
                 doc = ym.wardrobe.config
-                if doc and (OUTFITS_KEY in doc or "outfits_v2" in doc or "outfits" in doc):
+                if doc and (OUTFITS_KEY in doc or "outfits_v3" in doc or "outfits" in doc):
                     outfits = _read_catalog(doc)
         except Exception as e:
             logger.debug(f"[Wardrobe] 从 YAMLManager 读取服饰列表失败: {e}")
@@ -1890,12 +1890,12 @@ def build_change_outfit_declaration(yaml_path: str = YAML_CONFIG_PATH, custom_ou
                 ryaml.preserve_quotes = True
                 with open(yaml_path, "r", encoding="utf-8") as f:
                     doc = ryaml.load(f)
-                    if doc and (OUTFITS_KEY in doc or "outfits_v2" in doc or "outfits" in doc):
+                    if doc and (OUTFITS_KEY in doc or "outfits_v3" in doc or "outfits" in doc):
                         outfits = _read_catalog(doc)
             elif yaml and os.path.exists(yaml_path):
                 with open(yaml_path, "r", encoding="utf-8") as f:
                     doc = yaml.safe_load(f)
-                    if doc and (OUTFITS_KEY in doc or "outfits_v2" in doc or "outfits" in doc):
+                    if doc and (OUTFITS_KEY in doc or "outfits_v3" in doc or "outfits" in doc):
                         outfits = _read_catalog(doc)
         except Exception as e:
             logger.warning(f"[Wardrobe] 从 {yaml_path} 读取服饰列表失败: {e}")
