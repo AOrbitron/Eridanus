@@ -31,6 +31,7 @@ import re
 import uuid
 from framework_common.database_util.User import get_users_with_permission_above
 from run.mai_reply.service.proactive_service import ProactiveService
+from run.mai_reply.service.follow_up_service import FollowUpService
 from run.mai_reply.service.proactive import build_proactive_prompt, should_proactively_message
 
 from PIL import Image as PILImage
@@ -171,6 +172,7 @@ def main(bot: ExtendBot, config: YAMLManager):
     engine = ReplyEngine(config)
     trigger = TriggerChecker(config, engine.context, engine.emotion)
     proactive_service = ProactiveService(engine)
+    follow_up_service = FollowUpService(engine)
     proactive_running = False
 
     async def proactive_loop():
@@ -192,14 +194,17 @@ def main(bot: ExtendBot, config: YAMLManager):
         finally:
             proactive_running = False
     proactive_task = None
+    follow_up_task = None
 
     @bot.on(LifecycleMetaEvent)
     async def start_proactive_loop(_event):
-        nonlocal proactive_task
+        nonlocal proactive_task, follow_up_task
         if engine.rag_memory.enable:
             engine.rag_memory.start()
         if proactive_task is None or proactive_task.done():
             proactive_task = asyncio.create_task(proactive_loop(), name="mai-reply-proactive")
+        if follow_up_task is None or follow_up_task.done():
+            follow_up_task = asyncio.create_task(follow_up_service.start_loop(bot), name="mai-reply-follow-up")
     bot.logger.info("[MaiReply] 高拟人化AI回复插件已加载")
 
     def is_master(user_id: int) -> bool:
@@ -283,6 +288,7 @@ def main(bot: ExtendBot, config: YAMLManager):
         if text in ("/clearall", "清除全部对话", "清理全部对话"):
             if not is_master(event.user_id):
                 return True
+            follow_up_service.reset_all()
             count = engine.context.clear_all_sessions(group_id)
             if is_group:
                 engine.context.clear_all_group_windows(group_id)
@@ -296,6 +302,7 @@ def main(bot: ExtendBot, config: YAMLManager):
         if text in ("/initall", "初始化全部对话", "重置全部对话"):
             if not is_master(event.user_id):
                 return True
+            follow_up_service.reset_all()
             session_count = engine.context.clear_all_sessions()
             window_count = engine.context.clear_all_group_windows()
             user_imp_count = engine.context.clear_all_user_impressions()
@@ -315,6 +322,7 @@ def main(bot: ExtendBot, config: YAMLManager):
                 target_id = parsed_target_id or event.user_id
                 if target_id != event.user_id and not is_master(event.user_id):
                     return True
+                follow_up_service.reset_user(target_id)
                 engine.context.clear_session(group_id, target_id)
                 engine.context.clear_impression(target_id)
                 if is_group:
@@ -329,6 +337,7 @@ def main(bot: ExtendBot, config: YAMLManager):
                 target_id = parsed_target_id or event.user_id
                 if target_id != event.user_id and not is_master(event.user_id):
                     return True
+                follow_up_service.reset_user(target_id)
                 count = engine.context.clear_user_all_sessions(target_id)
                 engine.context.clear_impression(target_id)
                 await bot.send(event, f"已初始化 {target_id} 在所有群和私聊中的对话记录，共 {count} 条，并清除了用户印象～")
@@ -513,6 +522,7 @@ def main(bot: ExtendBot, config: YAMLManager):
     @bot.on(PrivateMessageEvent)
     async def handle_private(event: PrivateMessageEvent):
         text = event.pure_text or ""
+        follow_up_service.reset_user(event.user_id)
 
         if await handle_clear_command(event, is_group=False):
             return

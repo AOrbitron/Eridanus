@@ -49,6 +49,13 @@ trigger_llm:   #各种低级任务，留空默认回退上面配置的主回复�
     duration: 4.0         # 窗口持续时间（秒），窗口到期后自动汇聚批量消息进行一次性触发判断
     max_messages: 10      # 窗口内最大容纳消息数（达到上限立即提前触发，防止突发超大并发）
   group_context_lines: 5  # 送入上游判断时附加的前序群聊上下文条数（0为不附加，建议3-8条）
+follow_up:  # 私聊沉默后，追问未完成的话头
+  enable: true  # 功能总开关；关闭后不再发起追问
+  idle_seconds: 60  # 每次对话后，等待用户无回复的空闲秒数（默认1分钟）
+  max_idle_seconds: 600  # 超过该时间则视为久远会话，不再追问（默认10分钟）
+  check_interval_seconds: 10  # 后台轮询检查间隔秒数（默认10秒）
+  max_follow_up_turns: 1  # 每轮真实对话最多追问1次（固定上限，避免反复催问）
+  require_friend: true  # 是否仅对好友生效（防止群临时会话骚扰，默认true）
 
 persona:  # 人设
   name: ""  # 角色名（可选，留空则读取默认配置
@@ -174,3 +181,4 @@ mcp:  # MCP stdio server 配置。启动后会把 MCP tools 暴露为 mcp__serve
       args:
         - "@modelcontextprotocol/server-filesystem"
         - "D:/some/allowed/path"
+
