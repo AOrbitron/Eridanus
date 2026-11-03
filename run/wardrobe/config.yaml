@@ -12,7 +12,7 @@ today_default_tags: smirk, mischievous smile, wink, street style, oversized
   jacket, casual clothes
 last_daily_date: '2026-11-05'
 # 角色外观基础锚点（从 yucca.txt 解耦迁移，保持外貌特征统一）
-character_anchor: 1girl, teenager, solo, grey hair, gradient hair, multicolored 
+character_anchor: 1girl, adult woman, 21 years old, solo, grey hair, gradient hair, multicolored 
   hair, blue hair, light purple-light blue mixed eyes, (Side swept hair:1.6), 
   ahoge, bangs, middle long hair, (round face:1.2)
 # 画风、LoRA 与质量锚点
@@ -25,7 +25,7 @@ negative_prompt: lowres, bad anatomy, bad hands, text, error, missing fingers,
   extra digit, fewer digits, cropped, worst quality, low quality, normal 
   quality, jpeg artifacts, signature, watermark, username, blurry, nsfw
 # 衣橱服饰库：涵盖四季日常私服、特色礼服、汉元素、洛丽塔、居家睡衣等，支持持续扩充
-outfits_v2:
+outfits_v3:
   常服1:
     name: 常服1
     description: 街头潮酷常服：Oversized 夹克外套配休闲私服（去除了扳手与修车元素，纯粹的街头潮服搭配）
@@ -34,7 +34,7 @@ outfits_v2:
     occasion: casual, street, daily
     clothing_tags: smirk, mischievous smile, wink, street style, oversized 
       jacket, casual clothes
-    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored 
+    full_prompt: 1girl, adult woman, 21 years old, solo, grey hair, gradient hair, multicolored 
       hair, blue hair, light purple-light blue mixed eyes, (Side swept 
       hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), smirk, 
       mischievous smile, wink, street style, oversized jacket, casual clothes, 
@@ -51,7 +51,7 @@ outfits_v2:
     clothing_tags: (cream oversized cable knit cardigan:1.1), off-white 
       camisole, ribbed top, brown pleated wool skirt, (chocolate brown 
       beret:1.1), beige knee-high socks, retro loafer shoes, casual daily wear
-    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored 
+    full_prompt: 1girl, adult woman, 21 years old, solo, grey hair, gradient hair, multicolored 
       hair, blue hair, light purple-light blue mixed eyes, (Side swept 
       hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), (cream 
       oversized cable knit cardigan:1.1), off-white camisole, ribbed top, brown 
@@ -66,18 +66,20 @@ outfits_v2:
     category: daily
     season: spring/summer
     occasion: date, casual
-    clothing_tags: layered dress, tiered ruffled skirt, pastel frill sundress, 
-      delicate ribbon bow, sweet feminine style, cute Mary Jane shoes, gentle 
-      afternoon sunlight
-    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored 
-      hair, blue hair, light purple-light blue mixed eyes, (Side swept 
-      hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), layered 
-      dress, tiered ruffled skirt, pastel frill sundress, delicate ribbon bow, 
-      sweet feminine style, cute Mary Jane shoes, gentle afternoon sunlight, 
-      (Rella:1.2), (chen bin:1.3), virtual youtuber, (starshadowmagician:1.2), 
-      masterpiece, extremely detailed, lineart, (hand-drawn:1.3), (sketch:1.2), 
-      Picasso style, Van Gogh's almond blossoms, 
+    clothing_tags: pastel tiered ruffle dress, layered cake skirt silhouette, 
+      delicate ribbon bow, cute Mary Jane shoes
+    full_prompt: 1girl, adult woman, 21 years old, solo, grey hair, gradient hair,
+      multicolored hair, blue hair, light purple-light blue mixed eyes, (Side 
+      swept hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), pastel 
+      tiered ruffle dress, layered cake skirt silhouette, delicate ribbon bow, 
+      cute Mary Jane shoes, full body, standing, plain warm white background, 
+      simple background, (Rella:1.2), (chen bin:1.3), virtual youtuber, 
+      (starshadowmagician:1.2), masterpiece, extremely detailed, lineart, 
+      (hand-drawn:1.3), (sketch:1.2), Picasso style, Van Gogh's almond blossoms, 
       <lora:DeniaV1-Nuclear1811-IL:0.5>
+    preview_background: full body, standing, plain warm white background, simple 
+      background
+    preview_negative: car, automobile, vehicle, truck, bus, traffic, road, garage
   甜美洛丽塔:
     name: 甜美洛丽塔
     description: 软萌甜系茶会洛丽塔洋装（蓬蓬裙、蕾丝缎带）
@@ -87,7 +89,7 @@ outfits_v2:
     clothing_tags: sweet lolita dress, frills, lace trim, petticoat, layered 
       ribbons, cute tea party dress, white lace socks, Mary Jane shoes, elegant 
       doll aesthetic
-    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored 
+    full_prompt: 1girl, adult woman, 21 years old, solo, grey hair, gradient hair, multicolored 
       hair, blue hair, light purple-light blue mixed eyes, (Side swept 
       hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), sweet lolita 
       dress, frills, lace trim, petticoat, layered ribbons, cute tea party 
@@ -105,7 +107,7 @@ outfits_v2:
     clothing_tags: spaghetti strap top, casual white camisole, denim shorts, 
       collarbone, bare shoulders, summer casual wear, refreshing cute outfit, 
       soft indoor natural light
-    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored 
+    full_prompt: 1girl, adult woman, 21 years old, solo, grey hair, gradient hair, multicolored 
       hair, blue hair, light purple-light blue mixed eyes, (Side swept 
       hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), spaghetti 
       strap top, casual white camisole, denim shorts, collarbone, bare 
@@ -123,7 +125,7 @@ outfits_v2:
     clothing_tags: elegant evening gown, off-shoulder black silk dress, satin 
       finish, delicate silver necklace, graceful banquet attire, floor-length 
       dress, soft ballroom lighting
-    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored 
+    full_prompt: 1girl, adult woman, 21 years old, solo, grey hair, gradient hair, multicolored 
       hair, blue hair, light purple-light blue mixed eyes, (Side swept 
       hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), elegant 
       evening gown, off-shoulder black silk dress, satin finish, delicate silver
@@ -141,7 +143,7 @@ outfits_v2:
     clothing_tags: gothic lolita, dark victorian aesthetic, black and purple 
       frilled dress, lace bonnet, cross pendant choker, rose embroidery, 
       mysterious elegant atmosphere
-    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored 
+    full_prompt: 1girl, adult woman, 21 years old, solo, grey hair, gradient hair, multicolored 
       hair, blue hair, light purple-light blue mixed eyes, (Side swept 
       hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), gothic 
       lolita, dark victorian aesthetic, black and purple frilled dress, lace 
@@ -159,7 +161,7 @@ outfits_v2:
     clothing_tags: sportswear, sporty zip hoodie, white athletic tank top, 
       running dolphin shorts, sneakers, ponytail, active lifestyle, city park 
       running trail
-    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored 
+    full_prompt: 1girl, adult woman, 21 years old, solo, grey hair, gradient hair, multicolored 
       hair, blue hair, light purple-light blue mixed eyes, (Side swept 
       hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), sportswear, 
       sporty zip hoodie, white athletic tank top, running dolphin shorts, 
@@ -174,18 +176,17 @@ outfits_v2:
     category: daily
     season: spring/summer
     occasion: school, campus
-    clothing_tags: sailor uniform, pleated navy skirt, white sailor collar 
-      blouse, red scarf necktie, high knee socks, loafers, cherry blossoms, 
-      classroom window
-    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored 
-      hair, blue hair, light purple-light blue mixed eyes, (Side swept 
-      hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), sailor 
-      uniform, pleated navy skirt, white sailor collar blouse, red scarf 
-      necktie, high knee socks, loafers, cherry blossoms, classroom window, 
-      (Rella:1.2), (chen bin:1.3), virtual youtuber, (starshadowmagician:1.2), 
-      masterpiece, extremely detailed, lineart, (hand-drawn:1.3), (sketch:1.2), 
-      Picasso style, Van Gogh's almond blossoms, 
-      <lora:DeniaV1-Nuclear1811-IL:0.5>
+    clothing_tags: sailor uniform, pleated navy skirt, white sailor collar blouse,
+      small red ribbon bow at chest, white knee-high socks, brown loafers
+    full_prompt: 1girl, adult woman, 21 years old, solo, grey hair, gradient hair,
+      multicolored hair, blue hair, light purple-light blue mixed eyes, (Side 
+      swept hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), sailor 
+      uniform, pleated navy skirt, white sailor collar blouse, small red ribbon 
+      bow at chest, white knee-high socks, brown loafers, (Rella:1.2), (chen 
+      bin:1.3), virtual youtuber, (starshadowmagician:1.2), masterpiece, extremely
+      detailed, lineart, (hand-drawn:1.3), (sketch:1.2), Picasso style, Van Gogh's
+      almond blossoms, <lora:DeniaV1-Nuclear1811-IL:0.5>
+    preview_negative: scarf, muffler, neck wrap, cape, cloak
   清雅汉元素:
     name: 清雅汉元素
     description: 改良国风汉元素轻纱仙女裙（飘逸雪纺、灵动温婉）
@@ -195,7 +196,7 @@ outfits_v2:
     clothing_tags: hanfu-inspired dress, modern modified hanfu, flowing chiffon 
       sleeves, pastel teal and white gradients, delicate floral embroidery, 
       traditional ribbon tassels, classical pavilion
-    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored 
+    full_prompt: 1girl, adult woman, 21 years old, solo, grey hair, gradient hair, multicolored 
       hair, blue hair, light purple-light blue mixed eyes, (Side swept 
       hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), 
       hanfu-inspired dress, modern modified hanfu, flowing chiffon sleeves, 
@@ -206,22 +207,21 @@ outfits_v2:
       blossoms, <lora:DeniaV1-Nuclear1811-IL:0.5>
   春日碎花连衣裙:
     name: 春日碎花连衣裙
-    description: 春日清新碎花雪纺吊带长裙搭薄针织开衫（浪漫樱花、春游野餐风）
+    description: 春日清新碎花雪纺吊带长裙，单穿无外搭
     category: seasonal
     season: spring
     occasion: picnic, park, date
-    clothing_tags: spring fashion, floral print sundress, pastel chiffon maxi 
-      dress, light beige knitted cardigan, holding cherry blossom branch, 
-      outdoors, soft natural spring sunlight, scenic park background
-    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored 
-      hair, blue hair, light purple-light blue mixed eyes, (Side swept 
-      hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), spring 
-      fashion, floral print sundress, pastel chiffon maxi dress, light beige 
-      knitted cardigan, holding cherry blossom branch, outdoors, soft natural 
-      spring sunlight, scenic park background, (Rella:1.2), (chen bin:1.3), 
-      virtual youtuber, (starshadowmagician:1.2), masterpiece, extremely 
-      detailed, lineart, (hand-drawn:1.3), (sketch:1.2), Picasso style, Van 
-      Gogh's almond blossoms, <lora:DeniaV1-Nuclear1811-IL:0.5>
+    clothing_tags: floral print sundress, pastel chiffon maxi dress, thin shoulder
+      straps, fitted bodice, flowing floral skirt, bare arms
+    full_prompt: 1girl, adult woman, 21 years old, solo, grey hair, gradient hair,
+      multicolored hair, blue hair, light purple-light blue mixed eyes, (Side 
+      swept hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), floral 
+      print sundress, pastel chiffon maxi dress, thin shoulder straps, fitted 
+      bodice, flowing floral skirt, bare arms, (Rella:1.2), (chen bin:1.3), 
+      virtual youtuber, (starshadowmagician:1.2), masterpiece, extremely detailed,
+      lineart, (hand-drawn:1.3), (sketch:1.2), Picasso style, Van Gogh's almond 
+      blossoms, <lora:DeniaV1-Nuclear1811-IL:0.5>
+    preview_negative: cardigan, jacket, coat, shawl, cape, outerwear
   早春双排扣风衣:
     name: 早春双排扣风衣
     description: 早春卡其色经典双排扣长款风衣搭格子围巾（英伦街头、微风漫步）
@@ -231,7 +231,7 @@ outfits_v2:
     clothing_tags: khaki double-breasted trench coat, open coat, pastel striped 
       turtleneck sweater, plaid scarf, pleated skirt, brown ankle boots, spring 
       breeze, city street background
-    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored 
+    full_prompt: 1girl, adult woman, 21 years old, solo, grey hair, gradient hair, multicolored 
       hair, blue hair, light purple-light blue mixed eyes, (Side swept 
       hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), khaki 
       double-breasted trench coat, open coat, pastel striped turtleneck sweater,
@@ -242,44 +242,50 @@ outfits_v2:
       <lora:DeniaV1-Nuclear1811-IL:0.5>
   夏日海滩泳装:
     name: 夏日海滩泳装
-    description: 夏日海边粉蓝荷叶边分体比基尼与薄纱防晒罩衫（海滩度假、浪花轻抚，严格免帽）
+    description: 白色可爱蕾丝边分体比基尼，细致花边与蝴蝶结，无外搭，免帽
     category: seasonal
     season: summer
     occasion: beach, seaside, pool, vacation
     no_hat: true
-    clothing_tags: summer swimwear, cute pastel blue and pink ruffled bikini, 
-      translucent chiffon beach cover-up wrap, bare legs, wet skin, collarbone, 
-      sunny ocean beach, tropical resort, turquoise sea waves
-    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored 
-      hair, blue hair, light purple-light blue mixed eyes, (Side swept 
-      hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), summer 
-      swimwear, cute pastel blue and pink ruffled bikini, translucent chiffon 
-      beach cover-up wrap, bare legs, wet skin, collarbone, sunny ocean beach, 
-      tropical resort, turquoise sea waves, (Rella:1.2), (chen bin:1.3), virtual
-      youtuber, (starshadowmagician:1.2), masterpiece, extremely detailed, 
+    clothing_tags: (white two-piece bikini:1.5), (white triangle bikini top:1.3), 
+      matching white tie-side bikini bottoms, small scalloped lace edging on 
+      bikini cups, small white ribbon bows, bare midriff, navel, bare legs
+    full_prompt: 1girl, adult woman, 21 years old, solo, grey hair, gradient hair,
+      multicolored hair, blue hair, light purple-light blue mixed eyes, (Side 
+      swept hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), (white 
+      two-piece bikini:1.5), (white triangle bikini top:1.3), matching white 
+      tie-side bikini bottoms, small scalloped lace edging on bikini cups, small 
+      white ribbon bows, bare midriff, navel, bare legs, full body, standing, arms
+      relaxed at sides, simple light grey background, (Rella:1.2), (chen bin:1.3),
+      virtual youtuber, (starshadowmagician:1.2), masterpiece, extremely detailed,
       lineart, (hand-drawn:1.3), (sketch:1.2), Picasso style, Van Gogh's almond 
       blossoms, <lora:DeniaV1-Nuclear1811-IL:0.5>
+    preview_negative: cover-up, wrap, robe, jacket, blue bikini, pink bikini, 
+      nightdress, babydoll, dress, skirt, one-piece swimsuit, camisole, lace 
+      bodysuit, covered midriff, cropped, upper body, portrait
+    preview_background: full body, standing, arms relaxed at sides, simple light 
+      grey background
   夏祭金鱼浴衣:
     name: 夏祭金鱼浴衣
-    description: 日式夏日祭典金鱼纹样深蓝浴衣（手持团扇、庙会夜市烟火，免帽）
+    description: 深蓝金鱼与水波纹样浴衣，红色花纹腰带，木屐；不绑定场景或道具
     category: festival
     season: summer
     occasion: festival, evening, fireworks
     no_hat: true
-    clothing_tags: summer festival yukata, navy blue yukata with orange goldfish
-      and water ripples pattern, red floral obi sash, wooden geta sandals, 
-      holding round uchiwa fan, evening festival lanterns, night sky, fireworks 
-      reflection
-    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored 
-      hair, blue hair, light purple-light blue mixed eyes, (Side swept 
-      hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), summer 
-      festival yukata, navy blue yukata with orange goldfish and water ripples 
-      pattern, red floral obi sash, wooden geta sandals, holding round uchiwa 
-      fan, evening festival lanterns, night sky, fireworks reflection, 
-      (Rella:1.2), (chen bin:1.3), virtual youtuber, (starshadowmagician:1.2), 
-      masterpiece, extremely detailed, lineart, (hand-drawn:1.3), (sketch:1.2), 
-      Picasso style, Van Gogh's almond blossoms, 
+    clothing_tags: navy blue cotton yukata, orange goldfish and water ripple print
+      on yukata fabric, red floral obi sash, wooden geta sandals
+    full_prompt: 1girl, adult woman, 21 years old, solo, grey hair, gradient hair,
+      multicolored hair, blue hair, light purple-light blue mixed eyes, (Side 
+      swept hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), navy blue
+      cotton yukata, orange goldfish and water ripple print on yukata fabric, red 
+      floral obi sash, wooden geta sandals, full body, standing, simple light grey
+      studio background, (Rella:1.2), (chen bin:1.3), virtual youtuber, 
+      (starshadowmagician:1.2), masterpiece, extremely detailed, lineart, 
+      (hand-drawn:1.3), (sketch:1.2), Picasso style, Van Gogh's almond blossoms, 
       <lora:DeniaV1-Nuclear1811-IL:0.5>
+    preview_background: full body, standing, simple light grey studio background
+    preview_negative: fireworks, lanterns, festival stalls, pond, river, standing 
+      in water, floating fish
   清凉无袖网球裙:
     name: 清凉无袖网球裙
     description: 夏日清爽白绿配色无袖立领网球服与百褶超短裙（阳光球场、元气运动）
@@ -290,7 +296,7 @@ outfits_v2:
       collar trim, pleated tennis miniskirt, white wristbands, athletic socks, 
       white sneakers, sunny outdoor tennis court, sweat drop, dynamic athletic 
       pose
-    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored 
+    full_prompt: 1girl, adult woman, 21 years old, solo, grey hair, gradient hair, multicolored 
       hair, blue hair, light purple-light blue mixed eyes, (Side swept 
       hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), sporty tennis
       uniform, sleeveless white polo shirt with green collar trim, pleated 
@@ -308,7 +314,7 @@ outfits_v2:
     clothing_tags: off-shoulder ruffled chiffon blouse, bare shoulders, 
       collarbone, light blue denim miniskirt, thin pendant necklace, summer iced
       drink, trendy cafe street, golden hour summer lighting
-    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored 
+    full_prompt: 1girl, adult woman, 21 years old, solo, grey hair, gradient hair, multicolored 
       hair, blue hair, light purple-light blue mixed eyes, (Side swept 
       hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), off-shoulder 
       ruffled chiffon blouse, bare shoulders, collarbone, light blue denim 
@@ -326,7 +332,7 @@ outfits_v2:
     clothing_tags: autumn fashion, warm oversized caramel chunky knit sweater, 
       brown wool pleated skirt, coffee mug in hands, golden fallen ginkgo 
       leaves, cozy autumn afternoon, soft warm golden lighting
-    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored 
+    full_prompt: 1girl, adult woman, 21 years old, solo, grey hair, gradient hair, multicolored 
       hair, blue hair, light purple-light blue mixed eyes, (Side swept 
       hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), autumn 
       fashion, warm oversized caramel chunky knit sweater, brown wool pleated 
@@ -344,7 +350,7 @@ outfits_v2:
     clothing_tags: vintage british houndstooth wool coat, brown plaid woolen 
       skirt, chocolate beret, leather messenger bag, dark brown Oxford brogues, 
       historic university campus, autumn leaves
-    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored 
+    full_prompt: 1girl, adult woman, 21 years old, solo, grey hair, gradient hair, multicolored 
       hair, blue hair, light purple-light blue mixed eyes, (Side swept 
       hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), vintage 
       british houndstooth wool coat, brown plaid woolen skirt, chocolate beret, 
@@ -363,7 +369,7 @@ outfits_v2:
       crimson ruffled dress, tiny bat wings on back, little devil horns 
       headband, pumpkin lantern, striped thigh-high stockings, playful smirk, 
       gothic fantasy party
-    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored 
+    full_prompt: 1girl, adult woman, 21 years old, solo, grey hair, gradient hair, multicolored 
       hair, blue hair, light purple-light blue mixed eyes, (Side swept 
       hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), halloween 
       costume, mischievous little devil outfit, black and crimson ruffled dress,
@@ -383,7 +389,7 @@ outfits_v2:
       thick knit muffler scarf wrapped around neck, fluffy earmuffs, woolen 
       mittens, snowy city street background, gentle snowflakes falling, breath 
       vapor, charcoal wool straight-leg trousers, brown winter ankle boots
-    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored 
+    full_prompt: 1girl, adult woman, 21 years old, solo, grey hair, gradient hair, multicolored 
       hair, blue hair, light purple-light blue mixed eyes, (Side swept hair:1.6), 
       ahoge, bangs, middle long hair, (round face:1.2), winter clothing, oversized
       puffy white down jacket, chunky thick knit muffler scarf wrapped around 
@@ -403,7 +409,7 @@ outfits_v2:
       fluffy white fur trim, matching festive mini dress, golden jingle bell 
       ribbon choker, decorated christmas tree background, warm bokeh lights, 
       festive holiday sparkles
-    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored 
+    full_prompt: 1girl, adult woman, 21 years old, solo, grey hair, gradient hair, multicolored 
       hair, blue hair, light purple-light blue mixed eyes, (Side swept 
       hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), christmas 
       holiday outfit, red velvet hooded capelet with fluffy white fur trim, 
@@ -422,7 +428,7 @@ outfits_v2:
     clothing_tags: navy blue duffle coat, wooden toggle buttons, hooded wool 
       coat, warm dark grey woolen tights, plaid wool scarf, holding hot canned 
       coffee, winter afternoon sunlight, cozy street corner
-    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored 
+    full_prompt: 1girl, adult woman, 21 years old, solo, grey hair, gradient hair, multicolored 
       hair, blue hair, light purple-light blue mixed eyes, (Side swept 
       hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), navy blue 
       duffle coat, wooden toggle buttons, hooded wool coat, warm dark grey 
@@ -441,7 +447,7 @@ outfits_v2:
       neon blue accents, black tactical cargo pants with utility straps, 
       fingerless leather gloves, combat boots, futuristic cyberpunk garage 
       background, neon signs, confident smirk
-    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored 
+    full_prompt: 1girl, adult woman, 21 years old, solo, grey hair, gradient hair, multicolored 
       hair, blue hair, light purple-light blue mixed eyes, (Side swept 
       hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), cool biker 
       girl, cropped black motorcycle leather jacket, neon blue accents, black 
@@ -461,7 +467,7 @@ outfits_v2:
       white apron with lace trim, cat ears headband, maid headdress, white 
       ruffled wrist cuffs, holding silver tea tray, cafe interior, sweet playful
       smile
-    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored 
+    full_prompt: 1girl, adult woman, 21 years old, solo, grey hair, gradient hair, multicolored 
       hair, blue hair, light purple-light blue mixed eyes, (Side swept 
       hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), cute maid 
       uniform, classic black french maid dress, frilled white apron with lace 
@@ -481,7 +487,7 @@ outfits_v2:
       striped over-knee socks, RGB gaming headphones around neck, sitting on 
       cozy couch with gaming controller, living room with anime posters, relaxed
       comfortable mood
-    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored 
+    full_prompt: 1girl, adult woman, 21 years old, solo, grey hair, gradient hair, multicolored 
       hair, blue hair, light purple-light blue mixed eyes, (Side swept 
       hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), ultra 
       oversized slouchy pastel hoodie covering thighs, striped over-knee socks, 
@@ -502,7 +508,7 @@ outfits_v2:
       casual white t-shirt, rolled up sleeves, flour smudge on cheek, holding 
       tray of fresh baked chocolate cookies, cozy kitchen background, proud 
       happy smile
-    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored 
+    full_prompt: 1girl, adult woman, 21 years old, solo, grey hair, gradient hair, multicolored 
       hair, blue hair, light purple-light blue mixed eyes, (Side swept 
       hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), cute ruffled 
       cooking apron, pastel gingham plaid apron over casual white t-shirt, 
@@ -521,7 +527,7 @@ outfits_v2:
     clothing_tags: outdoor mountain techwear, color-blocked windbreaker camping 
       jacket, khaki cargo pants, mountain boots, camping backpack, wilderness 
       campfire background, starry night sky, cozy tent
-    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored 
+    full_prompt: 1girl, adult woman, 21 years old, solo, grey hair, gradient hair, multicolored 
       hair, blue hair, light purple-light blue mixed eyes, (Side swept 
       hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), outdoor 
       mountain techwear, color-blocked windbreaker camping jacket, khaki cargo 
@@ -540,7 +546,7 @@ outfits_v2:
       overalls, bright pastel yellow t-shirt, fluffy white bunny ears headband, 
       holding cute novelty popcorn bucket, colorful amusement park Ferris wheel 
       background
-    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored 
+    full_prompt: 1girl, adult woman, 21 years old, solo, grey hair, gradient hair, multicolored 
       hair, blue hair, light purple-light blue mixed eyes, (Side swept 
       hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), playful 
       amusement park outfit, light blue denim dungarees overalls, bright pastel 
@@ -560,7 +566,7 @@ outfits_v2:
       bodice, stiff layered tulle ballet tutu, delicate black feather hair 
       accessory, silk ballet pointe shoes, theater stage spotlight, dramatic 
       graceful pose
-    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored 
+    full_prompt: 1girl, adult woman, 21 years old, solo, grey hair, gradient hair, multicolored 
       hair, blue hair, light purple-light blue mixed eyes, (Side swept 
       hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), black swan 
       ballet dress, intricate lace embroidered corset bodice, stiff layered 
@@ -581,7 +587,7 @@ outfits_v2:
       sleeves, vibrant red and gold floral embroidery, luxurious brocade obi 
       sash, elegant kanzashi cherry blossom hair ornament, traditional shrine 
       garden background, dignified graceful aura
-    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored 
+    full_prompt: 1girl, adult woman, 21 years old, solo, grey hair, gradient hair, multicolored 
       hair, blue hair, light purple-light blue mixed eyes, (Side swept 
       hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), traditional 
       Japanese formal furisode kimono, long flowing sleeves, vibrant red and 
@@ -601,7 +607,7 @@ outfits_v2:
     clothing_tags: cute oversized pastel pajamas, cozy cotton sleepwear, pastel 
       pink and light mint accents, long sleeves, loose sleep pants, bedtime 
       indoors, messy hair, cozy bedroom lighting, soft pillows
-    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored 
+    full_prompt: 1girl, adult woman, 21 years old, solo, grey hair, gradient hair, multicolored 
       hair, blue hair, light purple-light blue mixed eyes, (Side swept 
       hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), cute 
       oversized pastel pajamas, cozy cotton sleepwear, pastel pink and light 
@@ -620,7 +626,7 @@ outfits_v2:
     clothing_tags: sexy silk nightdress, slip dress, thin spaghetti straps, soft
       glossy champagne satin, collarbone, bare shoulders, feminine allure, dim 
       romantic bedroom lighting, silk bedsheets
-    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored 
+    full_prompt: 1girl, adult woman, 21 years old, solo, grey hair, gradient hair, multicolored 
       hair, blue hair, light purple-light blue mixed eyes, (Side swept 
       hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), sexy silk 
       nightdress, slip dress, thin spaghetti straps, soft glossy champagne 
@@ -639,7 +645,7 @@ outfits_v2:
     clothing_tags: black lace sleepwear, translucent silk camisole, delicate 
       dark floral lace hem, thin straps, collarbone, alluring midnight mood, 
       shadowy bedroom atmosphere, moonlight from window
-    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored 
+    full_prompt: 1girl, adult woman, 21 years old, solo, grey hair, gradient hair, multicolored 
       hair, blue hair, light purple-light blue mixed eyes, (Side swept 
       hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), black lace 
       sleepwear, translucent silk camisole, delicate dark floral lace hem, thin 
@@ -658,7 +664,7 @@ outfits_v2:
     clothing_tags: flannel hooded pajamas, fluffy warm bear ears sleepwear, 
       ultra cozy thick coral fleece, cream white and milk tea tones, hugging a 
       plush toy, warm indoor lighting, sleepy cute expression
-    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored 
+    full_prompt: 1girl, adult woman, 21 years old, solo, grey hair, gradient hair, multicolored 
       hair, blue hair, light purple-light blue mixed eyes, (Side swept 
       hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), flannel 
       hooded pajamas, fluffy warm bear ears sleepwear, ultra cozy thick coral 
@@ -677,7 +683,7 @@ outfits_v2:
     clothing_tags: light blue striped pajamas, classic button-up pajama shirt, 
       soft breathable cotton, neat collar, relaxed morning aesthetic, holding a 
       glass of warm milk, sunlit bedroom
-    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored 
+    full_prompt: 1girl, adult woman, 21 years old, solo, grey hair, gradient hair, multicolored 
       hair, blue hair, light purple-light blue mixed eyes, (Side swept 
       hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), light blue 
       striped pajamas, classic button-up pajama shirt, soft breathable cotton, 
@@ -696,7 +702,7 @@ outfits_v2:
     clothing_tags: pure white ruffled nightgown, delicate frilled hem, 
       breathable linen cotton, thin shoulder straps, innocent angelic style, 
       morning sunlight filtering through sheer curtains, pure serene look
-    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored 
+    full_prompt: 1girl, adult woman, 21 years old, solo, grey hair, gradient hair, multicolored 
       hair, blue hair, light purple-light blue mixed eyes, (Side swept 
       hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), pure white 
       ruffled nightgown, delicate frilled hem, breathable linen cotton, thin 
@@ -715,31 +721,12 @@ outfits_v2:
     clothing_tags: luxurious navy blue silk pajama set, classic button-down long
       sleeve pajama shirt with white piping trim, matching silk pajama pants, 
       collar open, cozy dim bedroom lighting, bed background
-    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored 
+    full_prompt: 1girl, adult woman, 21 years old, solo, grey hair, gradient hair, multicolored 
       hair, blue hair, light purple-light blue mixed eyes, (Side swept 
       hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), luxurious 
       navy blue silk pajama set, classic button-down long sleeve pajama shirt 
       with white piping trim, matching silk pajama pants, collar open, cozy dim 
       bedroom lighting, bed background, (Rella:1.2), (chen bin:1.3), virtual 
-      youtuber, (starshadowmagician:1.2), masterpiece, extremely detailed, 
-      lineart, (hand-drawn:1.3), (sketch:1.2), Picasso style, Van Gogh's almond 
-      blossoms, <lora:DeniaV1-Nuclear1811-IL:0.5>
-  和风纯棉甚平睡衣:
-    name: 和风纯棉甚平睡衣
-    description: 日系和风浅灰蓝细条纹纯棉甚平家居服（系带交领开襟、透气凉爽夏夜，免帽）
-    category: sleepwear
-    season: summer
-    occasion: summer night, relaxing, home
-    no_hat: true
-    clothing_tags: traditional Japanese jinbei lounge pajamas, light grey-blue 
-      pinstripe cotton fabric, criss-cross tie kimono collar, loose comfortable 
-      shorts, bare feet, tatami room background, gentle night breeze
-    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored 
-      hair, blue hair, light purple-light blue mixed eyes, (Side swept 
-      hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), traditional 
-      Japanese jinbei lounge pajamas, light grey-blue pinstripe cotton fabric, 
-      criss-cross tie kimono collar, loose comfortable shorts, bare feet, tatami
-      room background, gentle night breeze, (Rella:1.2), (chen bin:1.3), virtual
       youtuber, (starshadowmagician:1.2), masterpiece, extremely detailed, 
       lineart, (hand-drawn:1.3), (sketch:1.2), Picasso style, Van Gogh's almond 
       blossoms, <lora:DeniaV1-Nuclear1811-IL:0.5>
@@ -754,7 +741,7 @@ outfits_v2:
       hood, belted waist wrap robe, cream white with pastel pink trim, 
       embroidered cat paw pockets, soft warm indoor bedroom, fluffy slippers, 
       yawning cute sleepy expression
-    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored 
+    full_prompt: 1girl, adult woman, 21 years old, solo, grey hair, gradient hair, multicolored 
       hair, blue hair, light purple-light blue mixed eyes, (Side swept 
       hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), fluffy 
       oversized coral fleece bathrobe, cute cat ears on hood, belted waist wrap 
@@ -775,7 +762,7 @@ outfits_v2:
       neon yellow reflective safety stripes, leather tool belt with spanner, 
       dark grey mechanic overalls, fingerless driving gloves, high-top racing 
       boots, bright garage workshop with tools on wall
-    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored 
+    full_prompt: 1girl, adult woman, 21 years old, solo, grey hair, gradient hair, multicolored 
       hair, blue hair, light purple-light blue mixed eyes, (Side swept 
       hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), professional 
       pit crew racing jumpsuit, rolled-up sleeves, neon yellow reflective safety
@@ -796,7 +783,7 @@ outfits_v2:
       crop top, colorful graffiti spray paint splatters, slight engine grease 
       smudge on cheek, holding ratcheting socket wrench, canvas utility pouch, 
       work boots, messy urban workshop
-    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored 
+    full_prompt: 1girl, adult woman, 21 years old, solo, grey hair, gradient hair, multicolored 
       hair, blue hair, light purple-light blue mixed eyes, (Side swept 
       hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), distressed 
       denim mechanic overalls, worn over fitted black crop top, colorful 
@@ -817,7 +804,7 @@ outfits_v2:
       khaki canvas workshop apron, grey henley shirt with sleeves pushed up, 
       anti-static gloves, soldering iron on bench, wooden electronics workbench 
       with circuit boards and wires
-    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored 
+    full_prompt: 1girl, adult woman, 21 years old, solo, grey hair, gradient hair, multicolored 
       hair, blue hair, light purple-light blue mixed eyes, (Side swept 
       hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), protective 
       retro welding goggles resting on forehead, heavy khaki canvas workshop 
@@ -838,7 +825,7 @@ outfits_v2:
       oversized hoodie underneath, denim skinny jeans, bright yellow rain boots,
       holding clear vinyl umbrella, rain drops on coat, wet city pavement with 
       neon reflections
-    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored 
+    full_prompt: 1girl, adult woman, 21 years old, solo, grey hair, gradient hair, multicolored 
       hair, blue hair, light purple-light blue mixed eyes, (Side swept 
       hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), clear 
       transparent vinyl hooded raincoat, pastel pink oversized hoodie 
@@ -858,7 +845,7 @@ outfits_v2:
     clothing_tags: pastel yellow gingham cottagecore dress, cute puff sleeves, 
       ruffled sweetheart neckline, wide-brim straw sunhat with chiffon ribbon, 
       holding woven picnic basket, blooming wildflower meadow in spring breeze
-    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored 
+    full_prompt: 1girl, adult woman, 21 years old, solo, grey hair, gradient hair, multicolored 
       hair, blue hair, light purple-light blue mixed eyes, (Side swept 
       hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), pastel yellow
       gingham cottagecore dress, cute puff sleeves, ruffled sweetheart neckline,
@@ -877,7 +864,7 @@ outfits_v2:
     clothing_tags: sleeveless crisp white sailor shirt with navy blue striped 
       collar, blue silk neckerchief, matching pleated navy mini skirt, white 
       ankle socks, brown loafers, coastal seaside promenade with clear blue sky
-    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored 
+    full_prompt: 1girl, adult woman, 21 years old, solo, grey hair, gradient hair, multicolored 
       hair, blue hair, light purple-light blue mixed eyes, (Side swept 
       hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), sleeveless 
       crisp white sailor shirt with navy blue striped collar, blue silk 
@@ -897,7 +884,7 @@ outfits_v2:
       light-wash denim shorts, stylish sunglasses pushed up on hair, shell 
       necklace, bare shoulders, sun-drenched wooden seaside boardwalk, ocean 
       waves in background
-    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored 
+    full_prompt: 1girl, adult woman, 21 years old, solo, grey hair, gradient hair, multicolored 
       hair, blue hair, light purple-light blue mixed eyes, (Side swept 
       hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), bright lemon 
       yellow backless halter camisole top, frayed light-wash denim shorts, 
@@ -909,25 +896,28 @@ outfits_v2:
       <lora:DeniaV1-Nuclear1811-IL:0.5>
   夏祭捞金鱼印花甚平:
     name: 夏祭捞金鱼印花甚平
-    description: 夏日祭典藏青纯棉印花甚平短装，提着金鱼水袋与木屐，夜市灯笼
+    description: 藏青金鱼印花短袖甚平上衣配同款短裤，单层两件套，无长袍或外搭
     category: seasonal
     season: summer
     occasion: festival, summer night
     no_hat: false
-    clothing_tags: indigo blue breathable cotton jinbei two-piece set, cute 
-      goldfish and wave crest patterns, tied front robe top and matching shorts,
-      wooden geta clogs, holding transparent plastic goldfish bag with water, 
-      lively festival lantern food stalls
-    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored 
-      hair, blue hair, light purple-light blue mixed eyes, (Side swept 
-      hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), indigo blue 
-      breathable cotton jinbei two-piece set, cute goldfish and wave crest 
-      patterns, tied front robe top and matching shorts, wooden geta clogs, 
-      holding transparent plastic goldfish bag with water, lively festival 
-      lantern food stalls, (Rella:1.2), (chen bin:1.3), virtual youtuber, 
-      (starshadowmagician:1.2), masterpiece, extremely detailed, lineart, 
-      (hand-drawn:1.3), (sketch:1.2), Picasso style, Van Gogh's almond blossoms,
-      <lora:DeniaV1-Nuclear1811-IL:0.5>
+    clothing_tags: indigo blue cotton jinbei short-sleeved shirt with side ties, 
+      matching indigo blue above-knee shorts, small goldfish print on shirt 
+      fabric, single-layer two-piece summer outfit, wooden geta sandals, bare 
+      forearms
+    full_prompt: 1girl, adult woman, 21 years old, solo, grey hair, gradient hair,
+      multicolored hair, blue hair, light purple-light blue mixed eyes, (Side 
+      swept hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), indigo 
+      blue cotton jinbei short-sleeved shirt with side ties, matching indigo blue 
+      above-knee shorts, small goldfish print on shirt fabric, single-layer 
+      two-piece summer outfit, wooden geta sandals, bare forearms, full body, 
+      standing, simple light grey studio background, (Rella:1.2), (chen bin:1.3), 
+      virtual youtuber, (starshadowmagician:1.2), masterpiece, extremely detailed,
+      lineart, (hand-drawn:1.3), (sketch:1.2), Picasso style, Van Gogh's almond 
+      blossoms, <lora:DeniaV1-Nuclear1811-IL:0.5>
+    preview_background: full body, standing, simple light grey studio background
+    preview_negative: long robe, kimono, yukata, haori, cape, cloak, coat, 
+      cardigan, outerwear, long sleeves, long skirt
   英伦学院菱格针织马甲:
     name: 英伦学院菱格针织马甲
     description: 英伦学院纯白牛津衬衫叠穿复古菱格针织马甲与百褶裙，皮革邮差包与金秋林荫道
@@ -938,7 +928,7 @@ outfits_v2:
     clothing_tags: crisp white oxford button-up shirt, navy and burgundy argyle 
       knit sweater vest, pleated grey wool skirt, dark brown leather messenger 
       bag, knee socks, oxford brogues, golden autumn tree-lined campus pathway
-    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored 
+    full_prompt: 1girl, adult woman, 21 years old, solo, grey hair, gradient hair, multicolored 
       hair, blue hair, light purple-light blue mixed eyes, (Side swept 
       hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), crisp white 
       oxford button-up shirt, navy and burgundy argyle knit sweater vest, 
@@ -957,7 +947,7 @@ outfits_v2:
     clothing_tags: warm caramel brown corduroy dungarees, cozy cream white 
       ribbed turtleneck sweater underneath, brass button details, brown leather 
       ankle boots, golden ginkgo leaves floating in wind, cozy autumn park bench
-    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored 
+    full_prompt: 1girl, adult woman, 21 years old, solo, grey hair, gradient hair, multicolored 
       hair, blue hair, light purple-light blue mixed eyes, (Side swept 
       hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), warm caramel 
       brown corduroy dungarees, cozy cream white ribbed turtleneck sweater 
@@ -977,7 +967,7 @@ outfits_v2:
       asymmetric zipper, black fitted tee, tactical multi-pocket cargo pants, 
       lace-up combat boots, metal chain accessory, golden hour urban street 
       corner
-    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored 
+    full_prompt: 1girl, adult woman, 21 years old, solo, grey hair, gradient hair, multicolored 
       hair, blue hair, light purple-light blue mixed eyes, (Side swept 
       hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), vintage 
       distressed brown leather motorcycle jacket with asymmetric zipper, black 
@@ -997,7 +987,7 @@ outfits_v2:
       cowl, warm knit beanie with fluffy pom-pom, matching knitted mittens, dark
       fleece-lined leggings, snow boots, gentle soft falling snowflakes, winter 
       wonderland
-    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored 
+    full_prompt: 1girl, adult woman, 21 years old, solo, grey hair, gradient hair, multicolored 
       hair, blue hair, light purple-light blue mixed eyes, (Side swept 
       hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), chunky 
       oversized cream cable knit sweater, thick turtleneck cowl, warm knit 
@@ -1018,7 +1008,7 @@ outfits_v2:
       purple color-blocking, matching insulated snow pants, colorful reflective 
       ski goggles pushed up on winter helmet, waterproof ski gloves, majestic 
       snow-covered mountain peaks background
-    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored 
+    full_prompt: 1girl, adult woman, 21 years old, solo, grey hair, gradient hair, multicolored 
       hair, blue hair, light purple-light blue mixed eyes, (Side swept 
       hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), professional 
       waterproof ski jacket with neon turquoise and purple color-blocking, 
@@ -1039,7 +1029,7 @@ outfits_v2:
       paint stains and splatters, striped long sleeve tee underneath, holding 
       wooden painter palette and fine paintbrushes, canvas easel with colorful 
       artwork, cozy sunlit art studio
-    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored 
+    full_prompt: 1girl, adult woman, 21 years old, solo, grey hair, gradient hair, multicolored 
       hair, blue hair, light purple-light blue mixed eyes, (Side swept 
       hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), beige linen 
       painter smock apron with vibrant colorful oil paint stains and splatters, 
@@ -1060,7 +1050,7 @@ outfits_v2:
       graphic tee, red and black tartan plaid pleated mini skirt, studded 
       leather choker and wristbands, fishnet stockings, holding sleek electric 
       bass guitar, dramatic stage spotlight beams
-    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored 
+    full_prompt: 1girl, adult woman, 21 years old, solo, grey hair, gradient hair, multicolored 
       hair, blue hair, light purple-light blue mixed eyes, (Side swept 
       hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), cropped black
       faux-leather biker vest, sleeveless band graphic tee, red and black tartan
@@ -1081,7 +1071,7 @@ outfits_v2:
       pockets, delicate floral print blouse, canvas work gloves, holding metal 
       watering can, surrounded by lush potted plants and hanging flowers, warm 
       sunlit botanical glasshouse
-    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored 
+    full_prompt: 1girl, adult woman, 21 years old, solo, grey hair, gradient hair, multicolored 
       hair, blue hair, light purple-light blue mixed eyes, (Side swept 
       hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), olive green 
       durable canvas gardening apron with front pruner pockets, delicate floral 
@@ -1102,7 +1092,7 @@ outfits_v2:
       accordion pleated maxi skirt, white silk blouse, thin gold-framed round 
       reading glasses, holding vintage hardcover book, tall wooden library 
       bookshelves filled with books
-    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored 
+    full_prompt: 1girl, adult woman, 21 years old, solo, grey hair, gradient hair, multicolored 
       hair, blue hair, light purple-light blue mixed eyes, (Side swept 
       hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), soft heather 
       grey loose-fit wool cardigan, milk-tea colored accordion pleated maxi 
@@ -1123,7 +1113,7 @@ outfits_v2:
       track pants, durable skate knee pads, chunky skate sneakers, one foot 
       resting on grip-taped skateboard, concrete skatepark with ramps and 
       graffiti walls
-    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored 
+    full_prompt: 1girl, adult woman, 21 years old, solo, grey hair, gradient hair, multicolored 
       hair, blue hair, light purple-light blue mixed eyes, (Side swept 
       hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), oversized 
       charcoal black graphic skate hoodie, baggy cargo track pants, durable 
@@ -1144,7 +1134,7 @@ outfits_v2:
       patterns, ivory standing collar short jacket, ornate embroidered yunjian 
       cloud collar, silk ribbon sash, glowing round full moon over ornate 
       traditional carved pavilion railing
-    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored 
+    full_prompt: 1girl, adult woman, 21 years old, solo, grey hair, gradient hair, multicolored 
       hair, blue hair, light purple-light blue mixed eyes, (Side swept 
       hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), traditional 
       exquisite Chinese hanfu, crimson red and gold brocade mamianqun pleated 
@@ -1166,7 +1156,7 @@ outfits_v2:
       buttons, cozy white faux fur trim collar, matching hooded red winter 
       capelet with white pom-poms, embroidered black pleated skirt, holding 
       glowing paper rabbit lantern, night lantern festival street
-    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored 
+    full_prompt: 1girl, adult woman, 21 years old, solo, grey hair, gradient hair, multicolored 
       hair, blue hair, light purple-light blue mixed eyes, (Side swept 
       hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), festive 
       vibrant red velvet Tang suit jacket with gold frog buttons, cozy white 
@@ -1187,7 +1177,7 @@ outfits_v2:
       unbuttoned at collar, slipping slightly off one bare shoulder, bare legs, 
       mussed bed hair, sitting on soft white wrinkled bed sheets, warm morning 
       sunbeams streaming through bedroom window, cozy cute yawn
-    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored 
+    full_prompt: 1girl, adult woman, 21 years old, solo, grey hair, gradient hair, multicolored 
       hair, blue hair, light purple-light blue mixed eyes, (Side swept 
       hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), oversized 
       boyfriend white cotton button-down shirt, loosely unbuttoned at collar, 
@@ -1208,7 +1198,7 @@ outfits_v2:
       kigurumi pajamas, long floppy rabbit ears on hood, cute pom-pom tail, 
       zippered front with heart pull, hugging giant soft plushie bolster, warm 
       fairy lights bedroom, adorable sleepy expression
-    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored 
+    full_prompt: 1girl, adult woman, 21 years old, solo, grey hair, gradient hair, multicolored 
       hair, blue hair, light purple-light blue mixed eyes, (Side swept 
       hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), fluffy pastel
       lavender and cream coral fleece bunny onesie kigurumi pajamas, long floppy
@@ -1228,7 +1218,7 @@ outfits_v2:
     clothing_tags: sweet lolita nightdress, tiered ruffled hemline, soft pink 
       ribbon bows, delicate lace trim, puffy short sleeves, baby doll style, 
       frilled hem, dreamlike sweet bedtime, bedroom pillow
-    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored 
+    full_prompt: 1girl, adult woman, 21 years old, solo, grey hair, gradient hair, multicolored 
       hair, blue hair, light purple-light blue mixed eyes, (Side swept 
       hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), sweet lolita 
       nightdress, tiered ruffled hemline, soft pink ribbon bows, delicate lace 
@@ -1248,7 +1238,7 @@ outfits_v2:
       thin spaghetti straps, layered sheer tulle fabric, delicate floral lace 
       bustier, soft ethereal glow, moonlight night, collarbone, bare shoulders, 
       dreamy sheer sleepwear
-    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored 
+    full_prompt: 1girl, adult woman, 21 years old, solo, grey hair, gradient hair, multicolored 
       hair, blue hair, light purple-light blue mixed eyes, (Side swept 
       hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), semi-sheer 
       nightdress, translucent white chiffon overlay, thin spaghetti straps, 
@@ -1268,7 +1258,7 @@ outfits_v2:
     clothing_tags: semi-sheer black lace nightdress, translucent dark chiffon, 
       delicate floral lace embroidery, thin slip straps, side slit sheer hem, 
       sheer fabric, subtle silhouette, sultry bedroom, soft romantic night
-    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored 
+    full_prompt: 1girl, adult woman, 21 years old, solo, grey hair, gradient hair, multicolored 
       hair, blue hair, light purple-light blue mixed eyes, (Side swept 
       hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), semi-sheer 
       black lace nightdress, translucent dark chiffon, delicate floral lace 
@@ -1287,7 +1277,7 @@ outfits_v2:
     clothing_tags: gothic lolita nightgown, sheer black organza, translucent 
       purple accents, puffy sheer sleeves, delicate ruffles, criss-cross ribbon,
       dark romance, vintage gothic sleepwear
-    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored 
+    full_prompt: 1girl, adult woman, 21 years old, solo, grey hair, gradient hair, multicolored 
       hair, blue hair, light purple-light blue mixed eyes, (Side swept 
       hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), gothic lolita
       nightgown, sheer black organza, translucent purple accents, puffy sheer 
@@ -1306,7 +1296,7 @@ outfits_v2:
     clothing_tags: mint green sheer chiffon nightdress, floating translucent 
       fabric, delicate spaghetti straps, pleated sheer ruffle hem, lightweight 
       airy nightwear, pastel tone, fresh morning breeze
-    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored 
+    full_prompt: 1girl, adult woman, 21 years old, solo, grey hair, gradient hair, multicolored 
       hair, blue hair, light purple-light blue mixed eyes, (Side swept 
       hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), mint green 
       sheer chiffon nightdress, floating translucent fabric, delicate spaghetti 
@@ -1324,7 +1314,7 @@ outfits_v2:
     clothing_tags: soft fluffy cream oversized knit cardigan, cute cat 
       embroidery, pastel pink pleated mini skirt, white collared inner shirt, 
       knee-high socks, playful youthful style, cozy sweet daily wear
-    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored 
+    full_prompt: 1girl, adult woman, 21 years old, solo, grey hair, gradient hair, multicolored 
       hair, blue hair, light purple-light blue mixed eyes, (Side swept 
       hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), soft fluffy 
       cream oversized knit cardigan, cute cat embroidery, pastel pink pleated 
@@ -1342,7 +1332,7 @@ outfits_v2:
     clothing_tags: yellow floral spaghetti strap sundress, sweetheart neckline, 
       white puff sleeve inner blouse, ruffled hem, high waist A-line silhouette,
       cute dainty necklace, sunny street stroll, adorable summer fashion
-    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored 
+    full_prompt: 1girl, adult woman, 21 years old, solo, grey hair, gradient hair, multicolored 
       hair, blue hair, light purple-light blue mixed eyes, (Side swept 
       hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), yellow floral
       spaghetti strap sundress, sweetheart neckline, white puff sleeve inner 
@@ -1360,7 +1350,7 @@ outfits_v2:
     clothing_tags: beige plaid overall pinafore dress, Peter Pan collar white 
       blouse, tied ribbon bow tie, pleated skirt, cute layered styling, preppy 
       casual daily, adorable girlish charm
-    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored 
+    full_prompt: 1girl, adult woman, 21 years old, solo, grey hair, gradient hair, multicolored 
       hair, blue hair, light purple-light blue mixed eyes, (Side swept 
       hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), beige plaid 
       overall pinafore dress, Peter Pan collar white blouse, tied ribbon bow 
@@ -1378,7 +1368,7 @@ outfits_v2:
     clothing_tags: oversized brown hoodie, one-shoulder off, cute bear graphic 
       print, denim cutoff shorts, mismatched patterned knee socks, slouchy 
       casual streetwear, youthful playful vibe
-    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored 
+    full_prompt: 1girl, adult woman, 21 years old, solo, grey hair, gradient hair, multicolored 
       hair, blue hair, light purple-light blue mixed eyes, (Side swept 
       hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), oversized 
       brown hoodie, one-shoulder off, cute bear graphic print, denim cutoff 

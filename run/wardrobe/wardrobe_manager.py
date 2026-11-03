@@ -33,7 +33,7 @@ except ImportError:
 logger = logging.getLogger("Wardrobe")
 
 YAML_CONFIG_PATH = os.path.join("run", "wardrobe", "config.yaml")
-OUTFITS_KEY = "outfits_v2"
+OUTFITS_KEY = "outfits_v3"
 
 DEFAULT_CHARACTER_ANCHOR = (
     "1girl, teenager, solo, grey hair, gradient hair, multicolored hair, blue hair, "
@@ -143,20 +143,7 @@ DEFAULT_OUTFITS = {   '万圣节小恶魔装': {   'category': 'festival',
                     'name': '冬日加厚白羽绒服',
                     'occasion': 'outdoor, snow, winter',
                     'season': 'winter'},
-    '分层蛋糕裙': {   'category': 'daily',
-                 'clothing_tags': 'layered dress, tiered ruffled skirt, pastel frill sundress, delicate ribbon bow, '
-                                  'sweet feminine style, cute Mary Jane shoes, gentle afternoon sunlight',
-                 'description': '轻甜层叠花边蛋糕裙（多层褶皱下摆、甜美少女风）',
-                 'full_prompt': '1girl, teenager, solo, grey hair, gradient hair, multicolored hair, blue hair, light '
-                                'purple-light blue mixed eyes, (Side swept hair:1.6), ahoge, bangs, middle long hair, '
-                                '(round face:1.2), layered dress, tiered ruffled skirt, pastel frill sundress, '
-                                'delicate ribbon bow, sweet feminine style, cute Mary Jane shoes, gentle afternoon '
-                                'sunlight, (Rella:1.2), (chen bin:1.3), virtual youtuber, (starshadowmagician:1.2), '
-                                'masterpiece, extremely detailed, lineart, (hand-drawn:1.3), (sketch:1.2), Picasso '
-                                "style, Van Gogh's almond blossoms, <lora:DeniaV1-Nuclear1811-IL:0.5>",
-                 'name': '分层蛋糕裙',
-                 'occasion': 'date, casual',
-                 'season': 'spring/summer'},
+    '分层蛋糕裙': {'name': '分层蛋糕裙', 'description': '轻甜层叠花边蛋糕裙（多层褶皱下摆、甜美少女风）', 'category': 'daily', 'season': 'spring/summer', 'occasion': 'date, casual', 'clothing_tags': 'pastel tiered ruffle dress, layered cake skirt silhouette, delicate ribbon bow, cute Mary Jane shoes', 'full_prompt': "1girl, teenager, solo, grey hair, gradient hair, multicolored hair, blue hair, light purple-light blue mixed eyes, (Side swept hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), pastel tiered ruffle dress, layered cake skirt silhouette, delicate ribbon bow, cute Mary Jane shoes, full body, standing, plain warm white background, simple background, (Rella:1.2), (chen bin:1.3), virtual youtuber, (starshadowmagician:1.2), masterpiece, extremely detailed, lineart, (hand-drawn:1.3), (sketch:1.2), Picasso style, Van Gogh's almond blossoms, <lora:DeniaV1-Nuclear1811-IL:0.5>", 'preview_background': 'full body, standing, plain warm white background, simple background', 'preview_negative': 'car, automobile, vehicle, truck, bus, traffic, road, garage'},
     '可爱猫耳女仆装': {   'category': 'special',
                    'clothing_tags': 'cute maid uniform, classic black french maid dress, frilled white apron with lace '
                                     'trim, cat ears headband, maid headdress, white ruffled wrist cuffs, holding '
@@ -190,23 +177,7 @@ DEFAULT_OUTFITS = {   '万圣节小恶魔装': {   'category': 'festival',
                   'no_hat': True,
                   'occasion': 'sleep, bedtime, home',
                   'season': 'all'},
-    '和风纯棉甚平睡衣': {   'category': 'sleepwear',
-                    'clothing_tags': 'traditional Japanese jinbei lounge pajamas, light grey-blue pinstripe cotton '
-                                     'fabric, criss-cross tie kimono collar, loose comfortable shorts, bare feet, '
-                                     'tatami room background, gentle night breeze',
-                    'description': '日系和风浅灰蓝细条纹纯棉甚平家居服（系带交领开襟、透气凉爽夏夜，免帽）',
-                    'full_prompt': '1girl, teenager, solo, grey hair, gradient hair, multicolored hair, blue hair, '
-                                   'light purple-light blue mixed eyes, (Side swept hair:1.6), ahoge, bangs, middle '
-                                   'long hair, (round face:1.2), traditional Japanese jinbei lounge pajamas, light '
-                                   'grey-blue pinstripe cotton fabric, criss-cross tie kimono collar, loose '
-                                   'comfortable shorts, bare feet, tatami room background, gentle night breeze, '
-                                   '(Rella:1.2), (chen bin:1.3), virtual youtuber, (starshadowmagician:1.2), '
-                                   'masterpiece, extremely detailed, lineart, (hand-drawn:1.3), (sketch:1.2), Picasso '
-                                   "style, Van Gogh's almond blossoms, <lora:DeniaV1-Nuclear1811-IL:0.5>",
-                    'name': '和风纯棉甚平睡衣',
-                    'no_hat': True,
-                    'occasion': 'summer night, relaxing, home',
-                    'season': 'summer'},
+
     '哥特洛丽塔': {   'category': 'daily',
                  'clothing_tags': 'gothic lolita, dark victorian aesthetic, black and purple frilled dress, lace '
                                   'bonnet, cross pendant choker, rose embroidery, mysterious elegant atmosphere',
@@ -255,59 +226,9 @@ DEFAULT_OUTFITS = {   '万圣节小恶魔装': {   'category': 'festival',
                    'name': '圣诞红斗篷礼裙',
                    'occasion': 'christmas, holiday, party',
                    'season': 'winter'},
-    '夏日海滩泳装': {   'category': 'seasonal',
-                  'clothing_tags': 'summer swimwear, cute pastel blue and pink ruffled bikini, translucent chiffon '
-                                   'beach cover-up wrap, bare legs, wet skin, collarbone, sunny ocean beach, tropical '
-                                   'resort, turquoise sea waves',
-                  'description': '夏日海边粉蓝荷叶边分体比基尼与薄纱防晒罩衫（海滩度假、浪花轻抚，严格免帽）',
-                  'full_prompt': '1girl, teenager, solo, grey hair, gradient hair, multicolored hair, blue hair, light '
-                                 'purple-light blue mixed eyes, (Side swept hair:1.6), ahoge, bangs, middle long hair, '
-                                 '(round face:1.2), summer swimwear, cute pastel blue and pink ruffled bikini, '
-                                 'translucent chiffon beach cover-up wrap, bare legs, wet skin, collarbone, sunny '
-                                 'ocean beach, tropical resort, turquoise sea waves, (Rella:1.2), (chen bin:1.3), '
-                                 'virtual youtuber, (starshadowmagician:1.2), masterpiece, extremely detailed, '
-                                 "lineart, (hand-drawn:1.3), (sketch:1.2), Picasso style, Van Gogh's almond blossoms, "
-                                 '<lora:DeniaV1-Nuclear1811-IL:0.5>',
-                  'name': '夏日海滩泳装',
-                  'no_hat': True,
-                  'occasion': 'beach, seaside, pool, vacation',
-                  'season': 'summer'},
-    '夏祭捞金鱼印花甚平': {   'category': 'seasonal',
-                     'clothing_tags': 'indigo blue breathable cotton jinbei two-piece set, cute goldfish and wave '
-                                      'crest patterns, tied front robe top and matching shorts, wooden geta clogs, '
-                                      'holding transparent plastic goldfish bag with water, lively festival lantern '
-                                      'food stalls',
-                     'description': '夏日祭典藏青纯棉印花甚平短装，提着金鱼水袋与木屐，夜市灯笼',
-                     'full_prompt': '1girl, teenager, solo, grey hair, gradient hair, multicolored hair, blue hair, '
-                                    'light purple-light blue mixed eyes, (Side swept hair:1.6), ahoge, bangs, middle '
-                                    'long hair, (round face:1.2), indigo blue breathable cotton jinbei two-piece set, '
-                                    'cute goldfish and wave crest patterns, tied front robe top and matching shorts, '
-                                    'wooden geta clogs, holding transparent plastic goldfish bag with water, lively '
-                                    'festival lantern food stalls, (Rella:1.2), (chen bin:1.3), virtual youtuber, '
-                                    '(starshadowmagician:1.2), masterpiece, extremely detailed, lineart, '
-                                    "(hand-drawn:1.3), (sketch:1.2), Picasso style, Van Gogh's almond blossoms, "
-                                    '<lora:DeniaV1-Nuclear1811-IL:0.5>',
-                     'name': '夏祭捞金鱼印花甚平',
-                     'no_hat': False,
-                     'occasion': 'festival, summer night',
-                     'season': 'summer'},
-    '夏祭金鱼浴衣': {   'category': 'festival',
-                  'clothing_tags': 'summer festival yukata, navy blue yukata with orange goldfish and water ripples '
-                                   'pattern, red floral obi sash, wooden geta sandals, holding round uchiwa fan, '
-                                   'evening festival lanterns, night sky, fireworks reflection',
-                  'description': '日式夏日祭典金鱼纹样深蓝浴衣（手持团扇、庙会夜市烟火，免帽）',
-                  'full_prompt': '1girl, teenager, solo, grey hair, gradient hair, multicolored hair, blue hair, light '
-                                 'purple-light blue mixed eyes, (Side swept hair:1.6), ahoge, bangs, middle long hair, '
-                                 '(round face:1.2), summer festival yukata, navy blue yukata with orange goldfish and '
-                                 'water ripples pattern, red floral obi sash, wooden geta sandals, holding round '
-                                 'uchiwa fan, evening festival lanterns, night sky, fireworks reflection, (Rella:1.2), '
-                                 '(chen bin:1.3), virtual youtuber, (starshadowmagician:1.2), masterpiece, extremely '
-                                 "detailed, lineart, (hand-drawn:1.3), (sketch:1.2), Picasso style, Van Gogh's almond "
-                                 'blossoms, <lora:DeniaV1-Nuclear1811-IL:0.5>',
-                  'name': '夏祭金鱼浴衣',
-                  'no_hat': True,
-                  'occasion': 'festival, evening, fireworks',
-                  'season': 'summer'},
+    '夏日海滩泳装': {'name': '夏日海滩泳装', 'description': '白色可爱蕾丝边分体比基尼，细致花边与蝴蝶结，无外搭，免帽', 'category': 'seasonal', 'season': 'summer', 'occasion': 'beach, seaside, pool, vacation', 'no_hat': True, 'clothing_tags': '(white two-piece bikini:1.5), (white triangle bikini top:1.3), matching white tie-side bikini bottoms, small scalloped lace edging on bikini cups, small white ribbon bows, bare midriff, navel, bare legs', 'full_prompt': "1girl, teenager, solo, grey hair, gradient hair, multicolored hair, blue hair, light purple-light blue mixed eyes, (Side swept hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), (white two-piece bikini:1.5), (white triangle bikini top:1.3), matching white tie-side bikini bottoms, small scalloped lace edging on bikini cups, small white ribbon bows, bare midriff, navel, bare legs, full body, standing, arms relaxed at sides, simple light grey background, (Rella:1.2), (chen bin:1.3), virtual youtuber, (starshadowmagician:1.2), masterpiece, extremely detailed, lineart, (hand-drawn:1.3), (sketch:1.2), Picasso style, Van Gogh's almond blossoms, <lora:DeniaV1-Nuclear1811-IL:0.5>", 'preview_negative': 'cover-up, wrap, robe, jacket, blue bikini, pink bikini, nightdress, babydoll, dress, skirt, one-piece swimsuit, camisole, lace bodysuit, covered midriff, cropped, upper body, portrait', 'preview_background': 'full body, standing, arms relaxed at sides, simple light grey background'},
+    '夏祭捞金鱼印花甚平': {'name': '夏祭捞金鱼印花甚平', 'description': '藏青金鱼印花短袖甚平上衣配同款短裤，单层两件套，无长袍或外搭', 'category': 'seasonal', 'season': 'summer', 'occasion': 'festival, summer night', 'no_hat': False, 'clothing_tags': 'indigo blue cotton jinbei short-sleeved shirt with side ties, matching indigo blue above-knee shorts, small goldfish print on shirt fabric, single-layer two-piece summer outfit, wooden geta sandals, bare forearms', 'full_prompt': "1girl, teenager, solo, grey hair, gradient hair, multicolored hair, blue hair, light purple-light blue mixed eyes, (Side swept hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), indigo blue cotton jinbei short-sleeved shirt with side ties, matching indigo blue above-knee shorts, small goldfish print on shirt fabric, single-layer two-piece summer outfit, wooden geta sandals, bare forearms, full body, standing, simple light grey studio background, (Rella:1.2), (chen bin:1.3), virtual youtuber, (starshadowmagician:1.2), masterpiece, extremely detailed, lineart, (hand-drawn:1.3), (sketch:1.2), Picasso style, Van Gogh's almond blossoms, <lora:DeniaV1-Nuclear1811-IL:0.5>", 'preview_background': 'full body, standing, simple light grey studio background', 'preview_negative': 'long robe, kimono, yukata, haori, cape, cloak, coat, cardigan, outerwear, long sleeves, long skirt'},
+    '夏祭金鱼浴衣': {'name': '夏祭金鱼浴衣', 'description': '深蓝金鱼与水波纹样浴衣，红色花纹腰带，木屐；不绑定场景或道具', 'category': 'festival', 'season': 'summer', 'occasion': 'festival, evening, fireworks', 'no_hat': True, 'clothing_tags': 'navy blue cotton yukata, orange goldfish and water ripple print on yukata fabric, red floral obi sash, wooden geta sandals', 'full_prompt': "1girl, teenager, solo, grey hair, gradient hair, multicolored hair, blue hair, light purple-light blue mixed eyes, (Side swept hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), navy blue cotton yukata, orange goldfish and water ripple print on yukata fabric, red floral obi sash, wooden geta sandals, full body, standing, simple light grey studio background, (Rella:1.2), (chen bin:1.3), virtual youtuber, (starshadowmagician:1.2), masterpiece, extremely detailed, lineart, (hand-drawn:1.3), (sketch:1.2), Picasso style, Van Gogh's almond blossoms, <lora:DeniaV1-Nuclear1811-IL:0.5>", 'preview_background': 'full body, standing, simple light grey studio background', 'preview_negative': 'fireworks, lanterns, festival stalls, pond, river, standing in water, floating fish'},
     '天蓝色条纹睡衣': {   'category': 'sleepwear',
                    'clothing_tags': 'light blue striped pajamas, classic button-up pajama shirt, soft breathable '
                                     'cotton, neat collar, relaxed morning aesthetic, holding a glass of warm milk, '
@@ -389,20 +310,7 @@ DEFAULT_OUTFITS = {   '万圣节小恶魔装': {   'category': 'festival',
                    'name': '户外露营冲锋衣',
                    'occasion': 'camping, outdoor, hiking',
                    'season': 'spring/autumn'},
-    '日系水手服': {   'category': 'daily',
-                 'clothing_tags': 'sailor uniform, pleated navy skirt, white sailor collar blouse, red scarf necktie, '
-                                  'high knee socks, loafers, cherry blossoms, classroom window',
-                 'description': '经典藏青百褶裙日系水手服（青春校园、微风拂动）',
-                 'full_prompt': '1girl, teenager, solo, grey hair, gradient hair, multicolored hair, blue hair, light '
-                                'purple-light blue mixed eyes, (Side swept hair:1.6), ahoge, bangs, middle long hair, '
-                                '(round face:1.2), sailor uniform, pleated navy skirt, white sailor collar blouse, red '
-                                'scarf necktie, high knee socks, loafers, cherry blossoms, classroom window, '
-                                '(Rella:1.2), (chen bin:1.3), virtual youtuber, (starshadowmagician:1.2), masterpiece, '
-                                'extremely detailed, lineart, (hand-drawn:1.3), (sketch:1.2), Picasso style, Van '
-                                "Gogh's almond blossoms, <lora:DeniaV1-Nuclear1811-IL:0.5>",
-                 'name': '日系水手服',
-                 'occasion': 'school, campus',
-                 'season': 'spring/summer'},
+    '日系水手服': {'name': '日系水手服', 'description': '经典藏青百褶裙日系水手服（青春校园、微风拂动）', 'category': 'daily', 'season': 'spring/summer', 'occasion': 'school, campus', 'clothing_tags': 'sailor uniform, pleated navy skirt, white sailor collar blouse, small red ribbon bow at chest, white knee-high socks, brown loafers', 'full_prompt': "1girl, teenager, solo, grey hair, gradient hair, multicolored hair, blue hair, light purple-light blue mixed eyes, (Side swept hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), sailor uniform, pleated navy skirt, white sailor collar blouse, small red ribbon bow at chest, white knee-high socks, brown loafers, (Rella:1.2), (chen bin:1.3), virtual youtuber, (starshadowmagician:1.2), masterpiece, extremely detailed, lineart, (hand-drawn:1.3), (sketch:1.2), Picasso style, Van Gogh's almond blossoms, <lora:DeniaV1-Nuclear1811-IL:0.5>", 'preview_negative': 'scarf, muffler, neck wrap, cape, cloak'},
     '早春双排扣风衣': {   'category': 'seasonal',
                    'clothing_tags': 'khaki double-breasted trench coat, open coat, pastel striped turtleneck sweater, '
                                     'plaid scarf, pleated skirt, brown ankle boots, spring breeze, city street '
@@ -436,22 +344,7 @@ DEFAULT_OUTFITS = {   '万圣节小恶魔装': {   'category': 'festival',
                      'no_hat': False,
                      'occasion': 'picnic, park, outdoor',
                      'season': 'spring'},
-    '春日碎花连衣裙': {   'category': 'seasonal',
-                   'clothing_tags': 'spring fashion, floral print sundress, pastel chiffon maxi dress, light beige '
-                                    'knitted cardigan, holding cherry blossom branch, outdoors, soft natural spring '
-                                    'sunlight, scenic park background',
-                   'description': '春日清新碎花雪纺吊带长裙搭薄针织开衫（浪漫樱花、春游野餐风）',
-                   'full_prompt': '1girl, teenager, solo, grey hair, gradient hair, multicolored hair, blue hair, '
-                                  'light purple-light blue mixed eyes, (Side swept hair:1.6), ahoge, bangs, middle '
-                                  'long hair, (round face:1.2), spring fashion, floral print sundress, pastel chiffon '
-                                  'maxi dress, light beige knitted cardigan, holding cherry blossom branch, outdoors, '
-                                  'soft natural spring sunlight, scenic park background, (Rella:1.2), (chen bin:1.3), '
-                                  'virtual youtuber, (starshadowmagician:1.2), masterpiece, extremely detailed, '
-                                  "lineart, (hand-drawn:1.3), (sketch:1.2), Picasso style, Van Gogh's almond blossoms, "
-                                  '<lora:DeniaV1-Nuclear1811-IL:0.5>',
-                   'name': '春日碎花连衣裙',
-                   'occasion': 'picnic, park, date',
-                   'season': 'spring'},
+    '春日碎花连衣裙': {'name': '春日碎花连衣裙', 'description': '春日清新碎花雪纺吊带长裙，单穿无外搭', 'category': 'seasonal', 'season': 'spring', 'occasion': 'picnic, park, date', 'clothing_tags': 'floral print sundress, pastel chiffon maxi dress, thin shoulder straps, fitted bodice, flowing floral skirt, bare arms', 'full_prompt': "1girl, teenager, solo, grey hair, gradient hair, multicolored hair, blue hair, light purple-light blue mixed eyes, (Side swept hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), floral print sundress, pastel chiffon maxi dress, thin shoulder straps, fitted bodice, flowing floral skirt, bare arms, (Rella:1.2), (chen bin:1.3), virtual youtuber, (starshadowmagician:1.2), masterpiece, extremely detailed, lineart, (hand-drawn:1.3), (sketch:1.2), Picasso style, Van Gogh's almond blossoms, <lora:DeniaV1-Nuclear1811-IL:0.5>", 'preview_negative': 'cardigan, jacket, coat, shawl, cape, outerwear'},
     '春雨透明轻便雨衣': {   'category': 'seasonal',
                     'clothing_tags': 'clear transparent vinyl hooded raincoat, pastel pink oversized hoodie '
                                      'underneath, denim skinny jeans, bright yellow rain boots, holding clear vinyl '
@@ -1071,22 +964,186 @@ DEFAULT_OUTFITS = {   '万圣节小恶魔装': {   'category': 'festival',
                                '<lora:DeniaV1-Nuclear1811-IL:0.5>',
                 'name': '默认常服',
                 'occasion': 'casual, campus',
-                'season': 'autumn/winter'}}
+                'season': 'autumn/winter'},
+'洛丽塔梦幻荷叶边睡裙': {'name': '洛丽塔梦幻荷叶边睡裙',
+                'description': '软萌洛丽塔风格睡裙，多层轻纱蓬蓬下摆、精致蕾丝缎带与蝴蝶结，梦幻甜美公主感（免帽）',
+                'category': 'sleepwear',
+                'season': 'all',
+                'occasion': 'bedtime, sweet, lolita',
+                'no_hat': True,
+                'clothing_tags': 'sweet lolita nightdress, tiered ruffled hemline, soft pink ribbon bows, '
+                                 'delicate lace trim, puffy short sleeves, baby doll style, frilled hem, '
+                                 'dreamlike sweet bedtime, bedroom pillow',
+                'full_prompt': '1girl, teenager, solo, grey hair, gradient hair, '
+                               'multicolored hair, blue hair, light purple-light blue mixed eyes, (Side '
+                               'swept hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), sweet '
+                               'lolita nightdress, tiered ruffled hemline, soft pink ribbon bows, delicate '
+                               'lace trim, puffy short sleeves, baby doll style, frilled hem, dreamlike '
+                               'sweet bedtime, bedroom pillow, (Rella:1.2), (chen bin:1.3), virtual '
+                               'youtuber, (starshadowmagician:1.2), masterpiece, extremely detailed, '
+                               "lineart, (hand-drawn:1.3), (sketch:1.2), Picasso style, Van Gogh's almond "
+                               'blossoms, <lora:DeniaV1-Nuclear1811-IL:0.5>'},
+ '半透明月光轻纱吊带睡裙': {'name': '半透明月光轻纱吊带睡裙',
+                 'description': '朦胧微透的月光白轻纱细吊带睡裙，双层薄纱下摆与镂空蕾丝罩纱，微露锁骨与轻熟朦胧美感（免帽）',
+                 'category': 'sleepwear',
+                 'season': 'summer/autumn',
+                 'occasion': 'bedtime, sheer, alluring',
+                 'no_hat': True,
+                 'clothing_tags': 'semi-sheer nightdress, translucent white chiffon overlay, thin spaghetti '
+                                  'straps, layered sheer tulle fabric, delicate floral lace bustier, soft '
+                                  'ethereal glow, moonlight night, collarbone, bare shoulders, dreamy sheer '
+                                  'sleepwear',
+                 'full_prompt': '1girl, teenager, solo, grey hair, gradient hair, '
+                                'multicolored hair, blue hair, light purple-light blue mixed eyes, (Side '
+                                'swept hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), '
+                                'semi-sheer nightdress, translucent white chiffon overlay, thin spaghetti '
+                                'straps, layered sheer tulle fabric, delicate floral lace bustier, soft '
+                                'ethereal glow, moonlight night, collarbone, bare shoulders, dreamy sheer '
+                                'sleepwear, (Rella:1.2), (chen bin:1.3), virtual youtuber, '
+                                '(starshadowmagician:1.2), masterpiece, extremely detailed, lineart, '
+                                "(hand-drawn:1.3), (sketch:1.2), Picasso style, Van Gogh's almond blossoms, "
+                                '<lora:DeniaV1-Nuclear1811-IL:0.5>'},
+ '黑天鹅半透明蕾丝吊带睡裙': {'name': '黑天鹅半透明蕾丝吊带睡裙',
+                  'description': '暗夜魅惑的黑天鹅微透蕾丝吊带睡裙，半透明薄纱侧开衩与精致黑玫瑰暗纹蕾丝，慵懒小性感（免帽）',
+                  'category': 'sleepwear',
+                  'season': 'all',
+                  'occasion': 'bedtime, sexy, dark',
+                  'no_hat': True,
+                  'clothing_tags': 'semi-sheer black lace nightdress, translucent dark chiffon, delicate '
+                                   'floral lace embroidery, thin slip straps, side slit sheer hem, sheer '
+                                   'fabric, subtle silhouette, sultry bedroom, soft romantic night',
+                  'full_prompt': '1girl, teenager, solo, grey hair, gradient hair, '
+                                 'multicolored hair, blue hair, light purple-light blue mixed eyes, (Side '
+                                 'swept hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), '
+                                 'semi-sheer black lace nightdress, translucent dark chiffon, delicate '
+                                 'floral lace embroidery, thin slip straps, side slit sheer hem, sheer '
+                                 'fabric, subtle silhouette, sultry bedroom, soft romantic night, '
+                                 '(Rella:1.2), (chen bin:1.3), virtual youtuber, (starshadowmagician:1.2), '
+                                 'masterpiece, extremely detailed, lineart, (hand-drawn:1.3), (sketch:1.2), '
+                                 "Picasso style, Van Gogh's almond blossoms, "
+                                 '<lora:DeniaV1-Nuclear1811-IL:0.5>'},
+ '哥特轻纱洛丽塔睡裙': {'name': '哥特轻纱洛丽塔睡裙',
+               'description': '暗黑轻甜哥特风轻纱睡裙，黑紫拼色双层轻薄欧根纱、微透蕾丝泡泡袖与十字缎带蝴蝶结（免帽）',
+               'category': 'sleepwear',
+               'season': 'all',
+               'occasion': 'bedtime, gothic, lolita',
+               'no_hat': True,
+               'clothing_tags': 'gothic lolita nightgown, sheer black organza, translucent purple accents, '
+                                'puffy sheer sleeves, delicate ruffles, criss-cross ribbon, dark romance, '
+                                'vintage gothic sleepwear',
+               'full_prompt': '1girl, teenager, solo, grey hair, gradient hair, '
+                              'multicolored hair, blue hair, light purple-light blue mixed eyes, (Side swept '
+                              'hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), gothic lolita '
+                              'nightgown, sheer black organza, translucent purple accents, puffy sheer '
+                              'sleeves, delicate ruffles, criss-cross ribbon, dark romance, vintage gothic '
+                              'sleepwear, (Rella:1.2), (chen bin:1.3), virtual youtuber, '
+                              '(starshadowmagician:1.2), masterpiece, extremely detailed, lineart, '
+                              "(hand-drawn:1.3), (sketch:1.2), Picasso style, Van Gogh's almond blossoms, "
+                              '<lora:DeniaV1-Nuclear1811-IL:0.5>'},
+ '薄荷轻纱清凉吊带睡裙': {'name': '薄荷轻纱清凉吊带睡裙',
+                'description': '清新薄荷绿双层透气轻纱吊带睡裙，淡雅碎褶飘逸轻纱与细锁骨吊带，初夏清凉可爱（免帽）',
+                'category': 'sleepwear',
+                'season': 'summer',
+                'occasion': 'bedtime, summer, fresh',
+                'no_hat': True,
+                'clothing_tags': 'mint green sheer chiffon nightdress, floating translucent fabric, delicate '
+                                 'spaghetti straps, pleated sheer ruffle hem, lightweight airy nightwear, '
+                                 'pastel tone, fresh morning breeze',
+                'full_prompt': '1girl, teenager, solo, grey hair, gradient hair, '
+                               'multicolored hair, blue hair, light purple-light blue mixed eyes, (Side '
+                               'swept hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), mint '
+                               'green sheer chiffon nightdress, floating translucent fabric, delicate '
+                               'spaghetti straps, pleated sheer ruffle hem, lightweight airy nightwear, '
+                               'pastel tone, fresh morning breeze, (Rella:1.2), (chen bin:1.3), virtual '
+                               'youtuber, (starshadowmagician:1.2), masterpiece, extremely detailed, '
+                               "lineart, (hand-drawn:1.3), (sketch:1.2), Picasso style, Van Gogh's almond "
+                               'blossoms, <lora:DeniaV1-Nuclear1811-IL:0.5>'},
+ '甜心猫耳奶绒开衫': {'name': '甜心猫耳奶绒开衫',
+              'description': '软糯米白羊羔绒针织开衫搭配嫩粉百褶短裙，可爱小猫刺绣与软萌毛球配饰，甜美治愈日常私服',
+              'category': 'daily',
+              'season': 'autumn/winter',
+              'occasion': 'casual, sweet, daily',
+              'clothing_tags': 'soft fluffy cream oversized knit cardigan, cute cat embroidery, pastel pink '
+                               'pleated mini skirt, white collared inner shirt, knee-high socks, playful '
+                               'youthful style, cozy sweet daily wear',
+              'full_prompt': '1girl, teenager, solo, grey hair, gradient hair, multicolored '
+                             'hair, blue hair, light purple-light blue mixed eyes, (Side swept hair:1.6), '
+                             'ahoge, bangs, middle long hair, (round face:1.2), soft fluffy cream oversized '
+                             'knit cardigan, cute cat embroidery, pastel pink pleated mini skirt, white '
+                             'collared inner shirt, knee-high socks, playful youthful style, cozy sweet '
+                             'daily wear, (Rella:1.2), (chen bin:1.3), virtual youtuber, '
+                             '(starshadowmagician:1.2), masterpiece, extremely detailed, lineart, '
+                             "(hand-drawn:1.3), (sketch:1.2), Picasso style, Van Gogh's almond blossoms, "
+                             '<lora:DeniaV1-Nuclear1811-IL:0.5>'},
+ '法式小碎花吊带连衣裙': {'name': '法式小碎花吊带连衣裙',
+                'description': '清新鹅黄法式复古碎花细吊带收腰连衣裙，内搭泡泡短袖薄纱衬衫，可爱甜美日常约会穿搭',
+                'category': 'daily',
+                'season': 'spring/summer',
+                'occasion': 'casual, date, daily',
+                'clothing_tags': 'yellow floral spaghetti strap sundress, sweetheart neckline, white puff '
+                                 'sleeve inner blouse, ruffled hem, high waist A-line silhouette, cute '
+                                 'dainty necklace, sunny street stroll, adorable summer fashion',
+                'full_prompt': '1girl, teenager, solo, grey hair, gradient hair, '
+                               'multicolored hair, blue hair, light purple-light blue mixed eyes, (Side '
+                               'swept hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), yellow '
+                               'floral spaghetti strap sundress, sweetheart neckline, white puff sleeve '
+                               'inner blouse, ruffled hem, high waist A-line silhouette, cute dainty '
+                               'necklace, sunny street stroll, adorable summer fashion, (Rella:1.2), (chen '
+                               'bin:1.3), virtual youtuber, (starshadowmagician:1.2), masterpiece, extremely '
+                               "detailed, lineart, (hand-drawn:1.3), (sketch:1.2), Picasso style, Van Gogh's "
+                               'almond blossoms, <lora:DeniaV1-Nuclear1811-IL:0.5>'},
+ '软萌娃娃领格纹背带裙': {'name': '软萌娃娃领格纹背带裙',
+                'description': '日系减龄米咖色格子背带百褶裙内搭白色大翻娃娃领衬衫，胸口蝴蝶结领结，乖巧元气少女感',
+                'category': 'daily',
+                'season': 'all',
+                'occasion': 'casual, school, campus',
+                'clothing_tags': 'beige plaid overall pinafore dress, Peter Pan collar white blouse, tied '
+                                 'ribbon bow tie, pleated skirt, cute layered styling, preppy casual daily, '
+                                 'adorable girlish charm',
+                'full_prompt': '1girl, teenager, solo, grey hair, gradient hair, '
+                               'multicolored hair, blue hair, light purple-light blue mixed eyes, (Side '
+                               'swept hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), beige '
+                               'plaid overall pinafore dress, Peter Pan collar white blouse, tied ribbon bow '
+                               'tie, pleated skirt, cute layered styling, preppy casual daily, adorable '
+                               'girlish charm, (Rella:1.2), (chen bin:1.3), virtual youtuber, '
+                               '(starshadowmagician:1.2), masterpiece, extremely detailed, lineart, '
+                               "(hand-drawn:1.3), (sketch:1.2), Picasso style, Van Gogh's almond blossoms, "
+                               '<lora:DeniaV1-Nuclear1811-IL:0.5>'},
+ '慵懒小熊露肩连帽卫衣': {'name': '慵懒小熊露肩连帽卫衣',
+                'description': '奶咖色落肩露单肩宽松连帽卫衣搭配毛边牛仔短裤与小熊印花长筒袜，元气与慵懒兼备的可爱私服',
+                'category': 'daily',
+                'season': 'spring/autumn',
+                'occasion': 'casual, home, street',
+                'clothing_tags': 'oversized brown hoodie, one-shoulder off, cute bear graphic print, denim '
+                                 'cutoff shorts, mismatched patterned knee socks, slouchy casual streetwear, '
+                                 'youthful playful vibe',
+                'full_prompt': '1girl, teenager, solo, grey hair, gradient hair, '
+                               'multicolored hair, blue hair, light purple-light blue mixed eyes, (Side '
+                               'swept hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), oversized '
+                               'brown hoodie, one-shoulder off, cute bear graphic print, denim cutoff '
+                               'shorts, mismatched patterned knee socks, slouchy casual streetwear, youthful '
+                               'playful vibe, (Rella:1.2), (chen bin:1.3), virtual youtuber, '
+                               '(starshadowmagician:1.2), masterpiece, extremely detailed, lineart, '
+                               "(hand-drawn:1.3), (sketch:1.2), Picasso style, Van Gogh's almond blossoms, "
+                               '<lora:DeniaV1-Nuclear1811-IL:0.5>'}}
 
 def _read_catalog(doc):
-    if OUTFITS_KEY in doc:
-        outfits = dict(doc[OUTFITS_KEY])
-        for name, value in doc.get("outfits", {}).items():
-            if name not in DEFAULT_OUTFITS and name not in outfits:
-                outfits[name] = value
-        return outfits
-    # Known legacy presets cannot overwrite the new version. Preserve custom
-    # entries and the user's finished default outfit.
     import copy
-    outfits = copy.deepcopy(DEFAULT_OUTFITS)
-    for name, value in doc.get("outfits", {}).items():
-        if name not in outfits or name == "默认常服":
-            outfits[name] = copy.deepcopy(value)
+    removed = {"和风纯棉甚平睡衣"}
+    current = OUTFITS_KEY in doc
+    outfits = copy.deepcopy(dict(doc[OUTFITS_KEY]) if current else DEFAULT_OUTFITS)
+    # Read earlier versions for custom entries only. Old presets cannot override
+    # new templates, and removed presets cannot reappear as "custom" entries.
+    for legacy_key in ("outfits_v2", "outfits"):
+        for name, value in doc.get(legacy_key, {}).items():
+            if name not in outfits and name not in DEFAULT_OUTFITS and name not in removed:
+                outfits[name] = copy.deepcopy(value)
+            elif not current and name == "默认常服":
+                outfits[name] = copy.deepcopy(value)
+    outfits.pop("和风纯棉甚平睡衣", None)
+    for outfit in outfits.values():
+        if outfit.get("full_prompt"):
+            outfit["full_prompt"] = outfit["full_prompt"].replace("teenager", "teenager")
     return outfits
 
 
@@ -1142,7 +1199,7 @@ class WardrobeManager:
                     ym = YAMLManager.get_instance()
                     if ym is not None and hasattr(ym, "wardrobe") and hasattr(ym.wardrobe, "config"):
                         doc = ym.wardrobe.config
-                        if doc is not None and (OUTFITS_KEY in doc or "outfits" in doc):
+                        if doc is not None and (OUTFITS_KEY in doc or "outfits_v2" in doc or "outfits" in doc):
                             self._yaml_manager = ym
                             self._commented_map = doc
                             self._data = dict(doc)
@@ -1158,7 +1215,7 @@ class WardrobeManager:
                 try:
                     with open(self.yaml_path, "r", encoding="utf-8") as f:
                         doc = self._yaml_rt.load(f)
-                    if doc is not None and (OUTFITS_KEY in doc or "outfits" in doc):
+                    if doc is not None and (OUTFITS_KEY in doc or "outfits_v2" in doc or "outfits" in doc):
                         self._commented_map = doc
                         self._data = dict(doc)
                         if OUTFITS_KEY in self._data:
@@ -1172,7 +1229,7 @@ class WardrobeManager:
                 try:
                     with open(self.yaml_path, "r", encoding="utf-8") as f:
                         data = yaml.safe_load(f)
-                    if isinstance(data, dict) and (OUTFITS_KEY in data or "outfits" in data):
+                    if isinstance(data, dict) and (OUTFITS_KEY in data or "outfits_v2" in data or "outfits" in data):
                         self._data = data
                         loaded = True
                 except Exception as e:
@@ -1181,6 +1238,13 @@ class WardrobeManager:
             if loaded:
                 self._data[OUTFITS_KEY] = _read_catalog(self._data)
             if loaded:
+                for field in ("default_outfit", "current_outfit", "today_default_outfit"):
+                    if self._data.get(field) == "和风纯棉甚平睡衣":
+                        self._data[field] = "可爱粉彩睡衣"
+                        tag_field = {"current_outfit": "current_outfit_tags", "today_default_outfit": "today_default_tags"}.get(field)
+                        if tag_field:
+                            self._data[tag_field] = self._data[OUTFITS_KEY]["可爱粉彩睡衣"]["clothing_tags"]
+                self._data["character_anchor"] = self._data.get("character_anchor", DEFAULT_CHARACTER_ANCHOR)
                 for name, outfit in self._data.get(OUTFITS_KEY, {}).items():
                     if name != "默认常服":
                         old = outfit.get("clothing_tags", "")
@@ -1393,6 +1457,10 @@ class WardrobeManager:
             if k.lower() == q:
                 return k
 
+        if any(w in q for w in ["捞金鱼", "金鱼甚平", "短甚平", "夏夜甚平"]):
+            if "夏祭捞金鱼印花甚平" in outfits:
+                return "夏祭捞金鱼印花甚平"
+
         # 2. 睡衣系列智能选择 (全部带免帽属性)
         if scene_kind(q) == "sleepwear" or any(w in q for w in ["甚平", "寝衣", "浴袍"]):
             # 新增：轻纱、半透明、吊带与洛丽塔睡裙（具体特征优先）
@@ -1407,7 +1475,7 @@ class WardrobeManager:
             if any(w in q for w in ["半透明", "微透", "透视", "月光", "轻纱吊带", "translucent", "sheer"]):
                 return "半透明月光轻纱吊带睡裙"
             if any(w in q for w in ["甚平", "和风", "日式", "交领"]):
-                return "和风纯棉甚平睡衣"
+                return "可爱粉彩睡衣"
             if any(w in q for w in ["浴袍", "猫咪", "猫耳", "珊瑚绒", "连帽睡袍"]):
                 return "毛绒猫咪连帽睡袍"
             if any(w in q for w in ["藏青", "深蓝", "排扣", "开襟", "长袖"]):
@@ -1475,7 +1543,7 @@ class WardrobeManager:
             (["水手服", "校服", "学生装", "jk", "sailor"], "日系水手服"),
             (["汉服", "汉元素", "古风", "仙女裙"], "清雅汉元素"),
             (["浴袍", "猫咪睡袍", "毛绒猫咪", "连帽睡袍"], "毛绒猫咪连帽睡袍"),
-            (["甚平", "甚平睡衣"], "和风纯棉甚平睡衣"),
+            (["甚平", "短甚平", "金鱼甚平"], "夏祭捞金鱼印花甚平"),
             # 机械与工坊特色
             (["赛车", "pit", "维修站", "修车工", "技工", "连体服"], "赛车维修站连体服"),
             (["涂鸦", "喷漆", "机修背带裤", "背带工装"], "涂鸦机修工装背带裤"),
@@ -1771,7 +1839,7 @@ async def call_change_outfit(bot=None, event=None, config=None, outfit_name: str
 
     # 智能模糊匹配已有服饰
     matched_name = wm.match_outfit(outfit_name) if outfit_name else None
-    
+
     if matched_name:
         outfit_info = wm.get_outfit(matched_name) or {}
         tags = outfit_info.get("clothing_tags", "")
@@ -1810,7 +1878,7 @@ def build_change_outfit_declaration(yaml_path: str = YAML_CONFIG_PATH, custom_ou
             ym = YAMLManager.get_instance()
             if ym and hasattr(ym, "wardrobe") and hasattr(ym.wardrobe, "config"):
                 doc = ym.wardrobe.config
-                if doc and (OUTFITS_KEY in doc or "outfits" in doc):
+                if doc and (OUTFITS_KEY in doc or "outfits_v2" in doc or "outfits" in doc):
                     outfits = _read_catalog(doc)
         except Exception as e:
             logger.debug(f"[Wardrobe] 从 YAMLManager 读取服饰列表失败: {e}")
@@ -1822,12 +1890,12 @@ def build_change_outfit_declaration(yaml_path: str = YAML_CONFIG_PATH, custom_ou
                 ryaml.preserve_quotes = True
                 with open(yaml_path, "r", encoding="utf-8") as f:
                     doc = ryaml.load(f)
-                    if doc and (OUTFITS_KEY in doc or "outfits" in doc):
+                    if doc and (OUTFITS_KEY in doc or "outfits_v2" in doc or "outfits" in doc):
                         outfits = _read_catalog(doc)
             elif yaml and os.path.exists(yaml_path):
                 with open(yaml_path, "r", encoding="utf-8") as f:
                     doc = yaml.safe_load(f)
-                    if doc and (OUTFITS_KEY in doc or "outfits" in doc):
+                    if doc and (OUTFITS_KEY in doc or "outfits_v2" in doc or "outfits" in doc):
                         outfits = _read_catalog(doc)
         except Exception as e:
             logger.warning(f"[Wardrobe] 从 {yaml_path} 读取服饰列表失败: {e}")
