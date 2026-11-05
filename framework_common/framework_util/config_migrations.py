@@ -12,6 +12,7 @@ from ruamel.yaml import YAML
 
 
 CORE_REPLY_MIGRATION_FLAG = "legacy_mai_reply_migrated"
+WARDROBE_LEGACY_KEYS = ("outfits_v4", "outfits_v3", "outfits_v2", "outfits")
 
 
 def _value_kind(value):
@@ -112,13 +113,49 @@ def _migrate_core_reply(run_dir, logger):
         )
 
 
+def _migrate_wardrobe(run_dir, logger):
+    target = run_dir / "wardrobe" / "config.yaml"
+    if not target.is_file():
+        return
+    config = _load_mapping(target)
+    if not isinstance(config, dict):
+        return
+
+    has_legacy = any(k in config for k in WARDROBE_LEGACY_KEYS)
+    if not has_legacy:
+        return
+
+    if "outfits_v5" not in config or not isinstance(config["outfits_v5"], dict):
+        config["outfits_v5"] = {}
+
+    v5 = config["outfits_v5"]
+    migrated_custom = []
+
+    for legacy_key in WARDROBE_LEGACY_KEYS:
+        legacy_data = config.get(legacy_key)
+        if isinstance(legacy_data, dict):
+            for name, outfit_val in legacy_data.items():
+                if name not in v5:
+                    v5[name] = deepcopy(outfit_val)
+                    migrated_custom.append(name)
+        config.pop(legacy_key, None)
+
+    _atomic_save(target, config)
+    msg = f"wardrobe: 已清理历史键 {WARDROBE_LEGACY_KEYS}，"
+    if migrated_custom:
+        msg += f" 并将旧版本自定义预设迁移至 outfits_v5: {migrated_custom}"
+    else:
+        msg += " 未发现需要迁移的旧预设"
+    logger.warning(msg)
+
+
 def migrate_plugin_configs(run_dir, logger):
     """Migration registry; failures retain the marker for the next startup."""
     run_dir = Path(run_dir).resolve()
-    for migration in (_migrate_core_reply,):
+    for migration in (_migrate_core_reply, _migrate_wardrobe):
         try:
             migration(run_dir, logger)
         except Exception as exc:
             logger.warning(
-                f"core_reply 配置迁移失败，未标记完成，将在下次启动重试: {exc}"
+                f"配置迁移失败，将在下次启动重试: {exc}"
             )
