@@ -1953,9 +1953,6 @@ def build_change_outfit_declaration(yaml_path: str = YAML_CONFIG_PATH, custom_ou
 
     tool_description = (
         f"切换或更换当前穿着的服装/衣橱搭配。当用户在聊天中要求换装、换衣服、穿上特定服饰，"
-        f"或希望你生成特定着装自拍/照片，或你自己决定换上合适服饰时必须协同调用此工具更新穿着状态。\n"
-        f"当前衣橱已完整收录以下全部 {count} 套服饰，你可以自主根据情境挑选任意款式：\n"
-        f"{all_outfits_formatted}"
     )
 
     outfit_param_desc = (
