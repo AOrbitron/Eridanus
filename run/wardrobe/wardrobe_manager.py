@@ -9,7 +9,7 @@ import os
 import json
 import logging
 import threading
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from run.wardrobe.outfit_policy import normalize_outfit, clothing_tags as extract_clothing_tags, scene_kind
 
 try:
@@ -33,7 +33,7 @@ except ImportError:
 logger = logging.getLogger("Wardrobe")
 
 YAML_CONFIG_PATH = os.path.join("run", "wardrobe", "config.yaml")
-OUTFITS_KEY = "outfits_v4"
+OUTFITS_KEY = "outfits_v5"
 
 DEFAULT_CHARACTER_ANCHOR = (
     "1girl, teenager, solo, grey hair, gradient hair, multicolored hair, blue hair, "
@@ -949,14 +949,14 @@ DEFAULT_OUTFITS = {   '万圣节小恶魔装': {   'category': 'festival',
                     'no_hat': True,
                     'occasion': 'bedtime, sensual, night',
                     'season': 'summer/autumn'},
-    '默认常服': {   'category': 'daily',
-                'clothing_tags': '(cream oversized cable knit cardigan:1.1)或者oversize coat, off-white camisole, ribbed '
+'默认常服': {   'category': 'daily',
+                'clothing_tags': '(cream oversized cable knit cardigan:1.1), off-white camisole, ribbed '
                                  'top, brown pleated wool skirt, (chocolate brown beret:1.1), beige knee-high socks, '
                                  'retro loafer shoes, casual daily wear',
-                'description': '原版毛衣外套与百褶裙日常服（从yucca.txt迁移保存）',
+                'description': '经典奶油白粗针大毛衣内搭米白小吊带与罗纹上衣，配棕色百褶呢裙、贝雷帽与复古乐福鞋',
                 'full_prompt': '1girl, teenager, solo, grey hair, gradient hair, multicolored hair, blue hair, light '
                                'purple-light blue mixed eyes, (Side swept hair:1.6), ahoge, bangs, middle long hair, '
-                               '(round face:1.2), (cream oversized cable knit cardigan:1.1)或者oversize coat, off-white '
+                               '(round face:1.2), (cream oversized cable knit cardigan:1.1), off-white '
                                'camisole, ribbed top, brown pleated wool skirt, (chocolate brown beret:1.1), beige '
                                'knee-high socks, retro loafer shoes, casual daily wear, (Rella:1.2), (chen bin:1.3), '
                                'virtual youtuber, (starshadowmagician:1.2), masterpiece, extremely detailed, lineart, '
@@ -1134,7 +1134,7 @@ def _read_catalog(doc):
     outfits = copy.deepcopy(dict(doc[OUTFITS_KEY]) if current else DEFAULT_OUTFITS)
     # Read earlier versions for custom entries only. Old presets cannot override
     # new templates, and removed presets cannot reappear as "custom" entries.
-    for legacy_key in ("outfits_v4", "outfits"):
+    for legacy_key in (OUTFITS_KEY, "outfits"):
         for name, value in doc.get(legacy_key, {}).items():
             if name not in outfits and name not in DEFAULT_OUTFITS and name not in removed:
                 outfits[name] = copy.deepcopy(value)
@@ -1199,7 +1199,7 @@ class WardrobeManager:
                     ym = YAMLManager.get_instance()
                     if ym is not None and hasattr(ym, "wardrobe") and hasattr(ym.wardrobe, "config"):
                         doc = ym.wardrobe.config
-                        if doc is not None and (OUTFITS_KEY in doc or "outfits_v4" in doc or "outfits" in doc):
+                        if doc is not None and (OUTFITS_KEY in doc or OUTFITS_KEY in doc or "outfits" in doc):
                             self._yaml_manager = ym
                             self._commented_map = doc
                             self._data = dict(doc)
@@ -1215,7 +1215,7 @@ class WardrobeManager:
                 try:
                     with open(self.yaml_path, "r", encoding="utf-8") as f:
                         doc = self._yaml_rt.load(f)
-                    if doc is not None and (OUTFITS_KEY in doc or "outfits_v4" in doc or "outfits" in doc):
+                    if doc is not None and (OUTFITS_KEY in doc or OUTFITS_KEY in doc or "outfits" in doc):
                         self._commented_map = doc
                         self._data = dict(doc)
                         if OUTFITS_KEY in self._data:
@@ -1229,7 +1229,7 @@ class WardrobeManager:
                 try:
                     with open(self.yaml_path, "r", encoding="utf-8") as f:
                         data = yaml.safe_load(f)
-                    if isinstance(data, dict) and (OUTFITS_KEY in data or "outfits_v4" in data or "outfits" in data):
+                    if isinstance(data, dict) and (OUTFITS_KEY in data or OUTFITS_KEY in data or "outfits" in data):
                         self._data = data
                         loaded = True
                 except Exception as e:
@@ -1582,23 +1582,22 @@ class WardrobeManager:
 
     def pick_base_outfit_for_theme(self, theme_desc: str = "", post_text: str = "", is_first_today: bool = False, season_name: str = "") -> dict:
         """
-        Qzone 动态主题抽选后，从衣橱挑选最合适的基准服饰：
-        1. 优先度1（场景/关键词精准匹配）：海滩、晚安、雨天、图书馆、运动、女仆、洛丽塔等；
-        2. 优先度2（若非特异场景，且为今日首发）：根据当前时令/季节在日常私服池中轮换挑选；
-        3. 优先度3（若是白天后续动态）：沿用今日已锁定的当前穿着；
-        4. 兜底：返回 default_outfit ("常服1")。
+        Qzone 动态服装挑选：从衣橱中选出最贴合情境或兼顾日常丰富度的基准服装：
+        1. 优先级1（场景/关键词精准匹配）：海滩、温泉、睡衣、运动、女仆装、汉服、浴衣等特异活动，精准锁定对应服装。
+        2. 优先级2（普通日常动态丰富轮换）：根据当前时令与动态文案内容特征，在应季及日常私服池中自然丰富轮换，彻底告别单调固定。
+        3. 优先级3（兜底回退）：回退至今日默认或系统默认常服。
         """
         combined = f"{theme_desc} {post_text}".strip()
         outfits = self._data.get(OUTFITS_KEY, {})
         kind = scene_kind(combined)
 
-        # 1. 优先度 1：语义/关键词特异性匹配
+        # 1. 优先级 1：精准场景/关键词匹配
         matched_name = self.match_outfit(combined)
         if kind == "sporty" and "运动活力" in outfits:
             matched_name = "运动活力"
         if matched_name and matched_name in outfits:
             matched_obj = outfits[matched_name]
-            logger.info(f"[Wardrobe] Qzone 主题/文案精确命中衣橱款式: [{matched_name}]")
+            logger.info(f"[Wardrobe] Qzone 场景/文案精准锁定衣橱款式: [{matched_name}]")
             return {
                 "name": matched_name,
                 "clothing_tags": matched_obj.get("clothing_tags", ""),
@@ -1606,63 +1605,75 @@ class WardrobeManager:
                 "matched_by": "keyword"
             }
 
-        # 2. 优先度 2：无特定关键词，若是今日首发动态 -> 按季节轮换日常穿搭
-        if is_first_today:
-            season_pools = {
-                "spring": ["常服1", "春日碎花连衣裙", "早春双排扣风衣", "春日田园野餐格纹裙", "学院风百褶短裙", "运动活力", "日系水手服", "美术生文艺罩衫", "街头滑板连帽卫衣"],
-                "summer": ["清凉小吊带", "盛夏阳光露背吊带短裤", "清凉无袖网球裙", "露肩雪纺一字领", "清爽无袖水手百褶裙", "运动活力", "夏祭捞金鱼印花甚平"],
-                "autumn": ["常服1", "秋日落叶针织衫", "英伦复古格纹大衣", "英伦学院菱格针织马甲", "深秋复古灯芯绒背带裤", "街头机能风工装", "温暖粗棒针毛衣"],
-                "winter": ["冬日加厚白羽绒服", "牛角扣毛呢大衣", "温暖粗棒针毛衣", "极地防寒专业滑雪服", "高领羊绒毛衣", "常服1"]
-            }
+        # 2. 优先级 2：无特定特异关键词的日常动态 -> 依据时令与文案内容特征在日常/应季池中丰富轮换
+        season_pools = {
+            "spring": [
+                "默认常服", "常服1", "春日碎花连衣裙", "早春双排扣风衣", "春日田园野餐格纹裙",
+                "清爽无袖水手百褶裙", "运动活力", "日系水手服", "分层蛋糕裙", "甜美洛丽塔",
+                "软萌娃娃领格纹背带裙", "春雨透明轻便雨衣", "法式小碎花吊带连衣裙"
+            ],
+            "summer": [
+                "清凉小吊带", "盛夏阳光露背吊带短裤", "清凉无袖网球裙", "露肩雪纺一字领",
+                "清爽无袖水手百褶裙", "运动活力", "夏祭捞金鱼印花甚平", "法式小碎花吊带连衣裙",
+                "分层蛋糕裙", "日系水手服", "默认常服"
+            ],
+            "autumn": [
+                "默认常服", "常服1", "秋日落叶针织衫", "英伦复古格纹大衣", "英伦学院菱格针织马甲",
+                "深秋复古灯芯绒背带裤", "街头复古机车皮衣长裤", "图书馆文艺知性长裙",
+                "甜心猫耳奶绒开衫", "机能风骑行皮衣", "软萌娃娃领格纹背带裙"
+            ],
+            "winter": [
+                "默认常服", "冬日加厚白羽绒服", "牛角扣毛呢大衣", "雪人粗针麻花高领毛衣",
+                "慵懒小熊露肩连帽卫衣", "宅家慵懒连帽卫衣", "甜心猫耳奶绒开衫", "极地专业加厚滑雪服", "常服1"
+            ]
+        }
 
-            current_season = "spring"
-            s_lower = season_name.lower()
-            if any(k in s_lower for k in ["夏", "summer"]):
-                current_season = "summer"
-            elif any(k in s_lower for k in ["秋", "autumn", "fall"]):
-                current_season = "autumn"
-            elif any(k in s_lower for k in ["冬", "winter"]):
-                current_season = "winter"
-            else:
-                import datetime
-                m = datetime.datetime.now().month
-                if m in [3, 4, 5]: current_season = "spring"
-                elif m in [6, 7, 8]: current_season = "summer"
-                elif m in [9, 10, 11]: current_season = "autumn"
-                else: current_season = "winter"
-
-            candidates = season_pools.get(current_season, ["常服1"])
-            valid_candidates = [c for c in candidates if c in outfits]
-            if not valid_candidates:
-                valid_candidates = ["常服1"]
-
+        current_season = "spring"
+        s_lower = season_name.lower()
+        if any(k in s_lower for k in ["夏", "summer"]):
+            current_season = "summer"
+        elif any(k in s_lower for k in ["秋", "autumn", "fall"]):
+            current_season = "autumn"
+        elif any(k in s_lower for k in ["冬", "winter"]):
+            current_season = "winter"
+        else:
             import datetime
-            date_seed = datetime.datetime.now().strftime("%Y%m%d")
-            picked_name = valid_candidates[abs(hash(date_seed)) % len(valid_candidates)]
-            picked_obj = outfits.get(picked_name, {})
-            logger.info(f"[Wardrobe] Qzone 今日首条动态根据时令 [{current_season}] 轮换挑选衣橱款式: [{picked_name}]")
-            return {
-                "name": picked_name,
-                "clothing_tags": picked_obj.get("clothing_tags", ""),
-                "no_hat": picked_obj.get("no_hat", False),
-                "matched_by": "season_rotation"
-            }
+            m = datetime.datetime.now().month
+            if m in [3, 4, 5]: current_season = "spring"
+            elif m in [6, 7, 8]: current_season = "summer"
+            elif m in [9, 10, 11]: current_season = "autumn"
+            else: current_season = "winter"
 
-        # 3. 优先度 3：若是白天日常动态（非首发，无强特异场景），平滑继承今日当前穿着
-        current = self.get_current_outfit()
-        if kind in {"outdoor", "daily", "sporty"} and (
-                current.get("category") == "sleepwear" or
-                scene_kind(current.get("clothing_tags", "")) == "sleepwear"):
-            current = self.get_today_default_outfit()
-            if (current.get("category") == "sleepwear" or
-                    scene_kind(current.get("clothing_tags", "")) == "sleepwear"):
-                name = self._data.get("default_outfit", "默认常服")
-                current = dict(outfits.get(name, {}), name=name)
+        candidates = season_pools.get(current_season, ["默认常服"])
+        daily_pool = [
+            "默认常服", "常服1", "分层蛋糕裙", "甜美洛丽塔", "清凉小吊带",
+            "露肩雪纺一字领", "宅家慵懒连帽卫衣", "烘焙围裙料理服", "游乐园兔耳背带裤",
+            "图书馆文艺知性长裙", "甜心猫耳奶绒开衫", "法式小碎花吊带连衣裙",
+            "软萌娃娃领格纹背带裙", "慵懒小熊露肩连帽卫衣"
+        ]
+        all_pool = list(dict.fromkeys(candidates + daily_pool))
+        valid_candidates = [c for c in all_pool if c in outfits]
+        if not valid_candidates:
+            valid_candidates = [self._data.get("default_outfit", "默认常服")]
+
+        import datetime
+        date_str = datetime.datetime.now().strftime("%Y%m%d")
+        if is_first_today:
+            seed_val = abs(hash(f"daily_first_{date_str}"))
+            picked_name = valid_candidates[seed_val % len(valid_candidates)]
+            matched_by_mode = "season_rotation"
+        else:
+            post_hash = abs(hash(f"{date_str}_{combined[:30]}"))
+            picked_name = valid_candidates[post_hash % len(valid_candidates)]
+            matched_by_mode = "daily_rotation"
+
+        picked_obj = outfits.get(picked_name, {})
+        logger.info(f"[Wardrobe] Qzone 日常动态按 [{current_season}/{matched_by_mode}] 灵活轮换服装: [{picked_name}]")
         return {
-            "name": current.get("name", "常服1"),
-            "clothing_tags": current.get("clothing_tags", ""),
-            "no_hat": current.get("no_hat", False),
-            "matched_by": "current_carryover"
+            "name": picked_name,
+            "clothing_tags": picked_obj.get("clothing_tags", ""),
+            "no_hat": picked_obj.get("no_hat", False),
+            "matched_by": matched_by_mode
         }
 
 
@@ -1870,7 +1881,7 @@ async def call_change_outfit(bot=None, event=None, config=None, outfit_name: str
 def build_change_outfit_declaration(yaml_path: str = YAML_CONFIG_PATH, custom_outfits: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """
     根据 config.yaml 动态构建 call_change_outfit 的 Function Calling 声明。
-    优先通过 YAMLManager 实时获取服饰列表，精简紧凑描述，避免硬编码巨幅长文本。
+    完整罗列全部服饰名称（按分类整理），使 bot 具备完全的自主挑选能力。
     """
     outfits = custom_outfits
     if outfits is None and _has_yaml_manager and YAMLManager is not None:
@@ -1878,7 +1889,7 @@ def build_change_outfit_declaration(yaml_path: str = YAML_CONFIG_PATH, custom_ou
             ym = YAMLManager.get_instance()
             if ym and hasattr(ym, "wardrobe") and hasattr(ym.wardrobe, "config"):
                 doc = ym.wardrobe.config
-                if doc and (OUTFITS_KEY in doc or "outfits_v4" in doc or "outfits" in doc):
+                if doc and (OUTFITS_KEY in doc or OUTFITS_KEY in doc or "outfits" in doc):
                     outfits = _read_catalog(doc)
         except Exception as e:
             logger.debug(f"[Wardrobe] 从 YAMLManager 读取服饰列表失败: {e}")
@@ -1890,12 +1901,12 @@ def build_change_outfit_declaration(yaml_path: str = YAML_CONFIG_PATH, custom_ou
                 ryaml.preserve_quotes = True
                 with open(yaml_path, "r", encoding="utf-8") as f:
                     doc = ryaml.load(f)
-                    if doc and (OUTFITS_KEY in doc or "outfits_v4" in doc or "outfits" in doc):
+                    if doc and (OUTFITS_KEY in doc or OUTFITS_KEY in doc or "outfits" in doc):
                         outfits = _read_catalog(doc)
             elif yaml and os.path.exists(yaml_path):
                 with open(yaml_path, "r", encoding="utf-8") as f:
                     doc = yaml.safe_load(f)
-                    if doc and (OUTFITS_KEY in doc or "outfits_v4" in doc or "outfits" in doc):
+                    if doc and (OUTFITS_KEY in doc or OUTFITS_KEY in doc or "outfits" in doc):
                         outfits = _read_catalog(doc)
         except Exception as e:
             logger.warning(f"[Wardrobe] 从 {yaml_path} 读取服饰列表失败: {e}")
@@ -1904,36 +1915,60 @@ def build_change_outfit_declaration(yaml_path: str = YAML_CONFIG_PATH, custom_ou
         outfits = DEFAULT_OUTFITS
 
     count = len(outfits)
-    sample_candidates = ["常服1", "默认常服", "分层蛋糕裙", "甜美洛丽塔", "清凉小吊带", "优雅晚礼服", "哥特洛丽塔", "可爱粉彩睡衣"]
-    picked_samples = [name for name in sample_candidates if name in outfits]
-    if len(picked_samples) < 5:
-        for name in outfits.keys():
-            if name not in picked_samples:
-                picked_samples.append(name)
-            if len(picked_samples) >= 6:
-                break
 
-    samples_str = "、".join(picked_samples[:6])
+    cat_order = [
+        ("daily", "日常私服"),
+        ("seasonal", "四季时令"),
+        ("sleepwear", "居家睡衣"),
+        ("special", "特色装扮"),
+        ("sport", "运动活力"),
+        ("festival", "节日庆典"),
+    ]
+    cat_map: Dict[str, List[str]] = {}
+    for name, data in outfits.items():
+        c = data.get("category", "other") if isinstance(data, dict) else "other"
+        cat_map.setdefault(c, []).append(name)
 
-    optimized_outfit_desc = (
-        f"要更换的目标服装名称或风格描述。系统启动时已从衣橱配置(config.yaml)动态载入{count}套服饰"
-        f"（涵盖日常私服、四季特色、华丽礼服、汉元素及居家睡衣等，例如：{samples_str}等）。"
-        f"支持输入衣橱款式名，或输入任意自定义/模糊服装描述。"
+    catalog_lines = []
+    for c_key, c_label in cat_order:
+        names = cat_map.pop(c_key, [])
+        if names:
+            catalog_lines.append(f"【{c_label} ({len(names)}套)】: " + "、".join(names))
+    if cat_map:
+        other_names = []
+        for v in cat_map.values():
+            other_names.extend(v)
+        if other_names:
+            catalog_lines.append(f"【其他款式 ({len(other_names)}套)】: " + "、".join(other_names))
+
+    all_outfits_formatted = "\n".join(catalog_lines)
+
+    tool_description = (
+        f"切换或更换当前穿着的服装/衣橱搭配。当用户在聊天中要求换装、换衣服、穿上特定服饰，"
+        f"或希望你生成特定着装自拍/照片，或你自己决定换上合适服饰时必须协同调用此工具更新穿着状态。\n"
+        f"当前衣橱已完整收录以下全部 {count} 套服饰，你可以自主根据情境挑选任意款式：\n"
+        f"{all_outfits_formatted}"
+    )
+
+    outfit_param_desc = (
+        f"要更换的目标服装名称。请优先从以下完整收录的全部 {count} 套衣橱服饰中自主挑选最契合当前语境、活动或用户需求的款式名称：\n"
+        f"{all_outfits_formatted}\n"
+        f"（也支持输入任意自定义或模糊服装风格描述）。"
     )
 
     return {
         "name": "call_change_outfit",
-        "description": "切换或更换当前穿着的服装/衣橱搭配。当用户在聊天中要求换装、换衣服、穿上特定服饰，或希望你生成特定着装自拍/照片时必须协同调用此工具更新穿着状态。",
+        "description": tool_description,
         "parameters": {
             "type": "object",
             "properties": {
                 "outfit_name": {
                     "type": "string",
-                    "description": optimized_outfit_desc
+                    "description": outfit_param_desc
                 },
                 "custom_description": {
                     "type": "string",
-                    "description": "特定服饰细节、颜色搭配或自定义 SD Prompt 关键词（可选，留空则使用对应服装的标准衣橱配置）"
+                    "description": "特定服饰细节、配色或额外的自定义 SD Prompt 关键词（可选，留空则使用对应服装的标准衣橱配置）"
                 }
             },
             "required": ["outfit_name"]

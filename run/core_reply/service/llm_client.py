@@ -21,6 +21,10 @@ from framework_common.framework_util.yamlLoader import YAMLManager  # 【新增�
 
 logger=get_logger(__name__)
 
+# Gemini 官方推荐与逆向中转绕过校验签名常量
+# 参考: https://ai.google.dev/gemini-api/docs/thought-signatures#faqs
+DUMMY_THOUGHT_SIGNATURE = "skip_thought_signature_validator" 
+
 class LLMClient:
 
     def __init__(self, config, custom_llm_cfg: Optional[Dict[str, Any]] = None):
@@ -51,6 +55,7 @@ class LLMClient:
         self._oa_temperature: float = float(oa.get("temperature", 1.0))
         self._oa_max_tokens: int = int(oa.get("max_tokens", 1024)) if not oa.get("max_completion_tokens") else None
         self._oa_max_completion_tokens=int(oa.get("max_completion_tokens")) if oa.get("max_completion_tokens") else None
+        self.enable_thought_signature: bool = bool(oa.get("enable_thought_signature", False))
 
         # --- Gemini 配置
         gm = lcfg.get("gemini", {})
@@ -182,20 +187,25 @@ class LLMClient:
                         if "tool_calls" in delta and delta["tool_calls"]:
                             is_tool_call = True
                             for tc in delta["tool_calls"]:
-                                idx = tc["index"]
+                                idx = tc.get("index", 0)
                                 if idx not in tool_calls_dict:
                                     tool_calls_dict[idx] = {
                                         "id": tc.get("id", ""),
-                                        "type": "function",
+                                        "type": tc.get("type", "function"),
                                         "function": {"name": tc.get("function", {}).get("name", ""), "arguments": ""}
                                     }
                                 else:
                                     if tc.get("id"): tool_calls_dict[idx]["id"] = tc["id"]
+                                    if tc.get("type"): tool_calls_dict[idx]["type"] = tc["type"]
                                     if tc.get("function", {}).get("name"):
                                         tool_calls_dict[idx]["function"]["name"] = tc["function"]["name"]
 
+                                for extra_k in ("thought_signature", "signature", "thoughtSignature", "extra_content"):
+                                    if extra_k in tc and tc[extra_k]:
+                                        tool_calls_dict[idx][extra_k] = tc[extra_k]
+
                                 func = tc.get("function", {})
-                                if "arguments" in func:
+                                if "arguments" in func and func["arguments"]:
                                     tool_calls_dict[idx]["function"]["arguments"] += func["arguments"]
                     except json.JSONDecodeError:
                         pass
@@ -207,6 +217,10 @@ class LLMClient:
                     await on_intermediate_text(round_text)
 
                 tool_calls_list =[tool_calls_dict[k] for k in sorted(tool_calls_dict.keys())]
+                if self.enable_thought_signature:
+                    for tc in tool_calls_list:
+                        if not any(k in tc for k in ("thought_signature", "signature", "thoughtSignature")):
+                            tc["thought_signature"] = DUMMY_THOUGHT_SIGNATURE
                 full_messages.append({"role": "assistant", "content": round_text or None, "tool_calls": tool_calls_list})
                 tool_results, should_continue = await self._execute_openai_tool_calls(tool_calls_list, tools, bot, event)
 
@@ -328,7 +342,8 @@ class LLMClient:
             message = choice["message"]
             finish_reason = choice.get("finish_reason", "")
 
-            if finish_reason != "tool_calls" or not message.get("tool_calls"):
+            tool_calls = message.get("tool_calls")
+            if not tool_calls:
                 final_text = accumulated_text + (message.get("content") or "")
                 return final_text.strip() or None
 
@@ -337,8 +352,13 @@ class LLMClient:
                 await on_intermediate_text(text_before_tool)
             accumulated_text += text_before_tool
 
+            if self.enable_thought_signature and isinstance(tool_calls, list):
+                for tc in tool_calls:
+                    if isinstance(tc, dict) and not any(k in tc for k in ("thought_signature", "signature", "thoughtSignature")):
+                        tc["thought_signature"] = DUMMY_THOUGHT_SIGNATURE
+
             full_messages.append(message)
-            tool_results, should_continue = await self._execute_openai_tool_calls(message["tool_calls"], tools, bot, event)
+            tool_results, should_continue = await self._execute_openai_tool_calls(tool_calls, tools, bot, event)
 
             if not should_continue:
                 return accumulated_text.strip() or None

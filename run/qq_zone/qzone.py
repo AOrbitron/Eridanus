@@ -931,17 +931,21 @@ def main(bot: ExtendBot, config: YAMLManager):
                              else default_outfit or "cream cotton shirt, brown straight-leg trousers, white sneakers")
             outfit_detail = ""
 
-        # 若衣橱成功挑选出基准服饰，使用衣橱款式 tags 作为核心款式模板
+        # 衣橱成功挑选出基准款式，使用衣橱款式 tags 作为核心款式模板
         base_outfit_name = "默认款式"
         if wardrobe_base and wardrobe_base.get("clothing_tags"):
             base_outfit_name = wardrobe_base.get("name", "衣橱款式")
             outfit_tags = wardrobe_base["clothing_tags"]
-            # An unrelated random seed supplies no accessories to a wardrobe set.
-            outfit_detail = ""
+            # 非强特异关键词匹配（日常轮换或继承）时，融合随机配件与细节，赋予日常服饰丰富灵动的生命力
+            if wardrobe_base.get("matched_by") != "keyword" and outfit_detail:
+                if outfit_detail.lower() not in outfit_tags.lower():
+                    outfit_tags = f"{outfit_tags}, {outfit_detail}"
             if wardrobe_base.get("no_hat", False):
                 no_hat = True
         else:
             outfit_tags = fallback_tags
+            if outfit_detail and outfit_detail.lower() not in outfit_tags.lower():
+                outfit_tags = f"{outfit_tags}, {outfit_detail}"
 
         outfit_tags = normalize_outfit(clothing_tags(outfit_tags or default_outfit))
 
@@ -973,13 +977,10 @@ def main(bot: ExtendBot, config: YAMLManager):
                 prompt_generator = (
                     f"Generate English comma-separated Stable Diffusion scene tags for {bot_name}.\n"
                     f"Post: {post_text}\nScene reference: {theme_desc}\nSeason: {season_sd_full}\n"
-                    f"The system will insert this complete outfit unchanged: {outfit_tags}\n"
-                    "Output only expression, emotion, pose, action, camera angle, lighting and background. "
-                    "Do not output clothing, accessories, headwear, garment colors or character appearance. "
-                    "Do not replace or mix the selected outfit. Sleepwear belongs indoors at bedtime; "
-                    "streetwear and sportswear must suit the actual activity. "
-                    "Use the post's concrete setting; do not add seasonal leaves or snow automatically. "
-                    "Do not explain, output Chinese, markdown, or a second outfit.\n"
+                    f"Character baseline clothing: {outfit_tags}\n"
+                    "Output expression, emotion, pose, action, camera angle, lighting, background, and subtle contextual details "
+                    "(such as a handheld item, bag, or contextual accessories suitable for the activity). "
+                    "Keep clothing harmonized with the baseline outfit; do not contradict it.\n"
                     f"{hat_constraint}"
                 )
                 sd_tags = await mai_llm.chat(
@@ -1031,19 +1032,18 @@ def main(bot: ExtendBot, config: YAMLManager):
             final_prompt = strip_hat_tags(final_prompt)
 
         # 若衣橱已开启，将本次微调/抽选的提示词同步更新至衣橱
+        # 衣橱已开启：首发动态记录今日默认；强特异关键词场景同步换装状态
         if wardrobe_mgr and wardrobe_mgr.is_enabled() and outfit_to_use:
             try:
                 if is_first_today:
                     wardrobe_mgr.on_daily_first_post(shanghai_today, post_text, theme_desc)
                     daily_label = f"今日限定·{base_outfit_name}" if base_outfit_name != "默认款式" else "今日限定"
                     wardrobe_mgr.update_from_qzone_tags(daily_label, outfit_to_use, is_daily_default=True, no_hat=no_hat)
-                else:
-                    # 白天动态若命中了特异性关键词换装，则切换到该款名；否则保留当前款名并更新微调tags
-                    target_name = base_outfit_name if wardrobe_base else wardrobe_mgr.get_current_outfit().get("name", "常服1")
-                    wardrobe_mgr.update_from_qzone_tags(target_name, outfit_to_use, is_daily_default=False, no_hat=no_hat)
+                elif wardrobe_base and wardrobe_base.get("matched_by") == "keyword":
+                    # 仅在强关键词特异场景（如睡衣/运动/浴衣等）下同步换装，避免日常小随笔锁死衣橱
+                    wardrobe_mgr.update_from_qzone_tags(base_outfit_name, outfit_to_use, is_daily_default=False, no_hat=no_hat)
             except Exception as e:
-                logger.warning(f"[Qzone Wardrobe] 同步着装至衣橱失败: {e}")
-
+                logger.warning(f"[Qzone Wardrobe] 同步服装到衣橱失败: {e}")
         logger.info(f"[Qzone SD] 组合完成 SD Prompt (no_hat={no_hat}): {final_prompt}")
         return final_prompt
 

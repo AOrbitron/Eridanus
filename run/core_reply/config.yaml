@@ -1,5 +1,4 @@
-
-legacy_mai_reply_migrated:  False   #请勿手动修改此项。旧 mai_reply 配置仅迁移一次，成功后自动设为 true
+legacy_mai_reply_migrated: true     #请勿手动修改此项。旧 mai_reply 配置仅迁移一次，成功后自动设为 true
 enable: true  # 开启后将自动禁用旧版ai回复
 llm:
   provider: openai  #接口类型
@@ -17,6 +16,7 @@ llm:
     max_tokens: 1024   #openai新版用的是max_completion_tokens，当max_completion_tokens配置项不为0时，自动使用max_completion_tokens
     max_completion_tokens: 0
     enable_official_sdk: false   # false=直接发post，true=用openai sdk
+    enable_thought_signature: false  # 是否开启工具调用 thought_signature 签名兼容（适配 Gemini/部分逆向 API 的严格签名校验）
 
   gemini:
     api_keys:

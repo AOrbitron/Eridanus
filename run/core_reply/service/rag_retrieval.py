@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Greedy-packed, multi-scope retrieval supporting group multi-speaker concise recognition and zero truncation."""
+"""Greedy-packed, multi-scope retrieval supporting group multi-speaker concise recognition, user nickname/profile background knowledge injection and zero truncation."""
 import asyncio
 import hashlib
 import json
@@ -13,11 +13,11 @@ from framework_common.utils.system_logger import get_logger
 
 logger = get_logger(__name__)
 
-RAG_PREFIX = "\n\n【长期记忆检索 (RAG Memory)】"
+RAG_PREFIX = "\n\n【长期记忆检索 (RAG Memory)】："
 
 
 class EpisodeRetrieval:
-    """负责跨会话多作用域隔离召回、群聊多成员感知与防截断贪心组装"""
+    """负责跨会话多作用域隔离召回、群聊多成员感知、用户外号与档案背景注入与防截断贪心组装"""
 
     def _init_retrieval(self):
         self._query_cache: Dict[str, Tuple[float, np.ndarray]] = {}
@@ -100,80 +100,167 @@ class EpisodeRetrieval:
         max_prompt_chars = int(cfg.get("max_prompt_chars", 1200))
 
         # -------------------------------------------------------------
-        # 2. 生成 Query Embedding
-        # -------------------------------------------------------------
-        query_text = query.strip()
-        if not query_text:
-            return ""
-
-        cache_ttl = float(cfg.get("query_cache_seconds", 300.0))
-        max_cache_size = int(cfg.get("query_cache_size", 256))
-        q_vec = None
-
-        cached = self._query_cache.get(query_text)
-        if cached and (now - cached[0]) < cache_ttl:
-            q_vec = cached[1]
-
-        if q_vec is None:
-            try:
-                vectors = await asyncio.wait_for(self._embed([query_text], is_query=True), timeout=timeout)
-                q_vec = vectors[0]
-                if len(self._query_cache) >= max_cache_size:
-                    oldest_k = min(self._query_cache.keys(), key=lambda k: self._query_cache[k][0])
-                    self._query_cache.pop(oldest_k, None)
-                self._query_cache[query_text] = (now, q_vec)
-            except Exception as exc:
-                self._warn(f"[MaiReply RAG] 生成 Query Embedding 超时或失败: {exc}")
-                return ""
-
-        # -------------------------------------------------------------
-        # 3. 从数据库读取候选记忆（包含群内多人及本群记忆）
-        # -------------------------------------------------------------
-        placeholders = ",".join("?" for _ in unique_scopes)
-        query_sql = f"""
-            SELECT id, scope, text, vector, created, ended, user_id, fact_type, category, target_id, target_name
-            FROM memories
-            WHERE scope IN ({placeholders}) AND namespace=? AND vector IS NOT NULL AND ended IS NULL
-            ORDER BY COALESCE(ended, created) DESC LIMIT 200
-        """
-        params = list(unique_scopes) + [self._namespace]
-        rows = self._run_db(lambda db: db.execute(query_sql, params).fetchall())
-
-        if not rows:
-            return ""
-
-        # -------------------------------------------------------------
-        # 4. 计算余弦相似度并打分筛选
-        # -------------------------------------------------------------
-        scored = []
-        for row in rows:
-            v_blob = row[3]
-            if not v_blob:
-                continue
-            try:
-                mem_vec = np.frombuffer(v_blob, dtype=np.float32)
-                sim = float(np.dot(q_vec, mem_vec))
-                if sim >= min_sim:
-                    scored.append((sim, row))
-            except Exception:
-                continue
-
-        if not scored:
-            return ""
-
-        scored.sort(key=lambda x: x[0], reverse=True)
-        top_candidates = scored[:top_k]
-
-        # -------------------------------------------------------------
-        # 5. 结构化分类与实体归并（Mem0 单人单条精炼认知压缩）
+        # 1.5 无条件背景事实召回 (Background Identity & Profile Facts)
+        # 核心保证：即使 query 没有命中任何关键词（如“今天好累”/“你好”），
+        # 用户的外号/昵称、基础档案与核心背景知识也会像 memory_slots 一样无条件作为背景知识注入！
         # -------------------------------------------------------------
         current_speaker_facts = []
         other_members_best: Dict[str, Tuple[float, str, str]] = {}  # uid -> (sim, display_name, concise_fact)
         group_facts = []
         bot_facts = []
         episodes = []
-
         seen_texts = set()
+
+        if user_id_str:
+            def fetch_user_background_facts(db):
+                return db.execute("""
+                    SELECT id, scope, text, created, ended, user_id, fact_type, category, target_id, target_name
+                    FROM memories
+                    WHERE (scope = ? OR (target_id = ? AND target_id != ''))
+                      AND namespace = ?
+                      AND fact_type = 'fact'
+                      AND ended IS NULL
+                    ORDER BY 
+                      CASE 
+                        WHEN category IN ('profile', 'identity', 'alias', 'nickname') THEN 0 
+                        WHEN category IN ('preference', 'relationship') THEN 1
+                        ELSE 2 
+                      END,
+                      created DESC
+                    LIMIT 8
+                """, (f"user:{user_id_str}", user_id_str, self._namespace)).fetchall()
+
+            try:
+                bg_rows = self._run_db(fetch_user_background_facts)
+                for r in bg_rows:
+                    t = r[2].strip()
+                    t_name = r[9] or user_id_str
+                    if t and t not in seen_texts:
+                        seen_texts.add(t)
+                        current_speaker_facts.append((1.0, t_name, t))
+            except Exception as exc:
+                self._warn(f"[MaiReply RAG] 读取用户背景事实失败: {exc}")
+
+            # 若 memories 暂无该用户的事实记录，尝试从持久化 memory_slots 桥接基础档案（如外号/常住地）
+            if not current_speaker_facts:
+                try:
+                    def fetch_slot_profile(db):
+                        return db.execute("""
+                            SELECT slot_id, category, content FROM memory_slots
+                            WHERE owner_type='user' AND owner_id=? AND slot_id IN (1, 6) AND content != ''
+                            ORDER BY slot_id ASC
+                        """, (user_id_str,)).fetchall()
+
+                    slot_rows = []
+                    try:
+                        slot_rows = self._run_db(fetch_slot_profile)
+                    except Exception:
+                        pass
+
+                    if not slot_rows:
+                        import os, sqlite3
+                        imp_path = "data/dataBase/impression_store.db"
+                        if os.path.exists(imp_path):
+                            with sqlite3.connect(imp_path) as idb:
+                                slot_rows = idb.execute("""
+                                    SELECT slot_id, category, content FROM memory_slots
+                                    WHERE owner_type='user' AND owner_id=? AND slot_id IN (1, 6) AND content != ''
+                                    ORDER BY slot_id ASC
+                                """, (user_id_str,)).fetchall()
+
+                    for s_id, s_cat, s_content in slot_rows:
+                        s_text = s_content.strip()
+                        if s_text and s_text not in seen_texts:
+                            seen_texts.add(s_text)
+                            current_speaker_facts.append((0.95, user_id_str, f"[{s_cat}] {s_text}"))
+                except Exception:
+                    pass
+
+        # 群聊环境下，拉取其他在场活跃成员的基础档案/外号
+        if is_group and other_members:
+            for o_uid in list(other_members.keys())[:4]:
+                def fetch_other_bg(db, uid=o_uid):
+                    return db.execute("""
+                        SELECT target_id, target_name, text FROM memories
+                        WHERE (scope = ? OR (target_id = ? AND target_id != ''))
+                          AND namespace = ?
+                          AND fact_type = 'fact'
+                          AND ended IS NULL
+                        ORDER BY 
+                          CASE WHEN category IN ('profile', 'identity', 'alias', 'nickname') THEN 0 ELSE 1 END,
+                          created DESC
+                        LIMIT 1
+                    """, (f"user:{uid}", uid, self._namespace)).fetchall()
+                try:
+                    o_rows = self._run_db(fetch_other_bg)
+                    for _, t_name, t_text in o_rows:
+                        t_text = t_text.strip()
+                        if t_text and o_uid not in other_members_best and t_text not in seen_texts:
+                            seen_texts.add(t_text)
+                            display_name = other_members.get(o_uid, t_name or f"群友{o_uid}")
+                            other_members_best[o_uid] = (0.85, display_name, t_text)
+                except Exception:
+                    pass
+
+        # -------------------------------------------------------------
+        # 2. 生成 Query Embedding (动态语义检索)
+        # -------------------------------------------------------------
+        query_text = query.strip()
+        q_vec = None
+        if query_text:
+            cache_ttl = float(cfg.get("query_cache_seconds", 300.0))
+            max_cache_size = int(cfg.get("query_cache_size", 256))
+
+            cached = self._query_cache.get(query_text)
+            if cached and (now - cached[0]) < cache_ttl:
+                q_vec = cached[1]
+
+            if q_vec is None:
+                try:
+                    vectors = await asyncio.wait_for(self._embed([query_text], is_query=True), timeout=timeout)
+                    q_vec = vectors[0]
+                    if len(self._query_cache) >= max_cache_size:
+                        oldest_k = min(self._query_cache.keys(), key=lambda k: self._query_cache[k][0])
+                        self._query_cache.pop(oldest_k, None)
+                    self._query_cache[query_text] = (now, q_vec)
+                except Exception as exc:
+                    self._warn(f"[MaiReply RAG] 生成 Query Embedding 超时或失败: {exc}")
+
+        # -------------------------------------------------------------
+        # 3. 从数据库读取语义候选记忆
+        # -------------------------------------------------------------
+        top_candidates = []
+        if q_vec is not None:
+            placeholders = ",".join("?" for _ in unique_scopes)
+            query_sql = f"""
+                SELECT id, scope, text, vector, created, ended, user_id, fact_type, category, target_id, target_name
+                FROM memories
+                WHERE scope IN ({placeholders}) AND namespace=? AND vector IS NOT NULL AND ended IS NULL
+                ORDER BY COALESCE(ended, created) DESC LIMIT 200
+            """
+            params = list(unique_scopes) + [self._namespace]
+            rows = self._run_db(lambda db: db.execute(query_sql, params).fetchall())
+
+            if rows:
+                scored = []
+                for row in rows:
+                    v_blob = row[3]
+                    if not v_blob:
+                        continue
+                    try:
+                        mem_vec = np.frombuffer(v_blob, dtype=np.float32)
+                        sim = float(np.dot(q_vec, mem_vec))
+                        if sim >= min_sim:
+                            scored.append((sim, row))
+                    except Exception:
+                        continue
+
+                scored.sort(key=lambda x: x[0], reverse=True)
+                top_candidates = scored[:top_k]
+
+        # -------------------------------------------------------------
+        # 4. 结构化分类与实体归并（Mem0 单人单条精炼认知压缩）
+        # -------------------------------------------------------------
         for sim, r in top_candidates:
             scope = r[1]
             text = r[2].strip()
@@ -186,7 +273,7 @@ class EpisodeRetrieval:
             seen_texts.add(text)
 
             if fact_type == "fact":
-                # 当前互动发言者：保留最相关的 1-3 条事实
+                # 当前互动发言者
                 if scope == f"user:{user_id_str}" or (target_id and target_id == user_id_str):
                     current_speaker_facts.append((sim, target_name, text))
                 # 群内在场其他成员：按照 Mem0 精炼认知原则，每人只保留相关度最高的 1 句精炼认知（大幅节省 Token）
@@ -205,15 +292,15 @@ class EpisodeRetrieval:
                 episodes.append((sim, text))
 
         # -------------------------------------------------------------
-        # 6. 贪心逐项打包算法 (Item-by-Item Greedy Packing)
+        # 5. 贪心逐项打包算法 (Item-by-Item Greedy Packing)
         # 核心保证：只添加完整条目，超预算则整条舍弃，绝不切断句子！
         # -------------------------------------------------------------
         sections = []
 
-        # 6.1 当前互动发言者事实（重点认知）
+        # 5.1 当前互动发言者事实（包含无条件背景外号/档案及相关检索事实）
         if current_speaker_facts:
             lines = []
-            header = "【关于当前对话用户 (发言者) 的事实记忆】：\n"
+            header = "【关于当前对话用户 (发言者) 的事实记忆与背景认知】：\n"
             cur_len = len(header)
             for _, name, t in current_speaker_facts:
                 item = f"- {t}\n"
@@ -225,12 +312,12 @@ class EpisodeRetrieval:
             if lines:
                 sections.append(header + "".join(lines).strip())
 
-        # 6.2 群内在场/被提及其他群友的简短认知（1人1句精炼速览，极低Token占用）
+        # 5.2 群内在场/被提及其他群友的简短认知（1人1句精炼速览，极低Token占用）
         if other_members_best:
             lines = []
-            header = "【群内在场/被提及其他群友的简短认知（你在群里也认识他们）】：\n"
+            header = "【群内在场/被提及其他群友的记忆认知（你在群里也认识他们，请区分每个人身份）：】\n"
             cur_len = len(header)
-            # 按相似度排序取前 3-4 位
+            # 按相似度降序取前 3-4 位
             sorted_others = sorted(other_members_best.values(), key=lambda x: x[0], reverse=True)
             for _, mname, t in sorted_others[:4]:
                 item = f"- {mname}：{t}\n"
@@ -242,7 +329,7 @@ class EpisodeRetrieval:
             if lines:
                 sections.append(header + "".join(lines).strip())
 
-        # 6.3 本群共同话题与文化
+        # 5.3 本群共同认知与话题
         if group_facts:
             lines = []
             header = "【本群共同认知与话题】：\n"
@@ -257,10 +344,10 @@ class EpisodeRetrieval:
             if lines:
                 sections.append(header + "".join(lines).strip())
 
-        # 6.4 Bot自身全局独立生活与状态记忆
+        # 5.4 Bot自身全局真实经验与近期状态足迹
         if bot_facts:
             lines = []
-            header = "【你的真实世界经历与自我记忆】：\n"
+            header = "【你自身的真实世界经历与自我记忆】：\n"
             cur_len = len(header)
             for _, t in bot_facts:
                 item = f"- {t}\n"
@@ -272,10 +359,10 @@ class EpisodeRetrieval:
             if lines:
                 sections.append(header + "".join(lines).strip())
 
-        # 6.5 历史对话往事（完整对话引文）
+        # 5.5 历史对话片段（近期对话原型）
         if episodes:
             lines = []
-            header = "【相关历史往事（引文）】：\n"
+            header = "【相关历史对话片段（参考）：】\n"
             cur_len = len(header)
             for _, t in episodes:
                 compact = " ".join(t.splitlines())
@@ -292,5 +379,5 @@ class EpisodeRetrieval:
             return ""
 
         result = RAG_PREFIX + "\n" + "\n\n".join(sections) + "\n"
-        self._log(f"[MaiReply RAG] 成功召回长期记忆 scope={current_scope} 在场群友={len(other_members_best)}人 最终字数={len(result)}")
+        self._log(f"[MaiReply RAG] 成功召回长记忆 scope={current_scope} 在场群友={len(other_members_best)}人 注入总字数={len(result)}")
         return result
