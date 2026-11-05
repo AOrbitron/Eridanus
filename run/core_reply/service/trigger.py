@@ -211,8 +211,10 @@ class TriggerChecker:
         if not win_state:
             return
 
+        # 仅当 timer 不是当前执行的任务时才执行取消，防止定时器回调自取消引发 CancelledError 导致 Future 悬挂被 GC 回收
         timer = win_state.get("timer_task")
-        if timer and not timer.done():
+        current_task = asyncio.current_task()
+        if timer and not timer.done() and timer is not current_task:
             timer.cancel()
 
         messages = win_state.get("messages", [])
@@ -234,6 +236,13 @@ class TriggerChecker:
                 fut = item.get("future")
                 if fut and not fut.done():
                     fut.set_result(decisions.get(idx, False))
+        except asyncio.CancelledError:
+            # 即使任务被取消，也必须兜底释放等待中的 Future，避免挂起协程在 GC 时报 Task destroyed
+            for item in messages:
+                fut = item.get("future")
+                if fut and not fut.done():
+                    fut.set_result(item.get("is_reply", False))
+            raise
         except Exception as e:
             logger.error(f"[TriggerChecker] 窗口批量判断异常: {e}")
             traceback.print_exc()
@@ -241,6 +250,12 @@ class TriggerChecker:
                 fut = item.get("future")
                 if fut and not fut.done():
                     fut.set_result(item.get("is_reply", False))
+        finally:
+            # 最终保障：确保所有挂起的 Future 绝不残留
+            for item in messages:
+                fut = item.get("future")
+                if fut and not fut.done():
+                    fut.set_result(False)
 
     async def _evaluate_window_batch(
         self,
