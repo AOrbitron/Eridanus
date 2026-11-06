@@ -89,7 +89,7 @@ if config.common_config.basic_config["webui"]["enable"]:
             # 确保 WebUI 模块可以从 webui_dir 加载
             bot1.logger.info(f"WebUI 线程：启动 WebUI，模块路径 {webui_dir}")
             from web.server_new import start_webui
-            start_webui()
+            start_webui(bot2, config)
         except Exception as e:
             bot1.logger.error(f"WebUI 线程：启动 WebUI 失败：{e}")
             traceback.print_exc()
