@@ -222,7 +222,7 @@ class LLMClient:
                         if not any(k in tc for k in ("thought_signature", "signature", "thoughtSignature")):
                             tc["thought_signature"] = DUMMY_THOUGHT_SIGNATURE
                 full_messages.append({"role": "assistant", "content": round_text or None, "tool_calls": tool_calls_list})
-                tool_results, should_continue = await self._execute_openai_tool_calls(tool_calls_list, tools, bot, event)
+                tool_results, should_continue = await self._execute_openai_tool_calls(tool_calls_list, tools, bot, event, continue_on_none=not round_text.strip())
 
                 if not should_continue:
                     return
@@ -286,7 +286,7 @@ class LLMClient:
                     model_parts.append({"text": round_text})
                 model_parts.extend(func_call_parts_accum)
                 contents.append({"role": "model", "parts": model_parts})
-                response_parts, should_continue = await self._execute_gemini_function_calls(func_call_parts_accum, tools, bot, event)
+                response_parts, should_continue = await self._execute_gemini_function_calls(func_call_parts_accum, tools, bot, event, continue_on_none=not round_text.strip())
 
                 if not should_continue:
                     return
@@ -358,7 +358,7 @@ class LLMClient:
                         tc["thought_signature"] = DUMMY_THOUGHT_SIGNATURE
 
             full_messages.append(message)
-            tool_results, should_continue = await self._execute_openai_tool_calls(tool_calls, tools, bot, event)
+            tool_results, should_continue = await self._execute_openai_tool_calls(tool_calls, tools, bot, event, continue_on_none=not text_before_tool.strip())
 
             if not should_continue:
                 return accumulated_text.strip() or None
@@ -400,7 +400,7 @@ class LLMClient:
             accumulated_text += text_before_tool
 
             contents.append({"role": "model", "parts": text_parts + func_call_parts})
-            response_parts, should_continue = await self._execute_gemini_function_calls(func_call_parts, tools, bot, event)
+            response_parts, should_continue = await self._execute_gemini_function_calls(func_call_parts, tools, bot, event, continue_on_none=not text_before_tool.strip())
 
             if not should_continue:
                 return accumulated_text.strip() or None
@@ -565,7 +565,7 @@ class LLMClient:
                     declarations.append({"name": name, "description": getattr(val, "__doc__", f"调用 {name}") or "", "parameters": {"type": "object", "properties": {}}})
         return [{"functionDeclarations": declarations}] if declarations else[]
 
-    async def _execute_openai_tool_calls(self, tool_calls: List[Dict], tools, bot=None, event=None) -> Tuple[List[Dict], bool]:
+    async def _execute_openai_tool_calls(self, tool_calls: List[Dict], tools, bot=None, event=None, continue_on_none: bool = False) -> Tuple[List[Dict], bool]:
         """执行工具，动态注入上下文。若发生异常，自动终止下一轮调用防止死循环。"""
         func_map = {name: val["func"] if isinstance(val, dict) and "func" in val else val for name, val in tools.items()} if isinstance(tools, dict) else {}
         results =[]
@@ -594,7 +594,11 @@ class LLMClient:
                     ret = await func(**args) if asyncio.iscoroutinefunction(func) else await asyncio.to_thread(func, **args)
 
                     if ret is None:
-                        should_continue = False
+                        # 仅在本轮没有文本时，为成功执行的无返回值工具补结果并续聊。
+                        if continue_on_none:
+                            ret = {"success": True}
+                        else:
+                            should_continue = False
 
                     content = json.dumps(ret, ensure_ascii=False) if not isinstance(ret, str) else ret
                 except Exception as e:
@@ -611,7 +615,7 @@ class LLMClient:
 
         return results, should_continue
 
-    async def _execute_gemini_function_calls(self, func_call_parts: List[Dict], tools, bot=None, event=None) -> Tuple[List[Dict], bool]:
+    async def _execute_gemini_function_calls(self, func_call_parts: List[Dict], tools, bot=None, event=None, continue_on_none: bool = False) -> Tuple[List[Dict], bool]:
         func_map = {name: val["func"] if isinstance(val, dict) and "func" in val else val for name, val in tools.items()} if isinstance(tools, dict) else {}
         response_parts =[]
         should_continue = True
@@ -638,7 +642,11 @@ class LLMClient:
                     ret = await func(**args) if asyncio.iscoroutinefunction(func) else await asyncio.to_thread(func, **args)
 
                     if ret is None:
-                        should_continue = False
+                        # 仅在本轮没有文本时，为成功执行的无返回值工具补结果并续聊。
+                        if continue_on_none:
+                            ret = {"success": True}
+                        else:
+                            should_continue = False
 
                     result = ret if isinstance(ret, dict) else {"result": str(ret)}
                 except Exception as e:

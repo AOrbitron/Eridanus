@@ -25,6 +25,10 @@ embedding:
     api_token_env: CLOUDFLARE_API_TOKEN
     timeout_seconds: 30
     query_instruction: ''
+fact_extraction:  # 原子事实提取模型；各项留空时分别继承 config.yaml 的 trigger_llm
+  base_url: ''  # OpenAI 兼容接口地址，包含 /v1（若服务需要）
+  api_key: ''
+  model: ''
 archive:
   private_turns: 6  # 每6轮完整用户/Bot对话归档一次并抽取Mem0原子事实
   group_messages: 10  # 群内累计15条用户消息归档，Bot发言一起沉淀

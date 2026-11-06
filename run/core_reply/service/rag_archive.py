@@ -52,29 +52,32 @@ class EpisodeArchive:
         self._last_archive_time: Dict[str, float] = {}
         self._flushing_scopes = set()
 
-        # 加载轻量 LLM (trigger_llm) 配置供 Mem0 抽取事实使用
+        # rag.yaml 的事实提取配置逐项优先；空项继承 trigger_llm。
         ccfg = getattr(config.core_reply, "config", {})
         trig_cfg = ccfg.get("trigger_llm", {}) or {}
-        self._trig_model = str(trig_cfg.get("model", "")).strip() or "qwen3.8-flash"
-        self._trig_base_url = str(trig_cfg.get("base_url", "")).strip().rstrip("/") or "http://api.apollodorus.xyz/v1"
-        raw_key = trig_cfg.get("api_key")
-        raw_keys = trig_cfg.get("api_keys", [])
-        keys = []
-        if raw_key and str(raw_key).strip():
-            keys.append(str(raw_key).strip())
-        if isinstance(raw_keys, list):
-            keys.extend([str(k).strip() for k in raw_keys if k and str(k).strip()])
-        elif isinstance(raw_keys, str) and raw_keys.strip():
-            keys.append(raw_keys.strip())
+        fact_cfg = self.cfg.get("fact_extraction", {}) or {}
+        self._trig_model = (str(fact_cfg.get("model") or "").strip()
+                            or str(trig_cfg.get("model") or "").strip() or "qwen3.8-flash")
+        self._trig_base_url = (str(fact_cfg.get("base_url") or "").strip().rstrip("/")
+                               or str(trig_cfg.get("base_url") or "").strip().rstrip("/")
+                               or "http://api.apollodorus.xyz/v1")
 
-        # 若 trigger_llm 未单独配置 key，回退到主回复模型 openai.api_keys
+        def configured_keys(cfg):
+            keys = []
+            raw_key = cfg.get("api_key")
+            if raw_key and str(raw_key).strip():
+                keys.append(str(raw_key).strip())
+            raw_keys = cfg.get("api_keys", [])
+            if isinstance(raw_keys, str):
+                raw_keys = [raw_keys]
+            if isinstance(raw_keys, list):
+                keys.extend(str(k).strip() for k in raw_keys if k and str(k).strip())
+            return keys
+
+        keys = configured_keys(fact_cfg) or configured_keys(trig_cfg)
+        # 保留既有行为：两处都未填 key 时，回退主回复模型的 key。
         if not keys:
-            llm_openai = ccfg.get("llm", {}).get("openai", {})
-            main_keys = llm_openai.get("api_keys", [])
-            if isinstance(main_keys, list):
-                keys.extend([str(k).strip() for k in main_keys if k and str(k).strip()])
-            elif isinstance(main_keys, str) and main_keys.strip():
-                keys.append(main_keys.strip())
+            keys = configured_keys(ccfg.get("llm", {}).get("openai", {}))
 
         self._trig_keys = keys
 
@@ -224,7 +227,7 @@ class EpisodeArchive:
                 except Exception as exc:
                     self._warn("[MaiReply RAG] 保存历史片段失败: %s", exc)
 
-            # 2. 异步调用 trigger_llm 执行 Mem0 原子事实抽取与状态机更新
+            # 2. 异步调用事实提取模型执行 Mem0 原子事实抽取与状态机更新
             try:
                 await self._extract_and_apply_mem0(scope, buf, is_group, group_id, user_id)
             except Exception as exc:
@@ -288,7 +291,7 @@ class EpisodeArchive:
         async with httpx.AsyncClient(timeout=25.0, trust_env=False) as client:
             resp = await client.post(url, headers=headers, json=payload)
             if resp.status_code != 200:
-                self._warn(f"[MaiReply RAG] trigger_llm 请求失败 HTTP {resp.status_code}: {resp.text[:200]}")
+                self._warn(f"[MaiReply RAG] 事实提取模型请求失败 HTTP {resp.status_code}: {resp.text[:200]}")
                 return []
             content = resp.json()["choices"][0]["message"]["content"].strip()
 

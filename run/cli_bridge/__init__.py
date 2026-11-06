@@ -1,5 +1,5 @@
 ﻿# -*- coding: utf-8 -*-
-plugin_description = "Codex / Claude CLI 自动化终端中介桥梁"
+plugin_description = "codex cli"
 
 # 框架动态导入工具函数
 dynamic_imports = {
