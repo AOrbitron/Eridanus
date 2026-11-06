@@ -1869,13 +1869,13 @@ def build_change_outfit_declaration(yaml_path: str = YAML_CONFIG_PATH, custom_ou
     cat_map: Dict[str, List[str]] = {}
     for name, data in outfits.items():
         c = data.get("category", "other") if isinstance(data, dict) else "other"
-        cat_map.setdefault(c, []).append(f"{name}（季节: {data.get('season', 'all')}）" if isinstance(data, dict) else name)
+        cat_map.setdefault(c, []).append(f"{name}" if isinstance(data, dict) else name)
 
     catalog_lines = []
     for c_key, c_label in cat_order:
         names = cat_map.pop(c_key, [])
         if names:
-            catalog_lines.append(f"【{c_label} ({len(names)}套)】: " + "、".join(names))
+            catalog_lines.append("、".join(names))
     if cat_map:
         other_names = []
         for v in cat_map.values():
