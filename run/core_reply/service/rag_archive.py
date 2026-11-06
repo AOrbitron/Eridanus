@@ -16,12 +16,12 @@ from framework_common.utils.system_logger import get_logger
 
 logger = get_logger(__name__)
 
-FACT_EXTRACT_SYSTEM_PROMPT = """你是一个高效、客观的长期记忆提取与状态机分析专家（参考 Mem0 架构）。
-你的任务是从给定的最新对话片段中，提取出需要长期记住的关键原子事实（Facts），并判断每个事实的操作类型（ADD / UPDATE / DELETE）。
+FACT_EXTRACT_SYSTEM_PROMPT = """你是一个高效、客观的长期记忆提取与状态机分析专家。
+你的任务是从给定的最新对话片段中，提取出需要长期记住的关键事实（Facts），并判断每个事实的操作类型（ADD / UPDATE / DELETE）。
 
 请提取三类实体的客观事实：
 1. user: 用户的长期个人背景、稳定作息习惯、重要喜好/雷区、当前重大现实事件/人生节点、重要人际关系等。
-   - 【特别强调：用户外号、别名与称呼严格绑定】：当用户提到自己的姓名、真实身份、自称、外号、别名、绰号或希望被称呼的名字时（如“叫我小王”、“我外号是阿强”、“我不叫赖哥”），必须提取为 category: "profile"，并将 target_id 严格设为该发言用户的 ID。严禁将其他用户的外号错误关联给当前用户！
+   - 【特别强调：用户外号、别名与称呼严格绑定】：当用户提到自己的外号、昵称时，提取为 category: "profile"，并将 target_id 设为该发言用户的 ID。严禁混淆用户名！
 2. group: 本群特有的社群定位、群专属黑话/梗文化、共同话题、重大集体事件。
 3. bot: Bot自身经历的真实独立事件、明确认同的个性/习惯设定、收到的关键契约或重大生活足迹。
 
@@ -31,15 +31,15 @@ FACT_EXTRACT_SYSTEM_PROMPT = """你是一个高效、客观的长期记忆提取
 - DELETE: 之前的事实被明确撤销、否定或彻底失效。
 
 输出格式要求：
-严格返回一个标准的 JSON 数组，数组中每个对象包含以下字段：
+返回一个标准的 JSON 数组，数组中每个对象包含以下字段：
 - "action": "ADD" | "UPDATE" | "DELETE"
 - "target_type": "user" | "bot" | "group"
 - "target_id": 实体的唯一标识（用户的QQ号/ID，群号，若是Bot自身则固定为 "global"）
 - "target_name": 实体名称（用户昵称、群名称，或Bot名字）
-- "category": 事实分类，如 "profile"（档案、外号、别名、身份）, "preference"（喜好偏好）, "habit"（习惯作息）, "plan"（近期计划）, "milestone"（重大事件/经历）, "relationship"（人际契约）
-- "content": 精炼准确的客观事实陈述（必须简明扼要，建议20-60字，禁止废话，不要第一人称口语），如 "用户在莫斯科留学读政治学，正处于毕业设计高压期。"
+- "category": 事实分类，如 "profile", "preference", "habit"（习惯作息）, "plan", "milestone"（重大事件/经历）, "relationship"（人际契约）
+- "content": 精炼准确的客观事实陈述（20-60字，禁止废话，不要第一人称口语）
 
-若对话片段完全为闲聊吹水、无任何值得长期沉淀的事实价值，请返回空数组 []。直接输出 JSON，不要 Markdown 包装或解释。"""
+若对话片段无任何值得长期沉淀的事实价值，请返回空数组 []。直接输出 JSON，不要 Markdown 包装或解释。"""
 
 
 class EpisodeArchive:
