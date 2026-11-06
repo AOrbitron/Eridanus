@@ -6,6 +6,7 @@ timezone_helper.py
 - 支持中文时区描述（东八区、西五区等）与 UTC/GMT 偏移量智能解析
 - 支持非主要城市/小镇（如 Castro Valley、Irvine、Waterloo、Cupertino 等）通过 Open-Meteo 全球地理编码 API 自动查询并本地数据库持久化缓存
 - 自动将目标时区的指定时间换算为 Bot 所在服务器时区（默认 Asia/Shanghai，东八区）的执行时间
+- 城市/IANA 时区按执行日期自动适配夏令时；UTC/GMT 数字偏移保持固定
 """
 
 import os
@@ -13,6 +14,7 @@ import re
 import sqlite3
 import datetime
 from typing import Optional, Tuple, Dict, Any, List
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from dateutil import tz
 
 try:
@@ -115,6 +117,8 @@ CITY_TO_TZ_MAP: Dict[str, str] = {
     "paris": "Europe/Paris",
     "柏林": "Europe/Berlin",
     "berlin": "Europe/Berlin",
+    "斯图加特": "Europe/Berlin",
+    "stuttgart": "Europe/Berlin",
     "法兰克福": "Europe/Berlin",
     "罗马": "Europe/Rome",
     "rome": "Europe/Rome",
@@ -219,6 +223,14 @@ class TimezoneHelper:
     _db_initialized: bool = False
 
     @classmethod
+    def _get_timezone(cls, timezone_name: str) -> Optional[datetime.tzinfo]:
+        """优先使用现有系统 IANA 数据，缺失时沿用原有 dateutil 解析。"""
+        try:
+            return ZoneInfo(timezone_name)
+        except (ZoneInfoNotFoundError, ValueError):
+            return tz.gettz(timezone_name)
+
+    @classmethod
     def _init_cache_db(cls):
         """初始化持久化时区缓存表"""
         if cls._db_initialized:
@@ -301,7 +313,7 @@ class TimezoneHelper:
     @classmethod
     def get_bot_timezone(cls) -> datetime.tzinfo:
         """获取 Bot 默认运行所在时区（Asia/Shanghai，UTC+8）"""
-        return tz.gettz(DEFAULT_BOT_TZ_NAME) or datetime.timezone(datetime.timedelta(hours=8))
+        return cls._get_timezone(DEFAULT_BOT_TZ_NAME) or datetime.timezone(datetime.timedelta(hours=8))
 
     @classmethod
     def resolve_timezone(
@@ -310,7 +322,8 @@ class TimezoneHelper:
     ) -> Tuple[datetime.tzinfo, str, float]:
         """
         解析用户所在城市或时区，返回三元组：
-        返回值: (tzinfo 对象, 标准名称, UTC 偏移小时数)
+        返回值: (tzinfo 对象, 标准名称, 当前 UTC 偏移小时数)。
+        夏令时换算必须使用 tzinfo 和目标日期，不能固定使用此处的当前偏移。
         """
         bot_tz = cls.get_bot_timezone()
         if not city_or_tz or not city_or_tz.strip():
@@ -321,19 +334,11 @@ class TimezoneHelper:
         # 1. 尝试直接查静态常见城市/地区表
         if raw in CITY_TO_TZ_MAP:
             tz_name = CITY_TO_TZ_MAP[raw]
-            zone = tz.gettz(tz_name)
+            zone = cls._get_timezone(tz_name)
             if zone is not None:
                 now = datetime.datetime.now(zone)
-                offset = (now.utcoffset() or datetime.timedelta(hours=8)).total_seconds() / 3600.0
+                offset = (now.utcoffset() or datetime.timedelta()).total_seconds() / 3600.0
                 return zone, tz_name, offset
-
-        for city, tz_name in CITY_TO_TZ_MAP.items():
-            if len(city) >= 2 and (city in raw or raw in city):
-                zone = tz.gettz(tz_name)
-                if zone is not None:
-                    now = datetime.datetime.now(zone)
-                    offset = (now.utcoffset() or datetime.timedelta(hours=8)).total_seconds() / 3600.0
-                    return zone, tz_name, offset
 
         # 2. 中文时区表达（例如“东八区”、“西五区”、“东9区”）
         m_cn = re.search(r"([东西])([0-9零一二三四五六七八九十]+)区?", raw)
@@ -346,42 +351,69 @@ class TimezoneHelper:
             return zone, f"UTC{sign}{int(offset)}", float(offset)
 
         # 3. 常见 UTC / GMT 偏移字符串（如 UTC+8, UTC+03:00, GMT-5, +8, -3）
-        m_utc = re.search(r"^(?:utc|gmt)?\s*([+-]\d{1,2})(?::?(\d{2}))?$", raw)
-        if m_utc:
-            hours = int(m_utc.group(1))
-            mins = int(m_utc.group(2)) if m_utc.group(2) else 0
-            total_offset = hours + (mins / 60.0 if hours >= 0 else -mins / 60.0)
-            zone = datetime.timezone(datetime.timedelta(hours=hours, minutes=mins))
-            sign = "+" if hours >= 0 else ""
-            return zone, f"UTC{sign}{hours}:{mins:02d}" if mins else f"UTC{sign}{hours}", total_offset
+        if raw in ("utc", "gmt", "z"):
+            return datetime.timezone.utc, "UTC", 0.0
 
-        # 4. 直接尝试 tz.gettz 解析（如 "Europe/Moscow", "America/New_York"）
-        direct_zone = tz.gettz(city_or_tz.strip())
+        m_utc = re.search(r"^(?:utc|gmt)?\s*([+-])(\d{1,2})(?::?(\d{2}))?$", raw)
+        if m_utc:
+            sign, hours_str, mins_str = m_utc.groups()
+            hours = int(hours_str)
+            mins = int(mins_str or 0)
+            if hours >= 24 or mins >= 60:
+                raise ValueError("UTC/GMT 偏移量的小时必须小于 24，分钟必须小于 60")
+            total_minutes = (hours * 60 + mins) * (-1 if sign == "-" else 1)
+            zone = datetime.timezone(datetime.timedelta(minutes=total_minutes))
+            tz_name = f"UTC{sign}{hours}" + (f":{mins:02d}" if mins else "")
+            return zone, tz_name, total_minutes / 60.0
+
+        # 4. 直接尝试 IANA/兼容时区表达（如 "Europe/Moscow", "America/New_York"）
+        direct_zone = cls._get_timezone(city_or_tz.strip())
         if direct_zone is not None:
             now = datetime.datetime.now(direct_zone)
-            offset = (now.utcoffset() or datetime.timedelta(hours=8)).total_seconds() / 3600.0
+            offset = (now.utcoffset() or datetime.timedelta()).total_seconds() / 3600.0
             return direct_zone, city_or_tz.strip(), offset
 
-        # 5. 从本地持久化缓存中查询
+        # 5. 城市名包含匹配放在明确时区解析之后，避免 Europe/Bratislava 被 "la" 匹配。
+        # 英文按完整单词匹配，中文允许“德国斯图加特”等自然表达；不再反向匹配城市片段。
+        for city, tz_name in sorted(CITY_TO_TZ_MAP.items(), key=lambda item: len(item[0]), reverse=True):
+            if re.search(r"[a-z]", city):
+                matched = re.search(r"(?<![a-z0-9äöüß])" + re.escape(city) + r"(?![a-z0-9äöüß])", raw)
+            else:
+                matched = len(city) >= 2 and city in raw
+            if matched:
+                zone = cls._get_timezone(tz_name)
+                if zone is not None:
+                    now = datetime.datetime.now(zone)
+                    offset = (now.utcoffset() or datetime.timedelta()).total_seconds() / 3600.0
+                    return zone, tz_name, offset
+
+        # 6. 从本地持久化缓存中查询
         cached_tz_name = cls._get_cached_tz(raw)
         if cached_tz_name:
-            cached_zone = tz.gettz(cached_tz_name)
+            cached_zone = cls._get_timezone(cached_tz_name)
             if cached_zone is not None:
                 now = datetime.datetime.now(cached_zone)
-                offset = (now.utcoffset() or datetime.timedelta(hours=8)).total_seconds() / 3600.0
+                offset = (now.utcoffset() or datetime.timedelta()).total_seconds() / 3600.0
                 return cached_zone, cached_tz_name, offset
 
-        # 6. 请求地理编码接口解析非主要城市/小镇（如 Castro Valley 等小镇）
+        # 7. 请求地理编码接口解析非主要城市/小镇（如 Castro Valley 等小镇）
         remote_tz_name = cls._query_remote_geocoding_tz(city_or_tz.strip())
         if remote_tz_name:
-            remote_zone = tz.gettz(remote_tz_name)
+            remote_zone = cls._get_timezone(remote_tz_name)
             if remote_zone is not None:
                 now = datetime.datetime.now(remote_zone)
-                offset = (now.utcoffset() or datetime.timedelta(hours=8)).total_seconds() / 3600.0
+                offset = (now.utcoffset() or datetime.timedelta()).total_seconds() / 3600.0
                 return remote_zone, remote_tz_name, offset
 
         # 兜底返回 Bot 默认时区
         return bot_tz, DEFAULT_BOT_TZ_NAME, DEFAULT_BOT_OFFSET_HOURS
+
+    @classmethod
+    def normalize_local_datetime(cls, local_dt: datetime.datetime) -> datetime.datetime:
+        """统一夏令时边界：跳过的钟点按时差顺延，重复的钟点只取第一次。"""
+        if local_dt.tzinfo is None or local_dt.utcoffset() is None:
+            raise ValueError("当地时间必须携带时区信息")
+        return tz.resolve_imaginary(tz.enfold(local_dt, fold=0))
 
     @classmethod
     def get_user_local_time(
@@ -427,6 +459,7 @@ class TimezoneHelper:
         """
         计算目标城市当地时间到达 target_hour:target_minute 时，对应的 Bot 时区（datetime 对象）。
         weekdays: 指定星期几（0=周一, 6=周日），若为 None 则表示每天。
+        春季跳过的时间向后顺延（如 02:30 → 03:30），秋季重复时间只执行第一次。
         """
         bot_tz = cls.get_bot_timezone()
         user_tz, _, _ = cls.resolve_timezone(city_or_tz)
@@ -437,10 +470,11 @@ class TimezoneHelper:
             from_bot_dt = from_bot_dt.replace(tzinfo=bot_tz)
 
         user_now = from_bot_dt.astimezone(user_tz)
+        now_utc = from_bot_dt.astimezone(datetime.timezone.utc)
 
         # 向上搜寻接下来 14 天中最快满足条件的时间
         for day_offset in range(14):
-            candidate_date = (user_now + datetime.timedelta(days=day_offset)).date()
+            candidate_date = user_now.date() + datetime.timedelta(days=day_offset)
             if weekdays is not None and candidate_date.weekday() not in weekdays:
                 continue
 
@@ -453,9 +487,10 @@ class TimezoneHelper:
                 0,
                 tzinfo=user_tz,
             )
+            candidate_user_dt = cls.normalize_local_datetime(candidate_user_dt)
 
-            # 必须严格在当前时间之后
-            if candidate_user_dt > user_now:
+            # 按真实时刻比较，避免秋季回拨时把已经过去的第一次 02:30 判为未来。
+            if candidate_user_dt.astimezone(datetime.timezone.utc) > now_utc:
                 return candidate_user_dt.astimezone(bot_tz)
 
         # 兜底返回明天
@@ -464,4 +499,4 @@ class TimezoneHelper:
             fallback.year, fallback.month, fallback.day,
             target_hour, target_minute, 0, tzinfo=user_tz
         )
-        return fallback_dt.astimezone(bot_tz)
+        return cls.normalize_local_datetime(fallback_dt).astimezone(bot_tz)
