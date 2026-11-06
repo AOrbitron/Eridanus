@@ -4,6 +4,7 @@ import base64
 import functools
 import hashlib
 import importlib
+import ipaddress
 import json
 import logging
 import os
@@ -46,6 +47,9 @@ _blocked_loggers = ["INFO_MSG", "DEBUG"]
 
 app = Flask(__name__, static_folder="dist", static_url_path="")
 app.json.sort_keys = False  # 不要对json排序
+
+# 静态资源使用7天缓存；API 和入口页面必须始终向服务端重新校验。
+STATIC_CACHE_SECONDS = 7 * 24 * 60 * 60
 
 
 
@@ -93,7 +97,7 @@ valid_message_actions = ['send_group_forward_msg', 'send_private_forward_msg', '
 # 用户信息文件
 user_file = "./user_info.yaml"
 
-is_saving_yaml = False
+yaml_save_lock = threading.Lock()
 
 # 会话信息字典（token跟expires）
 auth_info = {}
@@ -181,9 +185,11 @@ YAML_FILES = ordered_yaml_files
 
 #print(YAML_FILES)
 
-# 初始化 YAML 解析器（支持注释）
-yaml = YAML()
-yaml.preserve_quotes = True
+def create_yaml_parser():
+    """每次操作独立解析，避免多线程共用 ruamel.yaml 的内部状态。"""
+    parser = YAML()
+    parser.preserve_quotes = True
+    return parser
 
 """
 读取配置
@@ -231,6 +237,7 @@ def merge_dicts(old, new):
 
 def conflict_file_dealer(old_data: dict, file_new='new_aiReply.yaml'):
     try:
+        yaml = create_yaml_parser()
         logger.info(f"冲突文件处理: {file_new}")
     
         old_data_yaml_str = StringIO()
@@ -303,7 +310,7 @@ def extract_key_order(data, path="", order_dict=None):
 def load_yaml_with_comments(file_path):
     try:
         with open(file_path, "r", encoding="utf-8") as f:
-            data = yaml.load(f)
+            data = create_yaml_parser().load(f)
         # 提取所有注释
         order = extract_key_order(data)
         comments = extract_comments(data)
@@ -345,16 +352,30 @@ def auth(func):
         return func(*args, **kwargs)
     return wrapper
 
-# 静态文件缓存控制，加快响应
-#先不要了，缓存不刷新，页面总是出问题
-# @app.after_request
-# def after_request(response):
-#     # 为静态文件添加缓存控制头
-#     if request.endpoint == 'static':
-#         response.headers['Cache-Control'] = 'public, max-age=2592000'  # 缓存一月
-#     return response
+def _disable_cache(response):
+    """让动态接口和 index.html 始终获取最新内容。"""
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
 
-@app.route("/api/load/<filename>", methods=["GET"])
+
+@app.after_request
+def set_cache_headers(response):
+    """为静态资源设置一年缓存，同时排除 API 和入口页面。"""
+    path = request.path
+    if path.startswith("/api/") or path in {"/api", "/", "/index.html"}:
+        return _disable_cache(response)
+
+    if request.endpoint == "static":
+        response.headers["Cache-Control"] = (
+            f"public, max-age={STATIC_CACHE_SECONDS}, immutable"
+        )
+        response.headers.pop("Pragma", None)
+        response.headers.pop("Expires", None)
+    return response
+
+@app.route("/api/load/<path:filename>", methods=["GET"])
 @auth
 def load_file(filename):
     """加载指定的 YAML 文件"""
@@ -371,31 +392,29 @@ def load_file(filename):
     return rtd
 
 
-@app.route("/api/save/<filename>", methods=["POST"])
+@app.route("/api/save/<path:filename>", methods=["POST"])
 @auth
 def save_file(filename):
     """接收前端数据并保存到 YAML 文件"""
-    global is_saving_yaml
-    if is_saving_yaml:
+    if not yaml_save_lock.acquire(blocking=False):
         return jsonify({"error": "操作过快！"})
-    is_saving_yaml = True
-    if filename not in YAML_FILES:
-        return jsonify({"error": "文件名错误"})
+    try:
+        if filename not in YAML_FILES:
+            return jsonify({"error": "文件名错误"})
 
-    file_path = YAML_FILES[filename]
-    if not os.path.exists(file_path):
-        return jsonify({"error": "文件不存在"})
+        file_path = YAML_FILES[filename]
+        if not os.path.exists(file_path):
+            return jsonify({"error": "文件不存在"})
 
-    data = request.json  # 获取前端发送的 JSON 数据
-    if not data:
-        return jsonify({"error": "无效数据"})
-    
-    result = save_yaml(file_path, data)
-    is_saving_yaml = False
-    if result:
-        return jsonify({"message": "文件保存成功"})
-    elif result == False:
+        data = request.get_json()  # 获取前端发送的 JSON 数据
+        if not isinstance(data, dict) or "data" not in data:
+            return jsonify({"error": "无效数据"})
+
+        if save_yaml(file_path, data):
+            return jsonify({"message": "文件保存成功"})
         return jsonify({"error": "文件保存失败"})
+    finally:
+        yaml_save_lock.release()
 
 
 @app.route("/api/sources", methods=["GET"])
@@ -420,7 +439,7 @@ def search_yaml_content(search_key):
         try:
             # 加载YAML文件
             with open(file_path, 'r', encoding='utf-8') as f:
-                yaml_data = yaml.load(f)
+                yaml_data = create_yaml_parser().load(f)
             
             # 递归搜索键名
             def search_in_dict(d, path=""):
@@ -616,7 +635,7 @@ def profile():
         if data["password"]:
             user_info["password"] = data["password"]
             with open(user_file, 'w', encoding="utf-8") as file:
-                yaml.dump(user_info, file)
+                create_yaml_parser().dump(user_info, file)
         auth_info = {}  # 清空登录信息
         return jsonify({"message": "账户信息修改成功，请重新登录"})
 
@@ -737,7 +756,7 @@ def basic_info():
             })
         # 获取好友和群聊信息
         with open(user_file, 'r', encoding="utf-8") as file:
-            yaml_file = yaml.load(file)
+            yaml_file = create_yaml_parser().load(file)
             user_info['friends'] = yaml_file['friends']
             user_info['groups'] = yaml_file['groups']
 
@@ -899,9 +918,47 @@ def del_history():
 @auth
 def restart_server():
     try:
-        return jsonify({"message": "功能开发中，敬请期待"})
+        bot = app.config.get("WEBUI_BOT")
+        config = app.config.get("WEBUI_CONFIG")
+        receive_task = getattr(bot, "receive_task", None)
+        if bot is None or config is None or receive_task is None or receive_task.done():
+            return jsonify({"error": "WebUI Bot 尚未就绪，请稍后重试"}), 503
+
+        loop = receive_task.get_loop()
+        if not loop.is_running():
+            return jsonify({"error": "WebUI Bot 事件循环未运行，请稍后重试"}), 503
+
+        from developTools.event.events import GroupMessageEvent
+        from tool import admin_update_system
+
+        master_id = int(config.common_config.basic_config["master"]["id"])
+        event = GroupMessageEvent(
+            post_type="message",
+            sub_type="normal",
+            message_type="group",
+            message_id=int(time.time() * 1000),
+            user_id=master_id,
+            group_id=879886836,
+            message=[{"type": "text", "data": {"text": "更新并重启服务端"}}],
+            raw_message="更新并重启服务端",
+            font=14,
+            sender={"user_id": master_id, "nickname": "主人", "role": "owner"},
+            adapter_source="webui",
+            from_secondary=True,
+        )
+
+        async def run_update():
+            try:
+                await admin_update_system(bot, event, config)
+            except Exception as exc:
+                logger.error(f"WebUI 更新重启任务启动失败: {exc}", exc_info=True)
+
+        # 复用 Bot 的持久事件循环，避免 asyncio.run 在返回时取消后台更新任务。
+        asyncio.run_coroutine_threadsafe(run_update(), loop)
+        return jsonify({"message": "已提交后台更新任务，更新成功后将自动重启，请留意 WebUI 消息"})
     except Exception as e:
-        return jsonify({"error":e})
+        logger.error(f"WebUI 更新重启请求失败: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
 
 
 # 菜单编辑器
@@ -1004,10 +1061,15 @@ def import_yaml():
     except Exception as e:
         return jsonify({"error": str(e)})
 
-# API和静态文件外的路由（404）完全交给React前端处理,根路由都不用了
+# API 返回 JSON 404，其余路由交给 React 前端处理。
 @app.errorhandler(404)
 def index(e):
-    return send_from_directory(app.static_folder, 'index.html')
+    if request.path == "/api" or request.path.startswith("/api/"):
+        return jsonify({"error": "API 不存在"}), 404
+    if request.path.startswith("/live2dchat/"):
+        return jsonify({"error": "API 不存在"}), 404
+    response = send_from_directory(app.static_folder, 'index.html')
+    return _disable_cache(response)
 
 clients = set()
 
@@ -1508,31 +1570,46 @@ def android_ask():
             "user_id": user_id
         }), 504
 
+def websocket_authenticated():
+    """浏览器仅校验登录 Cookie；兼容本机无 Origin 的内部 Bot 连接。"""
+    token = request.cookies.get("auth_token", "")
+    if not token and "Origin" not in request.headers:
+        try:
+            is_loopback = ipaddress.ip_address(request.remote_addr or "").is_loopback
+        except ValueError:
+            is_loopback = False
+        if is_loopback and not request.headers.get("X-Forwarded-For") and not request.headers.get("Forwarded"):
+            return True
+    if not token or token in {"null", "undefined"}:
+        return False
+
+    # Cookie 会被浏览器自动携带，因此校验来源，阻止跨站 WebSocket 劫持。
+    origin = request.headers.get("Origin")
+    if origin:
+        parsed = urllib.parse.urlsplit(origin)
+        if parsed.scheme not in {"http", "https"} or parsed.netloc != request.host:
+            return False
+    return auth_info.get(token, 0) > time.time()
+
+
 @sock.route('/api/ws')
 def handle_websocket(ws):
     global auth_info
-    logger.server("WebSocket 客户端已连接")
-    clients.add(ws)
     try:
-        # 对来自非本机的外部 WebSocket 连接进行鉴权 (Hub 端口 5007)
-        # 本地连接 (127.0.0.1, ::1, localhost 等) 或未设置 token 时自动放行
-        client_ip = request.remote_addr or ""
-        forwarded_for = request.headers.get("X-Forwarded-For", "").strip()
-        is_local = (client_ip in ['127.0.0.1', '::1', 'localhost'] or client_ip.startswith('127.'))
-        if forwarded_for and not all(ip.strip() in ['127.0.0.1', '::1', 'localhost'] for ip in forwarded_for.split(',')):
-            is_local = False
-
-        configured_token = get_webui_auth_token()
-        if not is_local and configured_token:
-            recv_token = (request.args.get('auth_token') or request.args.get('token') or "").strip()
-            is_valid_session = (recv_token in auth_info and auth_info[recv_token] > int(time.time()))
-            if recv_token != configured_token and not is_valid_session:
-                logger.warning(f"WebSocket 外部客户端鉴权未通过 - IP: {client_ip}")
-                raise ValueError(f"WebSocket 外部客户端鉴权未通过 - IP: {client_ip}")
-            logger.server(f"WebSocket 外部客户端鉴权通过 - IP: {client_ip}")
+        if not websocket_authenticated():
+            logger.warning(f"WebSocket Cookie 鉴权未通过 - IP: {request.remote_addr}")
+            ws.close(reason=1008, message="Unauthorized")
+            return
+        clients.add(ws)
+        logger.server("WebSocket 客户端鉴权通过")
         while True:
             # 接收来自前端的消息
             message = ws.receive()
+            if message is None:
+                break
+            if not websocket_authenticated():
+                ws.close(reason=1008, message="Unauthorized")
+                break
             # logger.server(f"收到前端消息: {message} {type(message)}")
             message = json.loads(message)
 
@@ -1717,22 +1794,15 @@ def handle_websocket(ws):
         clients.discard(ws)
 
 
-# Live2D 网页版桌宠（/live2dchat）：路由与逻辑都在 run/live2d，这里只做注册，
-# 便于 web/ 更新后存活。webui_enable 关闭/插件未加载时，/live2dchat/config 会返回未启用。
-try:
-    from run.live2d.webchat import register_live2d_webchat
-    register_live2d_webchat(app)
-    logger.server("🔧 Live2D 网页版路由已注册：/live2dchat（需 live2d 配置 webui_enable: true）")
-except Exception as e:
-    logger.warning(f"Live2D /live2dchat 注册失败（不影响 WebUI）：{e}")
-
-
 # 启动webUI
-def start_webui():
+def start_webui(bot=None, config=None):
+    app.config["WEBUI_BOT"] = bot
+    app.config["WEBUI_CONFIG"] = config
+
     # 初始化用户登录信息
     try:
         with open(user_file, 'r', encoding="utf-8") as file:
-            yaml_file = yaml.load(file)
+            yaml_file = create_yaml_parser().load(file)
             user_info['account'] = yaml_file['account']
             user_info['password'] = yaml_file['password']
             user_info['friends'] = yaml_file['friends']
@@ -1744,7 +1814,7 @@ def start_webui():
     except:
         logger.warning("登录信息读取失败，已恢复默认。默认用户名/密码：eridanus")
         with open(user_file, 'w', encoding="utf-8") as file:
-            yaml.dump(user_info, file)
+            create_yaml_parser().dump(user_info, file)
 
     app.run(host="0.0.0.0", port=5007,threaded=True)
 # 启动Eridanus并捕获输出，反馈到前端。

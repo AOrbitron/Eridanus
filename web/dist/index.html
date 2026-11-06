@@ -8,6 +8,10 @@
 <link rel="stylesheet" href="/umi.d29b1b61.css">
 <script>/* Runs inline before the entry bundle; must not depend on React or downloaded CSS. */
 (function () {
+  var MAX_RETRIES = Number('5');
+  var RETRY_DELAY_MS = Number('1000');
+  if (!isFinite(MAX_RETRIES)) MAX_RETRIES = 1;
+  if (!isFinite(RETRY_DELAY_MS)) RETRY_DELAY_MS = 1000;
   if (window.__ERIDANUS_ASSETS__) return;
 
   var pending = Object.create(null);
@@ -75,9 +79,10 @@
       return;
     }
     var ids = Object.keys(pending);
-    var isRetrying = ids.some(function (id) {
-      return pending[id] === 'retry';
+    var retryingId = ids.find(function (id) {
+      return pending[id] && pending[id].status === 'retry';
     });
+    var retryAttempt = retryingId ? pending[retryingId].attempt : 0;
     panel.hidden = !booting && !failed && ids.length === 0;
     panel.dataset.boot = String(booting);
     panel.dataset.failed = String(failed);
@@ -100,8 +105,8 @@
     }
     title.textContent = failed
       ? '页面资源加载失败'
-      : isRetrying
-        ? '加载失败，正在重试（1/1）…'
+      : retryingId
+        ? '加载失败，正在重试（' + retryAttempt + '/' + MAX_RETRIES + '）…'
         : booting
           ? '正在加载应用…'
           : '正在加载页面资源…';
@@ -116,11 +121,11 @@
 
   window.__ERIDANUS_ASSETS__ = {
     begin: function (id) {
-      pending[id] = 'loading';
+      pending[id] = { status: 'loading', attempt: 0 };
       render();
     },
-    retry: function (id) {
-      pending[id] = 'retry';
+    retry: function (id, attempt) {
+      pending[id] = { status: 'retry', attempt: attempt || 1 };
       render();
     },
     end: function (id) {
@@ -148,6 +153,37 @@
   // Entry scripts have no webpack loader yet. Listen before the parser fetches them.
   // webpack-owned chunks use the runtime above; never retry them a second time here.
   var entryRetries = Object.create(null);
+
+  function retryEntryScript(script, url, id) {
+    var attempts = entryRetries[id] || 0;
+    if (attempts >= MAX_RETRIES) {
+      window.__ERIDANUS_ASSETS__.fail(id);
+      return;
+    }
+    attempts += 1;
+    entryRetries[id] = attempts;
+    window.__ERIDANUS_ASSETS__.retry(id, attempts);
+    setTimeout(function () {
+      var replacement = document.createElement('script');
+      Array.prototype.forEach.call(script.attributes, function (attribute) {
+        if (attribute.name !== 'src') replacement.setAttribute(attribute.name, attribute.value);
+      });
+      replacement.setAttribute('data-asset-retry', 'true');
+      replacement.async = false;
+      var retryUrl = new URL(url.href);
+      retryUrl.searchParams.set('__asset_retry', String(Date.now()));
+      replacement.src = retryUrl.href;
+      replacement.onload = function () {
+        window.__ERIDANUS_ASSETS__.end(id);
+      };
+      replacement.onerror = function () {
+        retryEntryScript(replacement, retryUrl, id);
+      };
+      script.remove();
+      document.head.appendChild(replacement);
+    }, RETRY_DELAY_MS);
+  }
+
   document.addEventListener(
     'error',
     function (event) {
@@ -168,27 +204,7 @@
         return;
       }
       var id = 'entry:' + url.pathname;
-      if (entryRetries[id]) return;
-      entryRetries[id] = true;
-      window.__ERIDANUS_ASSETS__.retry(id);
-      setTimeout(function () {
-        var replacement = document.createElement('script');
-        Array.prototype.forEach.call(script.attributes, function (attribute) {
-          if (attribute.name !== 'src') replacement.setAttribute(attribute.name, attribute.value);
-        });
-        replacement.setAttribute('data-asset-retry', 'true');
-        replacement.async = false;
-        url.searchParams.set('__asset_retry', String(Date.now()));
-        replacement.src = url.href;
-        replacement.onload = function () {
-          window.__ERIDANUS_ASSETS__.end(id);
-        };
-        replacement.onerror = function () {
-          window.__ERIDANUS_ASSETS__.fail(id);
-        };
-        script.remove();
-        document.head.appendChild(replacement);
-      }, 1000);
+      retryEntryScript(script, url, id);
     },
     true,
   );
@@ -200,10 +216,10 @@
   mount();
 })();
 </script>
-<script src="/preload_helper.6a04f59f.js"></script>
+<script src="/preload_helper.bd82426e.js"></script>
 </head>
 <body>
 <div id="root"></div>
-<script src="/umi.d586e237.js"></script>
+<script src="/umi.73769ce9.js"></script>
 </body>
 </html>
