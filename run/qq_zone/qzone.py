@@ -7,6 +7,7 @@ import json
 import random
 import re
 from run.wardrobe.outfit_policy import normalize_outfit, clothing_tags, scene_tags, scene_kind
+from run.wardrobe.qzone_outfits import select_post_outfit, commit_post_outfit
 import traceback
 import uuid
 from asyncio import sleep
@@ -861,7 +862,7 @@ def main(bot: ExtendBot, config: YAMLManager):
         rules = get_chara_drawing_rules()
         return rules.get("base", "")
 
-    async def build_sd_prompt_for_post(post_text: str, theme_desc: str) -> str:
+    async def build_sd_prompt_for_post(post_text: str, theme_desc: str, selection=None) -> str:
         bot_name, _ = get_bot_persona_info()
         rules = get_chara_drawing_rules()
         base_anchor = rules.get("base", "")
@@ -885,28 +886,23 @@ def main(bot: ExtendBot, config: YAMLManager):
         no_hat = is_no_hat_scene(post_text=post_text, theme_desc=theme_desc)
 
         # 1. 优先从衣橱系统挑选匹配主题的基准款式
-        shanghai_today = TimezoneHelper.get_user_local_time('Asia/Shanghai').strftime('%Y-%m-%d')
-        is_first_today = False
         wardrobe_base = None
         season_meta = get_current_season()
         season_sd_full = season_meta.get("full_name", "") if season_meta else ""
 
         if wardrobe_mgr and wardrobe_mgr.is_enabled():
-            is_first_today = (wardrobe_mgr._data.get("last_daily_date") != shanghai_today)
             try:
-                wardrobe_base = wardrobe_mgr.pick_base_outfit_for_theme(
-                    theme_desc=theme_desc,
-                    post_text=post_text,
-                    is_first_today=is_first_today,
-                    season_name=season_sd_full
-                )
+                wardrobe_base = await select_post_outfit(
+                    wardrobe_mgr, mai_llm, post_text, theme_desc, season_sd_full)
+                if selection is not None and wardrobe_base:
+                    selection.update(wardrobe_base)
             except Exception as e:
                 logger.warning(f"[Qzone SD] 从衣橱挑选基准服饰异常: {e}")
 
         # 随机抽取一套结构化全色谱穿搭数据（作为色彩搭配种子与细节修饰）
         outfit_data = None
         get_outfit_data_fn = getattr(qzone_themes, "get_random_outfit_data", None)
-        if callable(get_outfit_data_fn):
+        if not wardrobe_base and callable(get_outfit_data_fn):
             try:
                 combined_hint = f"{post_text} {theme_desc}"
                 outfit_data = get_outfit_data_fn(combined_hint)
@@ -932,14 +928,8 @@ def main(bot: ExtendBot, config: YAMLManager):
             outfit_detail = ""
 
         # 衣橱成功挑选出基准款式，使用衣橱款式 tags 作为核心款式模板
-        base_outfit_name = "默认款式"
         if wardrobe_base and wardrobe_base.get("clothing_tags"):
-            base_outfit_name = wardrobe_base.get("name", "衣橱款式")
             outfit_tags = wardrobe_base["clothing_tags"]
-            # 非强特异关键词匹配（日常轮换或继承）时，融合随机配件与细节，赋予日常服饰丰富灵动的生命力
-            if wardrobe_base.get("matched_by") != "keyword" and outfit_detail:
-                if outfit_detail.lower() not in outfit_tags.lower():
-                    outfit_tags = f"{outfit_tags}, {outfit_detail}"
             if wardrobe_base.get("no_hat", False):
                 no_hat = True
         else:
@@ -947,7 +937,7 @@ def main(bot: ExtendBot, config: YAMLManager):
             if outfit_detail and outfit_detail.lower() not in outfit_tags.lower():
                 outfit_tags = f"{outfit_tags}, {outfit_detail}"
 
-        outfit_tags = normalize_outfit(clothing_tags(outfit_tags or default_outfit))
+        outfit_tags = normalize_outfit(outfit_tags or default_outfit)
 
         # 如果判定为免帽场景，先清洗种子里的 outfit_tags 和 outfit_detail
         if no_hat:
@@ -980,7 +970,8 @@ def main(bot: ExtendBot, config: YAMLManager):
                     f"Character baseline clothing: {outfit_tags}\n"
                     "Output expression, emotion, pose, action, camera angle, lighting, background, and subtle contextual details "
                     "(such as a handheld item, bag, or contextual accessories suitable for the activity). "
-                    "Keep clothing harmonized with the baseline outfit; do not contradict it.\n"
+                    "Keep the selected complete outfit unchanged. Do not output clothing tags, "
+                    "new garments, color substitutions, or an alternative outfit.\n"
                     f"{hat_constraint}"
                 )
                 sd_tags = await mai_llm.chat(
@@ -1031,19 +1022,8 @@ def main(bot: ExtendBot, config: YAMLManager):
         if no_hat:
             final_prompt = strip_hat_tags(final_prompt)
 
-        # 若衣橱已开启，将本次微调/抽选的提示词同步更新至衣橱
-        # 衣橱已开启：首发动态记录今日默认；强特异关键词场景同步换装状态
-        if wardrobe_mgr and wardrobe_mgr.is_enabled() and outfit_to_use:
-            try:
-                if is_first_today:
-                    wardrobe_mgr.on_daily_first_post(shanghai_today, post_text, theme_desc)
-                    daily_label = f"今日限定·{base_outfit_name}" if base_outfit_name != "默认款式" else "今日限定"
-                    wardrobe_mgr.update_from_qzone_tags(daily_label, outfit_to_use, is_daily_default=True, no_hat=no_hat)
-                elif wardrobe_base and wardrobe_base.get("matched_by") == "keyword":
-                    # 仅在强关键词特异场景（如睡衣/运动/浴衣等）下同步换装，避免日常小随笔锁死衣橱
-                    wardrobe_mgr.update_from_qzone_tags(base_outfit_name, outfit_to_use, is_daily_default=False, no_hat=no_hat)
-            except Exception as e:
-                logger.warning(f"[Qzone Wardrobe] 同步服装到衣橱失败: {e}")
+        if selection is not None and wardrobe_base:
+            selection.update(clothing_tags=outfit_to_use, no_hat=no_hat)
         logger.info(f"[Qzone SD] 组合完成 SD Prompt (no_hat={no_hat}): {final_prompt}")
         return final_prompt
 
@@ -1325,9 +1305,10 @@ def main(bot: ExtendBot, config: YAMLManager):
 
         # 判断是否需要 SD 绘图
         pic_paths = []
+        outfit_selection = {}
         if task_info.get("绘制图片", True):
             theme_desc = sd_theme_hint
-            sd_prompt = await build_sd_prompt_for_post(post_content, theme_desc)
+            sd_prompt = await build_sd_prompt_for_post(post_content, theme_desc, outfit_selection)
             img_file = await call_sd_generate(sd_prompt)
             if img_file:
                 pic_paths.append(img_file)
@@ -1335,6 +1316,9 @@ def main(bot: ExtendBot, config: YAMLManager):
         # 发布至 QQ 空间
         try:
             res = await send_to_qzone(post_content, pic_paths)
+            commit_post_outfit(get_wardrobe_manager() if get_wardrobe_manager else None,
+                               outfit_selection, res,
+                               TimezoneHelper.get_user_local_time('Asia/Shanghai').strftime('%Y-%m-%d'), bool(pic_paths))
             logger.info(f"[Qzone] 发布动态完成: {res}")
         except Exception as e:
             logger.error(f"[Qzone] 发布动态异常: {e}")
@@ -1342,7 +1326,7 @@ def main(bot: ExtendBot, config: YAMLManager):
         # 触发衣橱动态着装判断（晚安换睡衣/早安恢复等）
         try:
             wm = get_wardrobe_manager() if get_wardrobe_manager else None
-            if wm and wm.is_enabled():
+            if wm and wm.is_enabled() and not pic_paths:
                 wm.on_post_change_check(task_name, post_content, sd_theme_hint)
         except Exception as e:
             logger.warning(f"[Qzone Wardrobe] 换装检测异常: {e}")
@@ -1517,9 +1501,10 @@ def main(bot: ExtendBot, config: YAMLManager):
 
         # 概率配图
         pic_paths = []
+        outfit_selection = {}
         pic_prob = float(vcfg.get("绘制图片概率", 0.5))
         if random.random() < pic_prob:
-            sd_prompt = await build_sd_prompt_for_post(daily_content, chosen_sd_hint)
+            sd_prompt = await build_sd_prompt_for_post(daily_content, chosen_sd_hint, outfit_selection)
             img_file = await call_sd_generate(sd_prompt)
             if img_file:
                 pic_paths.append(img_file)
@@ -1527,6 +1512,9 @@ def main(bot: ExtendBot, config: YAMLManager):
         # 发送说说
         try:
             res = await send_to_qzone(daily_content, pic_paths)
+            commit_post_outfit(get_wardrobe_manager() if get_wardrobe_manager else None,
+                               outfit_selection, res,
+                               TimezoneHelper.get_user_local_time('Asia/Shanghai').strftime('%Y-%m-%d'), bool(pic_paths))
             logger.info(f"[Qzone Vtuber日常] 发布动态完成: {res}")
             vtuber_post_count_today += 1
         except Exception as e:
@@ -1535,7 +1523,7 @@ def main(bot: ExtendBot, config: YAMLManager):
         # 触发衣橱日常换装检测
         try:
             wm = get_wardrobe_manager() if get_wardrobe_manager else None
-            if wm and wm.is_enabled():
+            if wm and wm.is_enabled() and not pic_paths:
                 wm.on_post_change_check("日常", daily_content, chosen_sd_hint)
         except Exception as e:
             logger.warning(f"[Qzone Wardrobe] 日常换装检测异常: {e}")

@@ -33,8 +33,8 @@ except ImportError:
 logger = logging.getLogger("Wardrobe")
 
 YAML_CONFIG_PATH = os.path.join("run", "wardrobe", "config.yaml")
-OUTFITS_KEY = "outfits_v5"
-LEGACY_OUTFIT_KEYS = ("outfits_v4", "outfits_v3", "outfits_v2", "outfits")
+OUTFITS_KEY = "outfits_v6"
+LEGACY_OUTFIT_KEYS = ("outfits_v5", "outfits_v4", "outfits_v3", "outfits_v2", "outfits")
 
 DEFAULT_CHARACTER_ANCHOR = (
     "1girl, teenager, solo, grey hair, gradient hair, multicolored hair, blue hair, "
@@ -1144,6 +1144,8 @@ class WardrobeManager:
                     if plugin_name == "wardrobe":
                         logger.info("[Wardrobe] 检测到 wardrobe/config.yaml 被外部修改，正在同步热重载...")
                         self.load_config()
+                        from run.wardrobe import refresh_function_declarations
+                        refresh_function_declarations("wardrobe")
                 ym.register_reload_callback(on_yaml_reload)
                 self._registered_reload_cb = True
                 self._yaml_manager = ym
@@ -1552,106 +1554,81 @@ class WardrobeManager:
         return None
 
 
+    def get_qzone_candidates(self, post_text="", theme_desc="", season_name=""):
+        """Use catalog metadata instead of hard-coded names; rotate every sleepwear key."""
+        from datetime import datetime
+        from zoneinfo import ZoneInfo
+        from run.wardrobe.outfit_policy import season_matches
+        seasons = {"春": "spring", "夏": "summer", "秋": "autumn", "冬": "winter", "fall": "autumn"}
+        season = next((v for k, v in seasons.items() if k in season_name.lower()), "")
+        if not season:
+            season = next((v for v in ("spring", "summer", "autumn", "winter")
+                           if v in season_name.lower()), "")
+        if not season:
+            month = datetime.now(ZoneInfo("Asia/Shanghai")).month
+            season = ("winter", "spring", "summer", "autumn")[(month % 12) // 3]
+        outfits = self.get_outfits()
+        kind = scene_kind(post_text)
+        if kind == "daily":
+            kind = scene_kind(theme_desc)
+        usable = {k: v for k, v in outfits.items() if v.get("clothing_tags")}
+        if kind == "sleepwear":
+            # Indoor sleepwear can span seasons. Counts guarantee every designed set
+            # gets a turn, including seasonal sets; season remains visible to the LLM.
+            pool = {k: v for k, v in usable.items() if v.get("category") == "sleepwear"}
+            counts = self._data.get("qzone_outfit_usage", {})
+            minimum = min((counts.get(k, 0) for k in pool), default=0)
+            return {k: v for k, v in pool.items() if counts.get(k, 0) == minimum}
+        pool = {k: v for k, v in usable.items()
+                if season_matches(v.get("season", "all"), season)}
+        if kind == "outdoor":
+            pool = {k: v for k, v in pool.items() if v.get("category") != "sleepwear"}
+        if kind == "sporty":
+            sports = {k: v for k, v in pool.items() if v.get("category") == "sport"}
+            if sports:
+                return sports
+        return pool
+
+    def resolve_qzone_outfit(self, key, post_text="", theme_desc=""):
+        """Validate a model key and enforce least-used rotation if it selects sleepwear."""
+        outfits = self.get_outfits()
+        obj = outfits[key]
+        if obj.get("category") == "sleepwear":
+            pool = {k: v for k, v in outfits.items()
+                    if v.get("category") == "sleepwear" and v.get("clothing_tags")}
+            counts = self._data.get("qzone_outfit_usage", {})
+            minimum = min(counts.get(k, 0) for k in pool)
+            if counts.get(key, 0) > minimum:
+                key = next(k for k in pool if counts.get(k, 0) == minimum)
+                obj = pool[key]
+        return {"name": key, "clothing_tags": obj.get("clothing_tags", ""),
+                "no_hat": obj.get("no_hat", False) or obj.get("category") == "sleepwear",
+                "matched_by": "llm_key"}
+
+    def record_qzone_outfit_usage(self, key):
+        """Called only after a post containing its image has been published."""
+        with self._rw_lock:
+            if key not in self._data.get(OUTFITS_KEY, {}):
+                return
+            counts = self._data.setdefault("qzone_outfit_usage", {})
+            counts[key] = counts.get(key, 0) + 1
+            self._save_to_disk()
+
     def pick_base_outfit_for_theme(self, theme_desc: str = "", post_text: str = "", is_first_today: bool = False, season_name: str = "") -> dict:
-        """
-        Qzone 动态服装挑选：从衣橱中选出最贴合情境或兼顾日常丰富度的基准服装：
-        1. 优先级1（场景/关键词精准匹配）：海滩、温泉、睡衣、运动、女仆装、汉服、浴衣等特异活动，精准锁定对应服装。
-        2. 优先级2（普通日常动态丰富轮换）：根据当前时令与动态文案内容特征，在应季及日常私服池中自然丰富轮换，彻底告别单调固定。
-        3. 优先级3（兜底回退）：回退至今日默认或系统默认常服。
-        """
-        combined = f"{theme_desc} {post_text}".strip()
-        outfits = self._data.get(OUTFITS_KEY, {})
-        kind = scene_kind(combined)
-
-        # 1. 优先级 1：精准场景/关键词匹配
-        matched_name = self.match_outfit(combined)
-        if kind == "sporty" and "运动活力" in outfits:
-            matched_name = "运动活力"
-        if matched_name and matched_name in outfits:
-            matched_obj = outfits[matched_name]
-            logger.info(f"[Wardrobe] Qzone 场景/文案精准锁定衣橱款式: [{matched_name}]")
-            return {
-                "name": matched_name,
-                "clothing_tags": matched_obj.get("clothing_tags", ""),
-                "no_hat": matched_obj.get("no_hat", False),
-                "matched_by": "keyword"
-            }
-
-        # 2. 优先级 2：无特定特异关键词的日常动态 -> 依据时令与文案内容特征在日常/应季池中丰富轮换
-        season_pools = {
-            "spring": [
-                "默认常服", "常服1", "春日碎花连衣裙", "早春双排扣风衣", "春日田园野餐格纹裙",
-                "清爽无袖水手百褶裙", "运动活力", "日系水手服", "分层蛋糕裙", "甜美洛丽塔",
-                "软萌娃娃领格纹背带裙", "春雨透明轻便雨衣", "法式小碎花吊带连衣裙","默认常服", "常服1", "秋日落叶针织衫", "英伦复古格纹大衣", "英伦学院菱格针织马甲",
-                "深秋复古灯芯绒背带裤","图书馆文艺知性长裙",
-                "甜心猫耳奶绒开衫",  "软萌娃娃领格纹背带裙"
-            ],
-            "summer": [
-                "清凉小吊带", "盛夏阳光露背吊带短裤", "清凉无袖网球裙", "露肩雪纺一字领",
-                "清爽无袖水手百褶裙", "运动活力", "夏祭捞金鱼印花甚平", "法式小碎花吊带连衣裙",
-                "分层蛋糕裙", "日系水手服", "默认常服"
-            ],
-            "autumn": [
-                "默认常服", "常服1", "秋日落叶针织衫", "英伦复古格纹大衣", "英伦学院菱格针织马甲",
-                "深秋复古灯芯绒背带裤","图书馆文艺知性长裙",
-                "甜心猫耳奶绒开衫",  "软萌娃娃领格纹背带裙","默认常服", "常服1", "春日碎花连衣裙", "早春双排扣风衣", "春日田园野餐格纹裙",
-                "清爽无袖水手百褶裙", "运动活力", "日系水手服", "分层蛋糕裙", "甜美洛丽塔",
-                "软萌娃娃领格纹背带裙", "春雨透明轻便雨衣", "法式小碎花吊带连衣裙"
-            ],
-            "winter": [
-                "默认常服", "冬日加厚白羽绒服", "牛角扣毛呢大衣", "雪人粗针麻花高领毛衣",
-                "慵懒小熊露肩连帽卫衣", "宅家慵懒连帽卫衣", "甜心猫耳奶绒开衫", "极地专业加厚滑雪服", "常服1"
-            ]
-        }
-
-        current_season = "spring"
-        s_lower = season_name.lower()
-        if any(k in s_lower for k in ["夏", "summer"]):
-            current_season = "summer"
-        elif any(k in s_lower for k in ["秋", "autumn", "fall"]):
-            current_season = "autumn"
-        elif any(k in s_lower for k in ["冬", "winter"]):
-            current_season = "winter"
-        else:
-            import datetime
-            m = datetime.datetime.now().month
-            if m in [3, 4, 5]: current_season = "spring"
-            elif m in [6, 7, 8]: current_season = "summer"
-            elif m in [9, 10, 11]: current_season = "autumn"
-            else: current_season = "winter"
-
-        candidates = season_pools.get(current_season, ["默认常服"])
-        daily_pool = [
-            "默认常服", "常服1", "分层蛋糕裙", "甜美洛丽塔", "清凉小吊带",
-            "露肩雪纺一字领", "宅家慵懒连帽卫衣", "烘焙围裙料理服", "游乐园兔耳背带裤",
-            "图书馆文艺知性长裙", "甜心猫耳奶绒开衫", "法式小碎花吊带连衣裙",
-            "软萌娃娃领格纹背带裙", "慵懒小熊露肩连帽卫衣"
-        ]
-        all_pool = list(dict.fromkeys(candidates + daily_pool))
-        valid_candidates = [c for c in all_pool if c in outfits]
-        if not valid_candidates:
-            valid_candidates = [self._data.get("default_outfit", "默认常服")]
-
-        import datetime
-        date_str = datetime.datetime.now().strftime("%Y%m%d")
-        if is_first_today:
-            seed_val = abs(hash(f"daily_first_{date_str}"))
-            picked_name = valid_candidates[seed_val % len(valid_candidates)]
-            matched_by_mode = "season_rotation"
-        else:
-            post_hash = abs(hash(f"{date_str}_{combined[:30]}"))
-            picked_name = valid_candidates[post_hash % len(valid_candidates)]
-            matched_by_mode = "daily_rotation"
-
-        picked_obj = outfits.get(picked_name, {})
-        logger.info(f"[Wardrobe] Qzone 日常动态按 [{current_season}/{matched_by_mode}] 灵活轮换服装: [{picked_name}]")
-        return {
-            "name": picked_name,
-            "clothing_tags": picked_obj.get("clothing_tags", ""),
-            "no_hat": picked_obj.get("no_hat", False),
-            "matched_by": matched_by_mode
-        }
-
+        """Deterministic fallback when LLM selection is unavailable or invalid."""
+        pool = self.get_qzone_candidates(post_text, theme_desc, season_name)
+        if not pool:
+            return {}
+        kind = scene_kind(post_text if scene_kind(post_text) != "daily" else theme_desc)
+        matched = self.match_outfit(f"{post_text} {theme_desc}")
+        if kind == "sleepwear" or matched not in pool:
+            counts = self._data.get("qzone_outfit_usage", {})
+            everyday = {k: v for k, v in pool.items() if v.get("category") in {"daily", "seasonal"}}
+            fallback_pool = everyday if kind in {"daily", "outdoor", "indoor"} and everyday else pool
+            matched = min(fallback_pool, key=lambda key: counts.get(key, 0))
+        result = self.resolve_qzone_outfit(matched, post_text, theme_desc)
+        result["matched_by"] = "fallback"
+        return result
 
     def update_from_qzone_tags(self, outfit_name: str, clothing_tags: str, is_daily_default: bool = False, no_hat: Optional[bool] = None) -> None:
         """
@@ -1718,7 +1695,12 @@ class WardrobeManager:
 
         # 1. 晚安/睡眠场景
         if task_name == "晚安" or scene_kind(combined) == "sleepwear":
-            target_sleepwear = self.match_outfit(combined) or "可爱粉彩睡衣"
+            current = self.get_current_outfit()
+            if (self.get_outfit(current.get("name", "")) or {}).get("category") == "sleepwear":
+                return None
+            target_sleepwear = self.pick_base_outfit_for_theme(post_text=combined).get("name")
+            if not target_sleepwear:
+                return None
             current = self.get_current_outfit()
             if current.get("name") != target_sleepwear:
                 self.set_current_outfit(target_sleepwear)
@@ -1860,7 +1842,7 @@ def build_change_outfit_declaration(yaml_path: str = YAML_CONFIG_PATH, custom_ou
     完整罗列全部服饰名称（按分类整理），使 bot 具备完全的自主挑选能力。
     """
     outfits = custom_outfits
-    if outfits is None and _has_yaml_manager and YAMLManager is not None:
+    if outfits is None and yaml_path == YAML_CONFIG_PATH and _has_yaml_manager and YAMLManager is not None:
         try:
             ym = YAMLManager.get_instance()
             if ym and hasattr(ym, "wardrobe") and hasattr(ym.wardrobe, "config"):
@@ -1903,7 +1885,7 @@ def build_change_outfit_declaration(yaml_path: str = YAML_CONFIG_PATH, custom_ou
     cat_map: Dict[str, List[str]] = {}
     for name, data in outfits.items():
         c = data.get("category", "other") if isinstance(data, dict) else "other"
-        cat_map.setdefault(c, []).append(name)
+        cat_map.setdefault(c, []).append(f"{name}（季节: {data.get('season', 'all')}）" if isinstance(data, dict) else name)
 
     catalog_lines = []
     for c_key, c_label in cat_order:

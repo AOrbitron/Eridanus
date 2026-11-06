@@ -10,6 +10,8 @@ def has_terms(text, terms):
 
 def scene_kind(hint):
     # Nighttime alone does not mean bedtime (night markets / runs are outdoors).
+    if has_terms(hint, ("晚安", "睡觉", "被窝", "床上", "bedtime", "in bed", "on bed", "sleeping", "good night", "goodnight")):
+        return "sleepwear"
     if has_terms(hint, ("夜跑", "晨跑", "跑步", "健身", "workout", "jogging", "running", "gym", "tennis", "网球")):
         return "sporty"
     if has_terms(hint, ("夜市", "夜游", "逛街", "出门", "街头", "户外", "night market", "street", "outdoor", "hiking")):
@@ -19,6 +21,15 @@ def scene_kind(hint):
     if has_terms(hint, ("居家", "宅家", "客厅", "卧室", "沙发", "home", "indoors", "indoor", "bedroom", "sofa")):
         return "indoor"
     return "daily"
+
+
+def season_matches(value, season):
+    """Accept slash-separated seasons, lists, and all-season outfits."""
+    if isinstance(value, (list, tuple, set)):
+        tokens = {str(v).strip().lower() for v in value}
+    else:
+        tokens = {v.strip().lower() for v in re.split(r"[/,，、\s]+", str(value or "all"))}
+    return "all" in tokens or season.lower() in tokens
 
 
 _CLOTHING = re.compile(
