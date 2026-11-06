@@ -23,15 +23,6 @@ def scene_kind(hint):
     return "daily"
 
 
-def season_matches(value, season):
-    """Accept slash-separated seasons, lists, and all-season outfits."""
-    if isinstance(value, (list, tuple, set)):
-        tokens = {str(v).strip().lower() for v in value}
-    else:
-        tokens = {v.strip().lower() for v in re.split(r"[/,，、\s]+", str(value or "all"))}
-    return "all" in tokens or season.lower() in tokens
-
-
 _CLOTHING = re.compile(
     r"\b(?:pajamas?|sleepwear|nightdress|nightgown|sleep pants|sleep shorts|"
     r"dress|skirt|pants|trousers|shorts|jeans|leggings|tights|pantyhose|"

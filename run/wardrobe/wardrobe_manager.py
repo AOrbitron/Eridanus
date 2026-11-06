@@ -1555,18 +1555,7 @@ class WardrobeManager:
 
 
     def get_qzone_candidates(self, post_text="", theme_desc="", season_name=""):
-        """Use catalog metadata instead of hard-coded names; rotate every sleepwear key."""
-        from datetime import datetime
-        from zoneinfo import ZoneInfo
-        from run.wardrobe.outfit_policy import season_matches
-        seasons = {"春": "spring", "夏": "summer", "秋": "autumn", "冬": "winter", "fall": "autumn"}
-        season = next((v for k, v in seasons.items() if k in season_name.lower()), "")
-        if not season:
-            season = next((v for v in ("spring", "summer", "autumn", "winter")
-                           if v in season_name.lower()), "")
-        if not season:
-            month = datetime.now(ZoneInfo("Asia/Shanghai")).month
-            season = ("winter", "spring", "summer", "autumn")[(month % 12) // 3]
+        """Let the LLM match the theme; season metadata never excludes an outfit."""
         outfits = self.get_outfits()
         kind = scene_kind(post_text)
         if kind == "daily":
@@ -1579,14 +1568,9 @@ class WardrobeManager:
             counts = self._data.get("qzone_outfit_usage", {})
             minimum = min((counts.get(k, 0) for k in pool), default=0)
             return {k: v for k, v in pool.items() if counts.get(k, 0) == minimum}
-        pool = {k: v for k, v in usable.items()
-                if season_matches(v.get("season", "all"), season)}
+        pool = usable
         if kind == "outdoor":
             pool = {k: v for k, v in pool.items() if v.get("category") != "sleepwear"}
-        if kind == "sporty":
-            sports = {k: v for k, v in pool.items() if v.get("category") == "sport"}
-            if sports:
-                return sports
         return pool
 
     def resolve_qzone_outfit(self, key, post_text="", theme_desc=""):

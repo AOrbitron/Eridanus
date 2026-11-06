@@ -30,7 +30,7 @@ outfits_v6:
     name: 常服1
     description: 街头潮酷常服：Oversized 夹克外套配休闲私服（去除了扳手与修车元素，纯粹的街头潮服搭配）
     category: daily
-    season: spring/autumn
+    season: all
     occasion: casual, street, daily
     clothing_tags: smirk, mischievous smile, wink, street style, oversized 
       jacket, casual clothes
@@ -46,7 +46,7 @@ outfits_v6:
     name: 默认常服
     description: 原版默认常服（米白粗针织开衫内搭米白小吊带与罗纹上衣、棕色百褶裙、巧克力棕贝雷帽、及膝袜与复古乐福鞋，日常私服）
     category: daily
-    season: spring/autumn
+    season: all
     occasion: casual, campus
     clothing_tags: (cream oversized cable knit cardigan:1.1), off-white 
       camisole, ribbed top, brown pleated wool skirt, (chocolate brown 
@@ -64,7 +64,7 @@ outfits_v6:
     name: 分层蛋糕裙
     description: 轻甜层叠花边蛋糕裙（多层褶皱下摆、甜美少女风，配黑色天鹅绒系带颈圈）
     category: daily
-    season: spring/autumn
+    season: all
     occasion: date, casual
     clothing_tags: pastel tiered ruffle dress, layered cake skirt silhouette, 
       black velvet ribbon choker, delicate ribbon bow, cute Mary Jane shoes
@@ -139,7 +139,7 @@ outfits_v6:
     name: 哥特洛丽塔
     description: 暗黑维多利亚哥特式洋装（黑紫配色、十字颈圈与多层暗纹蕾丝裙）
     category: daily
-    season: spring/autumn
+    season: all
     occasion: convention, gothic party
     clothing_tags: gothic lolita, dark victorian aesthetic, black and purple 
       frilled dress, layered skirt, lace bonnet, cross pendant choker, rose 
@@ -314,7 +314,7 @@ outfits_v6:
     name: 露肩雪纺一字领
     description: 一字领露肩荷叶雪纺上衣搭配浅色牛仔短裙与缎带颈饰（清爽甜美、小资街头）
     category: daily
-    season: spring/summer
+    season: all
     occasion: casual, cafe, shopping
     clothing_tags: off-shoulder ruffled chiffon blouse, bare shoulders, 
       collarbone, delicate ribbon choker, light blue denim miniskirt, thin 
