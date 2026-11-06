@@ -440,26 +440,6 @@ outfits_v5:
       virtual youtuber, (starshadowmagician:1.2), masterpiece, extremely 
       detailed, lineart, (hand-drawn:1.3), (sketch:1.2), Picasso style, Van 
       Gogh's almond blossoms, <lora:DeniaV1-Nuclear1811-IL:0.5>
-  机能风骑行皮衣:
-    name: 机能风骑行皮衣
-    description: 机能街头风立领机车皮夹克与战术多袋工装裤（修车骑行进阶版、酷飒帅气）
-    category: daily
-    season: all
-    occasion: riding, biker, street, workshop
-    clothing_tags: cool biker girl, cropped black motorcycle leather jacket, 
-      neon blue accents, black tactical cargo pants with utility straps, 
-      fingerless leather gloves, combat boots, futuristic cyberpunk garage 
-      background, neon signs, confident smirk
-    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored 
-      hair, blue hair, light purple-light blue mixed eyes, (Side swept 
-      hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), cool biker 
-      girl, cropped black motorcycle leather jacket, neon blue accents, black 
-      tactical cargo pants with utility straps, fingerless leather gloves, 
-      combat boots, futuristic cyberpunk garage background, neon signs, 
-      confident smirk, (Rella:1.2), (chen bin:1.3), virtual youtuber, 
-      (starshadowmagician:1.2), masterpiece, extremely detailed, lineart, 
-      (hand-drawn:1.3), (sketch:1.2), Picasso style, Van Gogh's almond blossoms,
-      <lora:DeniaV1-Nuclear1811-IL:0.5>
   可爱猫耳女仆装:
     name: 可爱猫耳女仆装
     description: 经典黑白蕾丝花边短裙女仆装配猫耳发箍与猫爪装饰（俏皮女仆、托盘点心）
@@ -956,26 +936,6 @@ outfits_v5:
       brown corduroy dungarees, cozy cream white ribbed turtleneck sweater 
       underneath, brass button details, brown leather ankle boots, golden ginkgo
       leaves floating in wind, cozy autumn park bench, (Rella:1.2), (chen 
-      bin:1.3), virtual youtuber, (starshadowmagician:1.2), masterpiece, 
-      extremely detailed, lineart, (hand-drawn:1.3), (sketch:1.2), Picasso 
-      style, Van Gogh's almond blossoms, <lora:DeniaV1-Nuclear1811-IL:0.5>
-  街头复古机车皮衣长裤:
-    name: 街头复古机车皮衣长裤
-    description: 复古做旧棕色机车夹克搭配黑色工装束脚长裤与马丁靴，黄昏街头角
-    category: seasonal
-    season: autumn
-    occasion: street, motor, sunset
-    no_hat: false
-    clothing_tags: vintage distressed brown leather motorcycle jacket with 
-      asymmetric zipper, black fitted tee, tactical multi-pocket cargo pants, 
-      lace-up combat boots, metal chain accessory, golden hour urban street 
-      corner
-    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored 
-      hair, blue hair, light purple-light blue mixed eyes, (Side swept 
-      hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), vintage 
-      distressed brown leather motorcycle jacket with asymmetric zipper, black 
-      fitted tee, tactical multi-pocket cargo pants, lace-up combat boots, metal
-      chain accessory, golden hour urban street corner, (Rella:1.2), (chen 
       bin:1.3), virtual youtuber, (starshadowmagician:1.2), masterpiece, 
       extremely detailed, lineart, (hand-drawn:1.3), (sketch:1.2), Picasso 
       style, Van Gogh's almond blossoms, <lora:DeniaV1-Nuclear1811-IL:0.5>

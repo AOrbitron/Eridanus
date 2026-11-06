@@ -363,23 +363,6 @@ DEFAULT_OUTFITS = {   '万圣节小恶魔装': {   'category': 'festival',
                     'no_hat': False,
                     'occasion': 'rainy, outdoor, city walk',
                     'season': 'spring'},
-    '机能风骑行皮衣': {   'category': 'daily',
-                   'clothing_tags': 'cool biker girl, cropped black motorcycle leather jacket, neon blue accents, '
-                                    'black tactical cargo pants with utility straps, fingerless leather gloves, combat '
-                                    'boots, futuristic cyberpunk garage background, neon signs, confident smirk',
-                   'description': '机能街头风立领机车皮夹克与战术多袋工装裤（修车骑行进阶版、酷飒帅气）',
-                   'full_prompt': '1girl, teenager, solo, grey hair, gradient hair, multicolored hair, blue hair, '
-                                  'light purple-light blue mixed eyes, (Side swept hair:1.6), ahoge, bangs, middle '
-                                  'long hair, (round face:1.2), cool biker girl, cropped black motorcycle leather '
-                                  'jacket, neon blue accents, black tactical cargo pants with utility straps, '
-                                  'fingerless leather gloves, combat boots, futuristic cyberpunk garage background, '
-                                  'neon signs, confident smirk, (Rella:1.2), (chen bin:1.3), virtual youtuber, '
-                                  '(starshadowmagician:1.2), masterpiece, extremely detailed, lineart, '
-                                  "(hand-drawn:1.3), (sketch:1.2), Picasso style, Van Gogh's almond blossoms, "
-                                  '<lora:DeniaV1-Nuclear1811-IL:0.5>',
-                   'name': '机能风骑行皮衣',
-                   'occasion': 'riding, biker, street, workshop',
-                   'season': 'all'},
     '极地专业加厚滑雪服': {   'category': 'seasonal',
                      'clothing_tags': 'professional waterproof ski jacket with neon turquoise and purple '
                                       'color-blocking, matching insulated snow pants, colorful reflective ski goggles '
@@ -794,23 +777,6 @@ DEFAULT_OUTFITS = {   '万圣节小恶魔装': {   'category': 'festival',
                     'no_hat': True,
                     'occasion': 'bedtime, night, relaxing',
                     'season': 'all'},
-    '街头复古机车皮衣长裤': {   'category': 'seasonal',
-                      'clothing_tags': 'vintage distressed brown leather motorcycle jacket with asymmetric zipper, '
-                                       'black fitted tee, tactical multi-pocket cargo pants, lace-up combat boots, '
-                                       'metal chain accessory, golden hour urban street corner',
-                      'description': '复古做旧棕色机车夹克搭配黑色工装束脚长裤与马丁靴，黄昏街头角',
-                      'full_prompt': '1girl, teenager, solo, grey hair, gradient hair, multicolored hair, blue hair, '
-                                     'light purple-light blue mixed eyes, (Side swept hair:1.6), ahoge, bangs, middle '
-                                     'long hair, (round face:1.2), vintage distressed brown leather motorcycle jacket '
-                                     'with asymmetric zipper, black fitted tee, tactical multi-pocket cargo pants, '
-                                     'lace-up combat boots, metal chain accessory, golden hour urban street corner, '
-                                     '(Rella:1.2), (chen bin:1.3), virtual youtuber, (starshadowmagician:1.2), '
-                                     'masterpiece, extremely detailed, lineart, (hand-drawn:1.3), (sketch:1.2), '
-                                     "Picasso style, Van Gogh's almond blossoms, <lora:DeniaV1-Nuclear1811-IL:0.5>",
-                      'name': '街头复古机车皮衣长裤',
-                      'no_hat': False,
-                      'occasion': 'street, motor, sunset',
-                      'season': 'autumn'},
     '街头滑板少年风卫衣': {   'category': 'sport',
                      'clothing_tags': 'oversized charcoal black graphic skate hoodie, baggy cargo track pants, durable '
                                       'skate knee pads, chunky skate sneakers, one foot resting on grip-taped '
@@ -1535,7 +1501,6 @@ class WardrobeManager:
             (["圣诞", "圣诞装", "红斗篷", "麋鹿", "铃铛", "christmas"], "圣诞红斗篷礼裙"),
             (["牛角扣", "大衣", "连帽大衣", "duffle"], "牛角扣毛呢大衣"),
             # 角色与场合
-            (["皮衣", "机能", "机车", "赛车", "骑行皮衣", "帅气", "biker"], "机能风骑行皮衣"),
             (["女仆", "女仆装", "maid"], "可爱猫耳女仆装"),
             (["宅家", "连帽卫衣", "打游戏", "电竞", "oversize卫衣", "躺平"], "宅家慵懒连帽卫衣"),
             (["围裙", "烘焙", "料理", "做饭", "做曲奇", "apron"], "烘焙围裙料理服"),
@@ -1564,7 +1529,6 @@ class WardrobeManager:
             (["捞金鱼", "金鱼甚平", "短甚平", "夏夜甚平"], "夏祭捞金鱼印花甚平"),
             (["菱格", "针织马甲", "学院风马甲", "牛津衬衫", "邮差包"], "英伦学院菱格针织马甲"),
             (["灯芯绒", "焦糖色", "灯芯绒背带裤", "银杏"], "深秋复古灯芯绒背带裤"),
-            (["做旧皮衣", "复古机车", "机车夹克", "工装束脚裤"], "街头复古机车皮衣长裤"),
             (["雪人", "粗针麻花", "高领毛衣", "毛球帽", "初雪毛衣"], "雪人粗针麻花高领毛衣"),
             (["滑雪", "滑雪服", "雪板", "雪山", "ski", "snowboard"], "极地专业加厚滑雪服"),
             # 兴趣爱好与传统节庆
@@ -1618,7 +1582,9 @@ class WardrobeManager:
             "spring": [
                 "默认常服", "常服1", "春日碎花连衣裙", "早春双排扣风衣", "春日田园野餐格纹裙",
                 "清爽无袖水手百褶裙", "运动活力", "日系水手服", "分层蛋糕裙", "甜美洛丽塔",
-                "软萌娃娃领格纹背带裙", "春雨透明轻便雨衣", "法式小碎花吊带连衣裙"
+                "软萌娃娃领格纹背带裙", "春雨透明轻便雨衣", "法式小碎花吊带连衣裙","默认常服", "常服1", "秋日落叶针织衫", "英伦复古格纹大衣", "英伦学院菱格针织马甲",
+                "深秋复古灯芯绒背带裤","图书馆文艺知性长裙",
+                "甜心猫耳奶绒开衫",  "软萌娃娃领格纹背带裙"
             ],
             "summer": [
                 "清凉小吊带", "盛夏阳光露背吊带短裤", "清凉无袖网球裙", "露肩雪纺一字领",
@@ -1627,8 +1593,10 @@ class WardrobeManager:
             ],
             "autumn": [
                 "默认常服", "常服1", "秋日落叶针织衫", "英伦复古格纹大衣", "英伦学院菱格针织马甲",
-                "深秋复古灯芯绒背带裤", "街头复古机车皮衣长裤", "图书馆文艺知性长裙",
-                "甜心猫耳奶绒开衫", "机能风骑行皮衣", "软萌娃娃领格纹背带裙"
+                "深秋复古灯芯绒背带裤","图书馆文艺知性长裙",
+                "甜心猫耳奶绒开衫",  "软萌娃娃领格纹背带裙","默认常服", "常服1", "春日碎花连衣裙", "早春双排扣风衣", "春日田园野餐格纹裙",
+                "清爽无袖水手百褶裙", "运动活力", "日系水手服", "分层蛋糕裙", "甜美洛丽塔",
+                "软萌娃娃领格纹背带裙", "春雨透明轻便雨衣", "法式小碎花吊带连衣裙"
             ],
             "winter": [
                 "默认常服", "冬日加厚白羽绒服", "牛角扣毛呢大衣", "雪人粗针麻花高领毛衣",
