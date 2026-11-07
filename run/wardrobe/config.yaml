@@ -1,7 +1,7 @@
-# 系统总开关：true 开启衣橱管理与自动换装；false 使用默认设置
-enabled: true
-# 默认服装与当前生效着装状态
-default_outfit: 默认常服
+
+enabled: true  # 系统总开关：true 开启衣橱管理与自动换装；false 仅使用anchor
+
+default_outfit: 默认常服 # 默认服装与当前生效着装状态
 current_outfit: 默认常服
 current_outfit_tags: (cream oversized cable knit cardigan:1.1), off-white 
   camisole, ribbed top, brown pleated wool skirt, (chocolate brown beret:1.1), 
@@ -11,21 +11,21 @@ today_default_tags: (cream oversized cable knit cardigan:1.1), off-white
   camisole, ribbed top, brown pleated wool skirt, (chocolate brown beret:1.1), 
   beige knee-high socks, retro loafer shoes, casual daily wear
 last_daily_date: '2026-11-05'
-# 角色外观基础锚点（从 yucca.txt 解耦迁移，保持外貌特征统一）
+
 character_anchor: 1girl, teenager, solo, grey hair, gradient hair, multicolored 
   hair, blue hair, light purple-light blue mixed eyes, (Side swept hair:1.6), 
-  ahoge, bangs, middle long hair, (round face:1.2)
-# 画风、LoRA 与质量锚点
+  ahoge, bangs, middle long hair, (round face:1.2)  # 角色外观基础锚点
+
 art_anchor: (Rella:1.2), (chen bin:1.3), virtual youtuber, 
   (starshadowmagician:1.2), masterpiece, extremely detailed, lineart, 
   (hand-drawn:1.3), (sketch:1.2), Picasso style, Van Gogh's almond blossoms, 
-  <lora:DeniaV1-Nuclear1811-IL:0.5>
-# SD 负向提示词
+  <lora:DeniaV1-Nuclear1811-IL:0.5>   # 画风、LoRA 与质量锚点
+
 negative_prompt: lowres, bad anatomy, bad hands, text, error, missing fingers, 
   extra digit, fewer digits, cropped, worst quality, low quality, normal 
-  quality, jpeg artifacts, signature, watermark, username, blurry
-# 衣橱服饰库：涵盖四季日常私服、特色礼服、汉元素、洛丽塔、居家睡裙等，支持持续扩充
-outfits_v6:
+  quality, jpeg artifacts, signature, watermark, username, blurry  # SD 负向提示词
+
+outfits_v6:  # 衣橱服饰库：涵盖四季日常私服、特色礼服、汉元素、洛丽塔、居家睡裙等，支持持续扩充
   常服1:
     name: 常服1
     description: 街头潮酷常服：Oversized 夹克外套配休闲私服（去除了扳手与修车元素，纯粹的街头潮服搭配）
