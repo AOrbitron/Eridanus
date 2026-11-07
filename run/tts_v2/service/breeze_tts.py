@@ -622,7 +622,7 @@ class AsyncBreezeTTSClient:
         payload = {
             "model": llm_model,
             "messages": [
-                {"role": "system", "content": "你是一个专业语音合成配音导演，请严格输出标准 JSON 格式。"},
+                {"role": "system", "content": "你是一个专业语音合成配音导演，请严格输出标准 JSON 格式。不要有任何多余解释和前缀，输出结果必须以{开头，以}结束，可直接解析"},
                 {"role": "user", "content": prompt}
             ],
             #"response_format": {"type": "json_object"},
