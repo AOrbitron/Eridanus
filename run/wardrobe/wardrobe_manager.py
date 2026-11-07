@@ -11,6 +11,7 @@ import logging
 import threading
 from typing import Dict, Any, Optional, List
 
+
 try:
     from ruamel.yaml import YAML
     _has_ruamel = True
@@ -32,8 +33,7 @@ except ImportError:
 logger = logging.getLogger("Wardrobe")
 
 YAML_CONFIG_PATH = os.path.join("run", "wardrobe", "config.yaml")
-OUTFITS_KEY = "outfits_v6"
-LEGACY_OUTFIT_KEYS = ("outfits_v5", "outfits_v4", "outfits_v3", "outfits_v2", "outfits")
+OUTFITS_KEY = "outfits_v7"  # Stable configuration key; adding presets does not change it.
 RETIRED_DAILY_FIELDS = ("today_default_outfit", "today_default_tags", "today_default_no_hat", "last_daily_date")
 
 DEFAULT_CHARACTER_ANCHOR = (
@@ -56,22 +56,7 @@ DEFAULT_NEGATIVE_PROMPT = (
 
 def _read_catalog(doc):
     import copy
-    removed = {"和风纯棉甚平睡衣"}
-    current = OUTFITS_KEY in doc
-    outfits = copy.deepcopy(dict(doc[OUTFITS_KEY]))
-    # Read earlier versions for custom entries only. Old presets cannot override
-    # new templates, and removed presets cannot reappear as "custom" entries.
-    for legacy_key in LEGACY_OUTFIT_KEYS:
-        for name, value in doc.get(legacy_key, {}).items():
-            if name not in outfits  and name not in removed:
-                outfits[name] = copy.deepcopy(value)
-            elif not current and name == "默认常服":
-                outfits[name] = copy.deepcopy(value)
-    outfits.pop("和风纯棉甚平睡衣", None)
-    for outfit in outfits.values():
-        if outfit.get("full_prompt"):
-            outfit["full_prompt"] = outfit["full_prompt"].replace("teenager", "teenager")
-    return outfits
+    return copy.deepcopy(dict(doc.get(OUTFITS_KEY, {})))
 
 
 class WardrobeManager:
@@ -128,7 +113,7 @@ class WardrobeManager:
                     ym = YAMLManager.get_instance()
                     if ym is not None and hasattr(ym, "wardrobe") and hasattr(ym.wardrobe, "config"):
                         doc = ym.wardrobe.config
-                        if doc is not None and (OUTFITS_KEY in doc or any(k in doc for k in LEGACY_OUTFIT_KEYS)):
+                        if isinstance(doc, dict):
                             self._yaml_manager = ym
                             self._commented_map = doc
                             self._data = dict(doc)
@@ -144,7 +129,7 @@ class WardrobeManager:
                 try:
                     with open(self.yaml_path, "r", encoding="utf-8") as f:
                         doc = self._yaml_rt.load(f)
-                    if doc is not None and (OUTFITS_KEY in doc or any(k in doc for k in LEGACY_OUTFIT_KEYS)):
+                    if isinstance(doc, dict):
                         self._commented_map = doc
                         self._data = dict(doc)
                         if OUTFITS_KEY in self._data:
@@ -158,7 +143,7 @@ class WardrobeManager:
                 try:
                     with open(self.yaml_path, "r", encoding="utf-8") as f:
                         data = yaml.safe_load(f)
-                    if isinstance(data, dict) and (OUTFITS_KEY in data or any(k in data for k in LEGACY_OUTFIT_KEYS)):
+                    if isinstance(data, dict):
                         self._data = data
                         loaded = True
                 except Exception as e:
@@ -169,17 +154,8 @@ class WardrobeManager:
                 for field in RETIRED_DAILY_FIELDS:
                     self._data.pop(field, None)
             if loaded:
-                for field in ("default_outfit", "current_outfit"):
-                    if self._data.get(field) == "和风纯棉甚平睡衣":
-                        self._data[field] = "可爱粉彩睡衣"
-                        tag_field = {"current_outfit": "current_outfit_tags"}.get(field)
-                        if tag_field:
-                            self._data[tag_field] = self._data[OUTFITS_KEY]["可爱粉彩睡衣"]["clothing_tags"]
                 self._data["character_anchor"] = self._data.get("character_anchor", DEFAULT_CHARACTER_ANCHOR)
-                for legacy_key in LEGACY_OUTFIT_KEYS:
-                    if self._commented_map is not None and legacy_key in self._commented_map:
-                        self._commented_map.pop(legacy_key, None)
-                    self._data.pop(legacy_key, None)
+
 
             # 3. 若均不存在或损坏，初始化默认结构并持久化至 YAML
             if not loaded:
@@ -190,7 +166,7 @@ class WardrobeManager:
         """将 self._data 的更新同步至 self._commented_map，完整保留原有 YAML 注释"""
         if self._commented_map is None:
             return
-        for legacy_key in (*LEGACY_OUTFIT_KEYS, *RETIRED_DAILY_FIELDS):
+        for legacy_key in RETIRED_DAILY_FIELDS:
             if legacy_key in self._commented_map:
                 self._commented_map.pop(legacy_key, None)
         for k, v in self._data.items():
@@ -490,7 +466,7 @@ def build_change_outfit_declaration(yaml_path: str = YAML_CONFIG_PATH, custom_ou
             ym = YAMLManager.get_instance()
             if ym and hasattr(ym, "wardrobe") and hasattr(ym.wardrobe, "config"):
                 doc = ym.wardrobe.config
-                if doc and (OUTFITS_KEY in doc or any(k in doc for k in LEGACY_OUTFIT_KEYS)):
+                if isinstance(doc, dict):
                     outfits = _read_catalog(doc)
         except Exception as e:
             logger.debug(f"[Wardrobe] 从 YAMLManager 读取服饰列表失败: {e}")
@@ -502,12 +478,12 @@ def build_change_outfit_declaration(yaml_path: str = YAML_CONFIG_PATH, custom_ou
                 ryaml.preserve_quotes = True
                 with open(yaml_path, "r", encoding="utf-8") as f:
                     doc = ryaml.load(f)
-                    if doc and (OUTFITS_KEY in doc or any(k in doc for k in LEGACY_OUTFIT_KEYS)):
+                    if isinstance(doc, dict):
                         outfits = _read_catalog(doc)
             elif yaml and os.path.exists(yaml_path):
                 with open(yaml_path, "r", encoding="utf-8") as f:
                     doc = yaml.safe_load(f)
-                    if doc and (OUTFITS_KEY in doc or any(k in doc for k in LEGACY_OUTFIT_KEYS)):
+                    if isinstance(doc, dict):
                         outfits = _read_catalog(doc)
         except Exception as e:
             logger.warning(f"[Wardrobe] 从 {yaml_path} 读取服饰列表失败: {e}")

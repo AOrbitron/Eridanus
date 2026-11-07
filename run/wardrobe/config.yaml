@@ -25,7 +25,7 @@ negative_prompt: lowres, bad anatomy, bad hands, text, error, missing fingers,
   extra digit, fewer digits, cropped, worst quality, low quality, normal 
   quality, jpeg artifacts, signature, watermark, username, blurry  # SD 负向提示词
 
-outfits_v6:  # 衣橱服饰库：涵盖四季日常私服、特色礼服、汉元素、洛丽塔、居家睡裙等，支持持续扩充
+outfits_v7:  # 衣橱服饰库：涵盖四季日常私服、特色礼服、汉元素、洛丽塔、居家睡裙等，支持持续扩充
   常服1:
     name: 常服1
     description: 街头潮酷常服：Oversized 夹克外套配休闲私服（去除了扳手与修车元素，纯粹的街头潮服搭配）
