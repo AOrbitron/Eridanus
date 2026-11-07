@@ -193,7 +193,7 @@ class PromptBuilder:
         else:
             base = self._system_template
 
-        now = datetime.now()
+        now = datetime.now().astimezone()
         time_str = now.strftime("%Y年%m月%d日 %H:%M")
         weekdays = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"]
         time_str += f" {weekdays[now.weekday()]}"
@@ -341,6 +341,9 @@ class PromptBuilder:
 
 
         prompt = prompt.replace("{bot_name}", bot_name).replace("{用户}", user_name)
+
+        # 每次构建都追加当前时间，角色卡无需配置时间占位符。
+        prompt += f"【当前服务器本地时间】{now:%Y-%m-%d %H:%M:%S %z}"
 
         return prompt.strip()
 
