@@ -642,12 +642,9 @@ class AsyncBreezeTTSClient:
                     choices = data.get("choices", [])
                     if choices and "message" in choices[0]:
                         raw_content = choices[0]["message"].get("content", "").strip()
-                        json_match = re.search(r"```(?:json)?\s*(\{[\s\S]*?\})\s*```", raw_content)
-                        dict_str = json_match.group(1) if json_match else None
-                        if not dict_str:
-                            b_match = re.search(r"(\{[\s\S]*\})", raw_content)
-                            if b_match:
-                                dict_str = b_match.group(1)
+                        # Ignore Markdown fences and surrounding prose from non-structured models.
+                        json_match = re.search(r"\{.*\}", raw_content, re.DOTALL)
+                        dict_str = json_match.group(0) if json_match else None
 
                         if dict_str:
                             res_json = json.loads(dict_str)
