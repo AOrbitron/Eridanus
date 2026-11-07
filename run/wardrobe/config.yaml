@@ -19,7 +19,7 @@ character_anchor: 1girl, teenager, solo, grey hair, gradient hair, multicolored
 art_anchor: (Rella:1.2), (chen bin:1.3), virtual youtuber, 
   (starshadowmagician:1.2), masterpiece, extremely detailed, lineart, 
   (hand-drawn:1.3), (sketch:1.2), Picasso style, Van Gogh's almond blossoms, 
-  <lora:DeniaV1-Nuclear1811-IL:0.5>   # 画风、LoRA 与质量锚点
+  <lora:DeniaV1-Nuclear1811-IL:0.3>   # 画风、LoRA 与质量锚点
 
 negative_prompt: lowres, bad anatomy, bad hands, text, error, missing fingers, 
   extra digit, fewer digits, cropped, worst quality, low quality, normal 
@@ -81,6 +81,14 @@ outfits_v6:  # 衣橱服饰库：涵盖四季日常私服、特色礼服、汉�
       background
     preview_negative: car, automobile, vehicle, truck, bus, traffic, road, 
       garage
+  纯白抹胸花嫁:
+    name: 纯白抹胸花嫁
+    description: 黑色系花嫁裙
+    category: daily
+    season: all
+    occasion: tea party, convention,date, casual,banquet, party
+    clothing_tags: white corset bridal dress, off-shoulder ruffles, mini tiered pleated bridal skirt, white rose choker, white rose garter strap on thigh, white arm ribbons, holding crystal heart and flower bouquet, romantic bridal frame, sparkles,
+    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored hair, blue hair, light purple-light blue mixed eyes, (Side swept hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), shy, blushing, looking at viewer, white corset bridal dress, off-shoulder ruffles, mini tiered pleated bridal skirt, white rose choker, white rose garter strap on thigh, white arm ribbons, holding crystal heart and flower bouquet, romantic bridal frame, sparkles, (Rella:1.2), (chen bin:1.3), virtual youtuber, (starshadowmagician:1.2), masterpiece, extremely detailed, lineart, (hand-drawn:1.3), (sketch:1.2), <lora:DeniaV1-Nuclear1811-IL:0.5>
   暗黑甜心花嫁:
     name: 暗黑甜心花嫁
     description: 黑色系花嫁裙
@@ -88,7 +96,7 @@ outfits_v6:  # 衣橱服饰库：涵盖四季日常私服、特色礼服、汉�
     season: all
     occasion: tea party, convention,date, casual,banquet, party
     clothing_tags: elegant gothic sweet aesthetic, dark romantic bridal dress, black and magenta corset bodice, layered white and black ruffled skirt, pink ribbons, lace details, long black gloves, striped thigh-high stockings, dark ankle boots, jeweled hair accessories, soft confident smile, surrounded by translucent balloons and sparkling lights, dreamy purple pink carnival wedding stage, seated elegant pose, three-quarter view, dynamic full-body composition
-    full_prompt:     1girl, teenager, solo, grey hair, gradient hair, multicolored hair, blue hair, light purple-light blue mixed eyes, (Side swept hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), (Rella:1.2), (chen bin:1.3), virtual youtuber, (starshadowmagician:1.2), masterpiece, extremely detailed, lineart, (hand-drawn:1.3), (sketch:1.2), elegant gothic sweet aesthetic, dark romantic bridal dress, black and magenta corset bodice, layered white and black ruffled skirt, pink ribbons, lace details, long black gloves, striped thigh-high stockings, dark ankle boots, jeweled hair accessories, soft confident smile, surrounded by translucent balloons and sparkling lights, dreamy purple pink carnival wedding stage, seated elegant pose, three-quarter view, dynamic full-body composition
+    full_prompt:  1girl, teenager, solo, grey hair, gradient hair, multicolored hair, blue hair, light purple-light blue mixed eyes, (Side swept hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), (Rella:1.2), (chen bin:1.3), virtual youtuber, (starshadowmagician:1.2), masterpiece, extremely detailed, lineart, (hand-drawn:1.3), (sketch:1.2), elegant gothic sweet aesthetic, dark romantic bridal dress, black and magenta corset bodice, layered white and black ruffled skirt, pink ribbons, lace details, long black gloves, striped thigh-high stockings, dark ankle boots, jeweled hair accessories, soft confident smile, surrounded by translucent balloons and sparkling lights, dreamy purple pink carnival wedding stage, seated elegant pose, three-quarter view, dynamic full-body composition,<lora:DeniaV1-Nuclear1811-IL:0.5>
   甜美洛丽塔:
     name: 甜美洛丽塔
     description: 软萌甜系茶会洛丽塔洋装（多层蕾丝蓬蓬裙、缎带蝴蝶结与蕾丝颈饰）

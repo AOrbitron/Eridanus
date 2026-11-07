@@ -582,8 +582,11 @@ def main(bot: ExtendBot, config: YAMLManager):
     # Stable Diffusion 绘画服务端调用 (针对 SDXL 模型调优)
     # ---------------------------------------------------------
     async def call_sd_generate(prompt: str) -> Optional[str]:
+        from run.wardrobe.sd_prompt import ensure_art_anchor
+
         if not prompt:
             return None
+        prompt = ensure_art_anchor(prompt)
         sd_cfg = config.qq_zone.config.get("sd绘画设置", {})
         base_url = sd_cfg.get("sdUrl", "http://api.apollodorus.xyz")
         if not base_url:
@@ -799,6 +802,8 @@ def main(bot: ExtendBot, config: YAMLManager):
         return rules.get("base", "")
 
     async def build_sd_prompt_for_post(post_text: str, theme_desc: str, selection=None, task_name="日常") -> str:
+        from run.wardrobe.sd_prompt import ensure_art_anchor
+
         rules = get_chara_drawing_rules()
         manager = get_wardrobe_manager() if get_wardrobe_manager else None
         if manager and not manager.is_enabled():
@@ -813,14 +818,15 @@ def main(bot: ExtendBot, config: YAMLManager):
             logger.warning(f"[Qzone SD] LLM穿搭决策失败，跳过本次配图: {exc}")
             return ""
         base_anchor = (manager.get_character_anchor() if manager else "") or rules.get("base", "")
-        art_anchor = (manager.get_art_anchor() if manager else "") or rules.get("art", "")
+        art_anchor = manager.get_art_anchor() if manager else None
         outfit = chosen["clothing_tags"]
         background = chosen["scene_tags"]
         native_hint = chosen["native_hint_tags"]
         native_hint = f"({native_hint}:1.2)" if native_hint else ""
         prompt = ", ".join(value.strip(", ") for value in (
             "rating:general, best quality, very aesthetic, absurdres",
-            base_anchor, outfit, native_hint, background, art_anchor) if value and value.strip(", "))
+            base_anchor, outfit, native_hint, background) if value and value.strip(", "))
+        prompt = ensure_art_anchor(prompt, art_anchor)
         if selection is not None:
             selection.update(chosen, clothing_tags=outfit)
         logger.info(f"[Qzone SD] LLM最终穿搭: {chosen['name']}, style={chosen['design_seeds']['style']['id']}, palette={chosen['design_seeds']['palette']['id']} (no_hat={chosen['no_hat']})")

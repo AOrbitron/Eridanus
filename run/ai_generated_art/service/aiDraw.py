@@ -17,6 +17,7 @@ from framework_common.utils.utils import parse_arguments
 from run.ai_generated_art.service.wildcard import replace_wildcards
 from .setu_moderate import pic_audit_standalone
 from .audit_policy import requires_nsfw_audit
+from run.wardrobe.sd_prompt import ensure_art_anchor
 
 same_manager = YAMLManager.get_instance()
 apikey=same_manager.ai_generated_art.config["ai绘画"]["apikey"]
@@ -488,7 +489,7 @@ async def SdreDraw(prompt, path, config, groupid, b64_in, args):
         "hr_scale": 1.5,
         "hr_second_pass_steps": 15,
         "hr_upscaler": 'SwinIR_4x',
-        "prompt": positive,
+        "prompt": ensure_art_anchor(positive),
         "negative_prompt": negative,
         "seed": -1,
         "batch_size": 1,
@@ -597,7 +598,7 @@ async def SdDraw0(prompt, path, config, groupid, args):
         "hr_scale": 1.5,
         "hr_second_pass_steps": 15,
         "hr_upscaler": 'SwinIR_4x',
-        "prompt": positive,
+        "prompt": ensure_art_anchor(positive),
         "negative_prompt": negative,
         "seed": -1,
         "batch_size": 1,
@@ -1052,7 +1053,7 @@ async def SdmaskDraw(prompt, path, config, groupid, b64_in, args, mask_base64):
         "hr_scale": 1.5,
         "hr_second_pass_steps": 15,
         "hr_upscaler": 'SwinIR_4x',
-        "prompt": positive,
+        "prompt": ensure_art_anchor(positive),
         "negative_prompt": negative,
         "seed": -1,
         "batch_size": 1,
@@ -1437,7 +1438,7 @@ async def SdOutpaint(prompt, path, config, groupid, b64_in, args):
         "init_images": [canvas_data],
         "mask": mask_data,
         "denoising_strength": denoising_strength,
-        "prompt": positive,
+        "prompt": ensure_art_anchor(positive),
         "negative_prompt": negative,
         "width": super_width1,
         "height": super_height1,
