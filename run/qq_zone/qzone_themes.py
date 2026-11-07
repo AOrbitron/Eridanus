@@ -4063,6 +4063,67 @@ MORNING_THEME_POOL = [
 
 
 
+# Structured bedtime seeds are sampled as a group, independently of pool size.
+# Probability of offering the dedicated bedroom pool to the theme selection LLM.
+NIGHT_BEDROOM_PROBABILITY = 0.40
+NIGHT_BEDROOM_THEMES = [
+    {"id": f"n_bedroom_{index:02d}", "category": "卧室睡前",
+     "theme": theme, "elements": elements,
+     "sd_hint": f"night, indoors, bedroom, relaxed bedtime mood, {hint}"}
+    for index, (theme, elements, hint) in enumerate([
+        ("床头灯只剩一小圈光，今天不想再处理任何通知", ["床头灯", "通知"], "dim bedside lamp, phone face down"),
+        ("把明早的闹钟往后挪了五分钟，当作给自己的小奖励", ["闹钟", "五分钟"], "setting alarm beside bed"),
+        ("卧室的书翻到一半，书签先替我记住后面的故事", ["书签", "故事"], "closed book on nightstand"),
+        ("洗漱完坐在床边，脑袋终于不用再开着那么多窗口", ["床边", "放空"], "sitting on bed edge, peaceful expression"),
+        ("卧室窗帘留了一道缝，月光刚好落在地板上", ["窗帘", "月光"], "moonlight through bedroom curtains"),
+        ("睡前把水杯放回床头，够得着的安心感刚刚好", ["水杯", "床头柜"], "water glass on bedside table"),
+        ("抱枕被整理得整整齐齐，转头又被我抱歪了", ["抱枕", "整理"], "hugging cushion on bed"),
+        ("卧室小音箱的最后一首歌，音量轻得只够自己听见", ["音箱", "最后一首歌"], "small bedroom speaker, mellow light"),
+        ("手机充上电了，今天的自己也该进入充电模式", ["充电线", "手机"], "plugging phone charger by bed"),
+        ("睡前写了一行没什么意义的日记，反而觉得踏实", ["日记", "一行字"], "diary and pen on bedside desk"),
+        ("卧室里换了新枕套，忍不住多摸两下平整的布纹", ["枕套", "布纹"], "fresh pillowcase, sitting beside pillow"),
+        ("把卧室顶灯关掉，只留下床边一点暖光", ["顶灯", "暖光"], "warm bedside light, dim bedroom"),
+        ("睡前用手指在被单上画了个小圈，什么也没想", ["被单", "小圈"], "tracing circle on bedsheet"),
+        ("靠在床头听窗外的雨，今晚不用赶去任何地方", ["雨声", "床头"], "leaning on headboard, rain outside bedroom window"),
+        ("卧室的时钟走得好轻，安静下来才听见它", ["时钟", "安静"], "quiet bedroom clock, resting on bed"),
+        ("睡前把发绳放进床头的小碟子，终于可以散着头发", ["发绳", "小碟子"], "loose hair, trinket dish on nightstand"),
+        ("今天的烦恼先存在床头，明早再决定要不要打开", ["烦恼存档", "床头"], "thoughtful expression, sitting in bedroom"),
+        ("在床边伸了个懒腰，觉得今天到这里就很够了", ["伸懒腰", "收尾"], "gentle stretch beside bed"),
+        ("卧室里最后一点屏幕光熄掉，眼睛终于放假", ["屏幕光", "休息"], "turning off tablet beside bed"),
+        ("把明天的小事写在床头便签上，今晚就不反复想了", ["便签", "明天的小事"], "sticky note on bedside table"),
+        ("卧室里刚换好床单，清淡的皂香让我想早点收工", ["新床单", "皂香"], "fresh cotton bedsheets, neatly made bed, warm bedside lamp, quiet bedroom"),
+        ("睡前发现枕边的小玩偶歪着脑袋，像在等我讲今天的笑话", ["玩偶", "歪头"], "small plush toy beside pillow, amused smile, sitting on bed, cozy bedroom"),
+        ("床头的小花瓶只插了一枝花，晚上看起来比白天还安静", ["花瓶", "一枝花"], "single flower in bedside vase, intimate close framing, soft lamplight, bedroom"),
+        ("在卧室翻到一张旧便签，字写得比现在认真多了", ["旧便签", "字迹"], "old handwritten note in hands, sitting beside bed, thoughtful expression, bedside light"),
+        ("今天把睡前那杯水换成了温的，握着杯子慢慢放空", ["温水", "握杯"], "ceramic water cup in hands, sitting on bed edge, warm light, peaceful bedroom"),
+        ("卧室窗边的影子晃了两下，大概是树也准备休息了", ["树影", "窗边"], "tree shadows on bedroom wall, closed window, soft moonlight, resting beside bed"),
+        ("睡前把耳机线理顺了，算是今天唯一整理明白的事", ["耳机线", "理线"], "coiled earphone cable on bedside table, small satisfied smile, bedroom, warm lamp"),
+        ("在床边等护手霜慢慢吸收，今晚连动作都想放轻一点", ["护手霜", "手心"], "applying hand cream, sitting at bed edge, small tube on nightstand, mellow bedroom light"),
+        ("卧室的小夜灯亮成一颗圆月，关掉顶灯就只剩它了", ["圆月夜灯", "关顶灯"], "round moon-shaped bedside nightlight, dim bedroom, soft circular glow, relaxed pose"),
+        ("睡前整理相册，突然决定今晚不再删任何一张照片", ["相册", "照片"], "photo album resting on lap, sitting on bed, gentle nostalgic expression, bedside lamp"),
+        ("在床头柜上找到忘记拆的书，拆封的声音格外清楚", ["新书", "拆封声"], "unwrapping new book beside bed, close view of hands, quiet bedroom, warm reading light"),
+        ("卧室窗外有一点风，窗帘没有动，我也懒得动", ["窗帘", "不想动"], "still bedroom curtain, faint outdoor breeze, resting against pillows, dim lamplight"),
+        ("睡前把眼镜摘下来，整个房间都变成了柔焦", ["眼镜", "柔焦"], "eyeglasses placed on nightstand, softly blurred bedroom background, relaxed eyes, warm light"),
+        ("坐在床边听完了一整段前奏，结果忘了这首歌叫什么", ["前奏", "歌名"], "listening to music at bed edge, tiny speaker on nightstand, absent-minded smile, cozy room"),
+        ("卧室的加湿器冒着很轻的雾，像今天最后一点想象力", ["加湿器", "薄雾"], "gentle mist from bedside humidifier, soft lamp glow, quiet bedroom, contemplative expression"),
+        ("睡前把今天没说完的话留在备忘录，先不发送了", ["备忘录", "未发送"], "phone notes open in hands, sitting on bed, thoughtful face, warm bedside lighting"),
+        ("床边的小地毯被踩出两个脚印，房间终于有了下班的样子", ["地毯", "脚印"], "soft rug beside bed, relaxed seated pose, warm bedroom light, intimate everyday framing"),
+        ("睡前用木梳慢慢梳头，脑袋里的杂音也少了一点", ["木梳", "梳头"], "gently combing loose hair with wooden comb, sitting beside bed, soft light, calm bedroom"),
+        ("卧室里的香薰淡得快闻不到了，这样刚刚好", ["淡香", "香薰"], "subtle diffuser on bedside cabinet, quiet bedroom, warm ambient light, restful expression"),
+        ("今晚不想追最后一集了，在床边把播放键停住", ["暂停键", "最后一集"], "pausing tablet beside bed, small satisfied smile, soft nightlight, peaceful bedroom"),
+        ("把明天要读的那页折了一个小角，今晚先放过自己", ["折页", "明天再读"], "folded page corner in open book, resting on bed, gentle bedside lamp, intimate room"),
+        ("卧室钟表比手机慢两分钟，我决定今晚相信它", ["慢两分钟", "钟表"], "small clock on bedside table, amused expression, leaning on headboard, warm light"),
+        ("睡前把床头那盆植物转了半圈，明天换它看另一边", ["盆栽", "转半圈"], "turning small bedside potted plant, soft bedroom light, playful expression, close framing"),
+        ("房间安静下来以后，才发现今天还没好好伸过懒腰", ["伸展", "安静房间"], "gentle relaxed stretch on bed, loose hair, dim warm bedroom, natural candid angle"),
+        ("今晚的卧室灯光像一层蜂蜜，把坏心情都照得没那么尖了", ["蜂蜜灯光", "情绪缓和"], "honey-colored bedside light, sitting against pillows, softened expression, cozy bedroom"),
+        ("睡前往床头的小盒子里放了一枚新书签，像收好一件小事", ["小盒子", "新书签"], "placing bookmark in small bedside box, warm lamplight, calm bedroom, delicate hand gesture"),
+        ("窗玻璃映着卧室的灯，今晚懒得分清哪一颗是星星", ["玻璃倒影", "灯光"], "bedroom window reflecting warm lamp, night sky outside, resting indoors, dreamy expression"),
+        ("把明天的天气看完，手机也可以在床头休息了", ["天气预报", "放下手机"], "placing phone on bedside table, relaxed shoulders, soft bedroom lamp, evening stillness"),
+        ("睡前听见隔壁很轻的一声关门，原来大家都在慢慢收尾", ["关门声", "收尾"], "quiet bedroom doorway, listening expression, sitting beside bed, subdued warm light"),
+        ("今晚终于没把充电线压在枕头底下，值得记一小笔", ["充电线", "枕边整理"], "tidy charging cable on nightstand, pillow in background, amused smile, cozy bedroom"),
+    ], start=1)
+]
+
 NIGHT_THEME_POOL = [
 
     {
@@ -11155,7 +11216,7 @@ POST_STRUCTURE_ARCHETYPES = [
 # ---------------------------------------------------------------------------
 
 import random
-from run.wardrobe.outfit_policy import scene_kind, has_terms
+
 
 
 
@@ -11317,7 +11378,11 @@ OUTFIT_STYLE_SEEDS = [
 
     {"template": "{p} sporty cropped hoodie with drawstring, {s} high-waist track shorts, youthful cheeky charm", "category": "alluring"},
 
-    {"template": "{p} cute babydoll puff-sleeve top, {s} A-line denim skirt with ribbon accents", "category": "alluring"}
+    {"template": "{p} cute babydoll puff-sleeve top, {s} A-line denim skirt with ribbon accents", "category": "alluring"},
+    {"template": "{p} soft cotton nightdress, {s} delicate piping, relaxed knee-length silhouette", "category": "sleepwear"},
+    {"template": "{p} linen-cotton nightgown, {s} embroidered collar trim, softly gathered long skirt", "category": "sleepwear"},
+    {"template": "{p} brushed flannel long-sleeve nightdress, {s} scalloped cuffs, comfortable loose fit", "category": "sleepwear"},
+    {"template": "{p} modal jersey sleep dress, {s} fine neckline binding, soft draping hem", "category": "sleepwear"}
 
 ]
 
@@ -11398,115 +11463,3 @@ OUTFIT_OUTDOOR_HEADWEAR_DETAILS = [
 # 综合通用配件池
 
 OUTFIT_MUTATION_DETAILS = OUTFIT_GENERAL_DETAILS + OUTFIT_INDOOR_DETAILS
-
-
-
-def get_random_outfit_data(scene_hint: str = "") -> dict:
-
-    """
-
-    获取随机全色谱穿搭结构化数据
-
-    基于 24 套全色谱配色种子、32 款日常款式与 70% 概率触发饰品/细节变体。
-
-    睡衣 (sleepwear) 与家居 (loungewear) 或室内生活切面绝对不配置任何帽子饰品。
-
-    """
-
-    kind = scene_kind(scene_hint)
-    allowed = {
-        "sleepwear": {"sleepwear"},
-        "indoor": {"loungewear", "casual", "preppy", "girlish"},
-        "sporty": {"sporty"},
-        "outdoor": {"casual", "streetwear", "preppy", "girlish"},
-        "daily": {"casual", "streetwear", "preppy", "girlish"},
-    }[kind]
-    style = random.choice([s for s in OUTFIT_STYLE_SEEDS if s["category"] in allowed])
-
-    palette = random.choice(OUTFIT_PALETTE_SEEDS)
-
-
-
-    outfit = style["template"].format(p=palette["primary"], s=palette["secondary"])
-
-    detail = ""
-
-    cat = style.get("category", "casual")
-
-
-
-    is_indoor_or_sleep = cat in ["sleepwear", "loungewear"]
-
-    if kind in {"indoor", "sleepwear"}:
-        is_indoor_or_sleep = True
-
-    # 70% 概率随机叠加高质感配件或细节变体，避免穿搭呆板单一
-
-    if random.random() < 0.70:
-
-        if is_indoor_or_sleep:
-
-            # 睡衣/居家室内场景：仅从居家专属温馨细节中抽取，严禁帽子
-
-            detail = random.choice(OUTFIT_INDOOR_DETAILS)
-
-        else:
-
-            # 外出/通用场景：绝大多数为日常服饰细节，帽子仅作为偶发点缀（约 12% 概率）
-
-            if random.random() < 0.12:
-
-                detail = random.choice(OUTFIT_OUTDOOR_HEADWEAR_DETAILS)
-
-            else:
-
-                details = [d for d in OUTFIT_GENERAL_DETAILS
-                           if not has_terms(d, ("scarf", "warmers", "shirt hem", "cuffs", "socks", "headphones"))]
-                detail = random.choice(details)
-
-
-
-        if detail:
-
-            outfit = f"{outfit}, {detail}"
-
-
-
-    return {
-
-        "palette_name": palette["name"],
-
-        "primary_color": palette["primary"],
-
-        "secondary_color": palette["secondary"],
-
-        "color_tags": palette["tags"],
-
-        "category": cat,
-
-        "outfit_tags": outfit,
-
-        "detail": detail,
-
-    }
-
-
-
-
-
-def get_random_outfit_guidance(scene_hint: str = "") -> str:
-
-    """
-
-    获取用于提示词生成的随机穿搭引导标签字符串
-
-    返回主色辅色款式模板 + 细节配件标签，打破单一薄荷绿与固定装扮
-
-    """
-
-    return get_random_outfit_data(scene_hint)["outfit_tags"]
-
-
-
-
-

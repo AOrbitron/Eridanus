@@ -52,13 +52,13 @@ if not ban_sd:
     aiDraw_funcs.append("call_text2img")
     decrearations.append(    {
     "name": "call_text2img",
-    "description": "stable diffusion 文本转图像，仅支持英文tag，一般绘图使用。特别注意：当用户在对话中明确要求换装、换衣服、穿上特定服饰或希望你穿着特定服装自拍时，在调用本生图工具的同时，必须同时调用 call_change_outfit 工具更新衣橱中的当前穿着！",
+    "description": "stable diffusion 文本转图像，仅支持英文tag。特别注意：当用户在对话中明确要求换装、换衣服、穿上特定服饰或希望你穿着特定服装自拍时，必须真实调用此工具！在调用本生图工具的同时，需调用 call_change_outfit 工具更新衣橱中的当前穿着！",
     "parameters": {
         "type": "object",
         "properties": {
             "prompt": {
                 "type": "string",
-                "description": "生成图片的提示词。如果原始提示词中有中文，则需要你把它们替换为对应英文,尽量使用词组，单词来进行描述，并用','来分割。可通过将词语x变为(x:n)的形式改变权重，n为0-1之间的浮点数，默认为1，为1时则无需用(x:1)的形式而是直接用x。例如，如果想要增加“猫”(也就是cat)的权重，则可以把它变成(cat:1.2)或更大的权重，反之则可以把权重变小。你需要关注不同词的重要性并给于权重，正常重要程度的词的权重为1，为1时则无需用(x:1)的形式而是直接用x。例如，想要画一个可爱的女孩则可输出1girl,(cute:1.2),bright eyes,smile,casual dress,detailed face,natural pose,soft lighting;想要更梦幻的感觉则可输出1girl,ethereal,floating hair,magical,sparkles,(dreamy:1.5),soft glow,pastel colors;想要未来风格则可输出1girl,(futuristic:1.3),neon lights,(cyber:1.2),hologram effects,(tech:1.5),clean lines,metallic;同时当输入中含有英文或用户要求保留时，要保留这些词"
+                "description": "生成图片的提示词。如果原始提示词中有中文，则需要你把它们替换为对应英文,尽量使用词组，单词来进行描述，并用','来分割。可通过将词语x变为(x:n)的形式改变权重，n为0-1之间的浮点数，默认为1，为1时则无需用(x:1)的形式而是直接用x。你需要关注不同词的重要性并给于权重，正常重要程度的词的权重为1，可不加权重说明。例如，1girl,(cute:1.2),bright eyes,smile,casual dress,detailed face,natural pose,soft lighting;想要更梦幻的感觉则可输出1girl,ethereal,floating hair,magical,sparkles,(dreamy:1.5),soft glow,pastel colors;当输入中含有英文或用户要求保留时，要保留这些词"
             }
         },
         "required": [

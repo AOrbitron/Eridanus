@@ -1,7 +1,7 @@
 ﻿# -*- coding: utf-8 -*-
 """
 Wardrobe Manager (衣橱管理系统)
-管理 Bot 服饰配置、当前着装、每日着装演变及 SD 提示词解耦组装。
+管理 Bot 服饰配置、当前着装及各条动态独立的 SD 提示词组装。
 支持 WebUI (run/wardrobe/config.yaml) 与 Function Calling 协同换装。
 """
 
@@ -10,7 +10,6 @@ import json
 import logging
 import threading
 from typing import Dict, Any, Optional, List
-from run.wardrobe.outfit_policy import normalize_outfit, clothing_tags as extract_clothing_tags, scene_kind
 
 try:
     from ruamel.yaml import YAML
@@ -35,6 +34,7 @@ logger = logging.getLogger("Wardrobe")
 YAML_CONFIG_PATH = os.path.join("run", "wardrobe", "config.yaml")
 OUTFITS_KEY = "outfits_v6"
 LEGACY_OUTFIT_KEYS = ("outfits_v5", "outfits_v4", "outfits_v3", "outfits_v2", "outfits")
+RETIRED_DAILY_FIELDS = ("today_default_outfit", "today_default_tags", "today_default_no_hat", "last_daily_date")
 
 DEFAULT_CHARACTER_ANCHOR = (
     "1girl, teenager, solo, grey hair, gradient hair, multicolored hair, blue hair, "
@@ -1206,11 +1206,13 @@ class WardrobeManager:
 
             if loaded:
                 self._data[OUTFITS_KEY] = _read_catalog(self._data)
+                for field in RETIRED_DAILY_FIELDS:
+                    self._data.pop(field, None)
             if loaded:
-                for field in ("default_outfit", "current_outfit", "today_default_outfit"):
+                for field in ("default_outfit", "current_outfit"):
                     if self._data.get(field) == "和风纯棉甚平睡衣":
                         self._data[field] = "可爱粉彩睡衣"
-                        tag_field = {"current_outfit": "current_outfit_tags", "today_default_outfit": "today_default_tags"}.get(field)
+                        tag_field = {"current_outfit": "current_outfit_tags"}.get(field)
                         if tag_field:
                             self._data[tag_field] = self._data[OUTFITS_KEY]["可爱粉彩睡衣"]["clothing_tags"]
                 self._data["character_anchor"] = self._data.get("character_anchor", DEFAULT_CHARACTER_ANCHOR)
@@ -1218,17 +1220,6 @@ class WardrobeManager:
                     if self._commented_map is not None and legacy_key in self._commented_map:
                         self._commented_map.pop(legacy_key, None)
                     self._data.pop(legacy_key, None)
-                for name, outfit in self._data.get(OUTFITS_KEY, {}).items():
-                    if name != "默认常服":
-                        old = outfit.get("clothing_tags", "")
-                        clean = normalize_outfit(old, outfit.get("category", ""))
-                        outfit["clothing_tags"] = clean
-                        if old and outfit.get("full_prompt"):
-                            outfit["full_prompt"] = outfit["full_prompt"].replace(old, clean)
-                for name_key, tag_key in (("current_outfit", "current_outfit_tags"),
-                                          ("today_default_outfit", "today_default_tags")):
-                    if self._data.get(name_key) != "默认常服" and self._data.get(tag_key):
-                        self._data[tag_key] = normalize_outfit(extract_clothing_tags(self._data[tag_key]))
 
             # 3. 若均不存在或损坏，初始化默认结构并持久化至 YAML
             if not loaded:
@@ -1239,7 +1230,7 @@ class WardrobeManager:
         """将 self._data 的更新同步至 self._commented_map，完整保留原有 YAML 注释"""
         if self._commented_map is None:
             return
-        for legacy_key in LEGACY_OUTFIT_KEYS:
+        for legacy_key in (*LEGACY_OUTFIT_KEYS, *RETIRED_DAILY_FIELDS):
             if legacy_key in self._commented_map:
                 self._commented_map.pop(legacy_key, None)
         for k, v in self._data.items():
@@ -1264,9 +1255,6 @@ class WardrobeManager:
             "default_outfit": default_outfit,
             "current_outfit": default_outfit,
             "current_outfit_tags": default_tags,
-            "today_default_outfit": default_outfit,
-            "today_default_tags": default_tags,
-            "last_daily_date": "",
             "character_anchor": DEFAULT_CHARACTER_ANCHOR,
             "art_anchor": DEFAULT_ART_ANCHOR,
             "negative_prompt": DEFAULT_NEGATIVE_PROMPT,
@@ -1364,21 +1352,6 @@ class WardrobeManager:
                 "description": outfit.get("description", "")
             }
 
-    def get_today_default_outfit(self) -> Dict[str, Any]:
-        with self._rw_lock:
-            name = self._data.get("today_default_outfit") or self._data.get("default_outfit", "常服1")
-            outfit = self._data.get(OUTFITS_KEY, {}).get(name, {})
-            tags = self._data.get("today_default_tags") or outfit.get("clothing_tags", "")
-            no_hat = self._data.get("today_default_no_hat")
-            if no_hat is None:
-                no_hat = outfit.get("no_hat", False)
-            return {
-                "name": name,
-                "clothing_tags": tags,
-                "category": outfit.get("category", "daily"),
-                "no_hat": no_hat,
-                "description": outfit.get("description", "")
-            }
 
     def set_current_outfit(self, outfit_name: str, custom_tags: Optional[str] = None, no_hat: Optional[bool] = None) -> bool:
         with self._rw_lock:
@@ -1398,196 +1371,27 @@ class WardrobeManager:
                 self._data["current_outfit_no_hat"] = outfit.get("no_hat", False)
             else:
                 self._data.pop("current_outfit_no_hat", None)
-            if outfit_name != "默认常服":
-                self._data["current_outfit_tags"] = normalize_outfit(
-                    self._data.get("current_outfit_tags", ""), (outfit or {}).get("category", ""))
             self._save_to_disk()
             logger.info(f"[Wardrobe] 当前穿着已切换至: {outfit_name}")
             return True
 
-    def set_today_default_outfit(self, outfit_name: str, custom_tags: Optional[str] = None) -> bool:
-        with self._rw_lock:
-            outfit = self._data.get(OUTFITS_KEY, {}).get(outfit_name)
-            if not outfit and not custom_tags:
-                return False
-            self._data["today_default_outfit"] = outfit_name
-            if custom_tags is not None:
-                self._data["today_default_tags"] = custom_tags
-            elif outfit:
-                self._data["today_default_tags"] = outfit.get("clothing_tags", "")
-            self._save_to_disk()
-            logger.info(f"[Wardrobe] 今日默认着装已设定为: {outfit_name}")
-            return True
 
     def match_outfit(self, query: str):
-        """智能模糊匹配服装名称与风格"""
+        """Resolve the exact catalog key already selected by the LLM/tool caller."""
         if not query:
             return None
-        q = query.strip().lower()
-        outfits = self._data.get(OUTFITS_KEY, {})
-
-        # 1. 精确匹配
-        if query in outfits:
-            return query
-        for k in outfits:
-            if k.lower() == q:
-                return k
-
-        if any(w in q for w in ["捞金鱼", "金鱼甚平", "短甚平", "夏夜甚平"]):
-            if "夏祭捞金鱼印花甚平" in outfits:
-                return "夏祭捞金鱼印花甚平"
-
-        # 2. 睡衣系列智能选择 (全部带免帽属性)
-        if scene_kind(q) == "sleepwear" or any(w in q for w in ["甚平", "寝衣", "浴袍"]):
-            # 新增：轻纱、半透明、吊带与洛丽塔睡裙（具体特征优先）
-            if any(w in q for w in ["薄荷", "薄荷轻纱", "薄荷绿", "清凉吊带睡裙", "mint"]):
-                return "薄荷轻纱清凉吊带睡裙"
-            if any(w in q for w in ["黑天鹅", "黑轻纱", "黑色轻纱", "黑透", "暗夜蕾丝"]):
-                return "黑天鹅半透明蕾丝吊带睡裙"
-            if any(w in q for w in ["哥特睡裙", "哥特轻纱", "黑紫睡裙", "gothic"]):
-                return "哥特轻纱洛丽塔睡裙"
-            if any(w in q for w in ["洛丽塔", "lolita", "梦幻", "公主睡裙", "蓬蓬睡裙", "荷叶边睡裙"]):
-                return "洛丽塔梦幻荷叶边睡裙"
-            if any(w in q for w in ["半透明", "微透", "透视", "月光", "轻纱吊带", "translucent", "sheer"]):
-                return "半透明月光轻纱吊带睡裙"
-            if any(w in q for w in ["甚平", "和风", "日式", "交领"]):
-                return "可爱粉彩睡衣"
-            if any(w in q for w in ["浴袍", "猫咪", "猫耳", "珊瑚绒", "连帽睡袍"]):
-                return "毛绒猫咪连帽睡袍"
-            if any(w in q for w in ["藏青", "深蓝", "排扣", "开襟", "长袖"]):
-                return "藏青真丝排扣睡衣"
-            if any(w in q for w in ["粉", "可爱", "纯棉", "软萌"]):
-                return "可爱粉彩睡衣"
-            if any(w in q for w in ["丝绸", "缎面", "吊带睡裙", "性感", "香槟"]):
-                return "性感丝绸吊带睡裙"
-            if any(w in q for w in ["黑", "蕾丝", "透气", "暗色", "轻熟"]):
-                return "黑色蕾丝透气睡衣"
-            if any(w in q for w in ["暖", "冬", "法兰绒", "珊瑚绒", "小熊", "加厚"]):
-                return "法兰绒暖冬睡衣"
-            if any(w in q for w in ["条纹", "蓝", "天蓝", "衬衫领"]):
-                return "天蓝色条纹睡衣"
-            if any(w in q for w in ["白", "荷叶边", "天使", "清纯", "棉麻"]):
-                return "纯白吊带荷叶边睡裙"
-            if any(w in q for w in ["男友", "男友风", "白衬衫", "长衬衫", "boyfriend"]):
-                return "男友风宽松白色长衬衫"
-            if any(w in q for w in ["垂耳兔", "兔子", "连体睡衣", "珊瑚绒连体", "kigurumi", "onesie"]):
-                return "软萌垂耳兔珊瑚绒连体睡衣"
-            return "可爱粉彩睡衣"
-
-        # 3. 四季、特定生活场合与主题风格匹配
-        keyword_map = [
-            # 经典常服优先与可爱常服系列（具体款式优先于宽泛季节词）
-            # 注意：先匹配复合词（如街头常服/潮酷常服指向常服1），普通泛词（常服/日常服/默认常服）指向原版默认常服
-            (["街头常服", "潮酷常服", "常服1", "修车", "工装", "电瓶车", "扳手", "街头夹克"], "常服1"),
-            (["常服", "默认常服", "经典常服", "原版", "日常服", "私服", "毛衣外套", "贝雷帽", "百褶裙", "默认"], "默认常服"),
-            (["法式", "碎花吊带", "小碎花", "法式碎花", "鹅黄", "吊带连衣裙"], "法式小碎花吊带连衣裙"),
-            (["猫耳", "奶绒", "小猫毛衣", "猫咪开衫", "甜心猫耳", "甜心开衫", "可爱开衫"], "甜心猫耳奶绒开衫"),
-            (["娃娃领", "格纹背带", "减龄背带", "日系背带", "娃娃领衬衫"], "软萌娃娃领格纹背带裙"),
-            (["小熊卫衣", "露肩卫衣", "萌熊", "小熊连帽", "慵懒小熊"], "慵懒小熊露肩连帽卫衣"),
-
-            # 春季
-            (["碎花", "花裙", "春游", "野餐", "樱花", "spring"], "春日碎花连衣裙"),
-            (["早春", "双排扣", "风衣", "卡其色风衣", "trench"], "早春双排扣风衣"),
-            # 夏季
-            (["泳装", "泳衣", "比基尼", "海滩", "海边", "游泳", "bikini", "swim"], "夏日海滩泳装"),
-            (["浴衣", "夏祭", "祭典", "花火", "烟火", "金鱼", "yukata"], "夏祭金鱼浴衣"),
-            (["网球", "网球服", "网球裙", "tennis"], "清凉无袖网球裙"),
-            (["一字领", "露肩", "雪纺", "露肩装", "短裙"], "露肩雪纺一字领"),
-            (["小吊带", "细吊带", "吊带", "吊带短裤", "吊带衫", "camisole"], "清凉小吊带"),
-            # 秋季
-            (["落叶", "粗针毛衣", "焦糖", "暖秋", "针织衫", "autumn"], "秋日落叶针织衫"),
-            (["千鸟格", "格纹大衣", "英伦大衣", "复古大衣", "格子大衣"], "英伦复古格纹大衣"),
-            (["万圣节", "小恶魔", "恶魔", "南瓜", "蝙蝠", "halloween"], "万圣节小恶魔装"),
-            # 冬季
-            (["羽绒服", "白羽绒", "厚羽绒", "初雪", "雪地", "down jacket"], "冬日加厚白羽绒服"),
-            (["圣诞", "圣诞装", "红斗篷", "麋鹿", "铃铛", "christmas"], "圣诞红斗篷礼裙"),
-            (["牛角扣", "大衣", "连帽大衣", "duffle"], "牛角扣毛呢大衣"),
-            # 角色与场合
-            (["女仆", "女仆装", "maid"], "可爱猫耳女仆装"),
-            (["宅家", "连帽卫衣", "打游戏", "电竞", "oversize卫衣", "躺平"], "宅家慵懒连帽卫衣"),
-            (["围裙", "烘焙", "料理", "做饭", "做曲奇", "apron"], "烘焙围裙料理服"),
-            (["冲锋衣", "露营", "户外", "登山", "爬山", "camping"], "户外露营冲锋衣"),
-            (["游乐园", "兔耳", "背带裤", "摩天轮", "爆米花"], "游乐园兔耳背带裤"),
-            (["芭蕾", "黑天鹅", "芭蕾裙", "ballet"], "优雅黑天鹅芭蕾裙"),
-            (["振袖", "和服", "成人礼", "参拜", "kimono", "furisode"], "正统和风振袖礼服"),
-            (["晚礼服", "宴会", "长裙", "礼服", "gown"], "优雅晚礼服"),
-            (["哥特", "gothic"], "哥特洛丽塔"),
-            (["洛丽塔", "lolita", "茶会", "洋装"], "甜美洛丽塔"),
-            (["蛋糕裙", "分层裙", "layered"], "分层蛋糕裙"),
-            (["运动", "晨跑", "慢跑", "跑步", "健身", "卫衣短裤", "运动服", "sport"], "运动活力"),
-            (["水手服", "校服", "学生装", "jk", "sailor"], "日系水手服"),
-            (["汉服", "汉元素", "古风", "仙女裙"], "清雅汉元素"),
-            (["浴袍", "猫咪睡袍", "毛绒猫咪", "连帽睡袍"], "毛绒猫咪连帽睡袍"),
-            (["甚平", "短甚平", "金鱼甚平"], "夏祭捞金鱼印花甚平"),
-            # 机械与工坊特色
-            (["赛车", "pit", "维修站", "修车工", "技工", "连体服"], "赛车维修站连体服"),
-            (["涂鸦", "喷漆", "机修背带裤", "背带工装"], "涂鸦机修工装背带裤"),
-            (["极客", "焊接", "创客", "护目镜", "焊枪", "电烙铁"], "电子极客焊接工装"),
-            # 四季与户外特色
-            (["雨衣", "透明雨衣", "雨天", "雨伞", "下雨", "raincoat"], "春雨透明轻便雨衣"),
-            (["田园", "细格纹", "草帽", "野花", "cottagecore"], "春日田园野餐格纹裙"),
-            (["无袖水手", "短裙领巾", "盛夏水手"], "清爽无袖水手百褶裙"),
-            (["露背", "柠檬黄", "挂脖", "海边吊带"], "盛夏阳光露背吊带短裤"),
-            (["捞金鱼", "金鱼甚平", "短甚平", "夏夜甚平"], "夏祭捞金鱼印花甚平"),
-            (["菱格", "针织马甲", "学院风马甲", "牛津衬衫", "邮差包"], "英伦学院菱格针织马甲"),
-            (["灯芯绒", "焦糖色", "灯芯绒背带裤", "银杏"], "深秋复古灯芯绒背带裤"),
-            (["雪人", "粗针麻花", "高领毛衣", "毛球帽", "初雪毛衣"], "雪人粗针麻花高领毛衣"),
-            (["滑雪", "滑雪服", "雪板", "雪山", "ski", "snowboard"], "极地专业加厚滑雪服"),
-            # 兴趣爱好与传统节庆
-            (["美术", "画画", "画室", "颜料", "油彩", "调色板", "画笔", "罩衫"], "美术生沾彩工装罩衫"),
-            (["轻音", "贝斯", "朋克", "电贝斯", "摇滚", "bass", "rock"], "轻音贝斯手朋克百褶裙"),
-            (["花房", "园艺", "花店", "温室", "花架", "浇水", "gardening"], "花房园艺围裙装"),
-            (["图书馆", "知性", "金丝眼镜", "文艺长裙", "看书", "温书", "阅览室"], "图书馆文艺知性长裙"),
-            (["滑板", "滑板少年", "滑板公园", "skateboard", "skater"], "街头滑板少年风卫衣"),
-            (["马面裙", "云肩", "中秋", "织金", "织金马面裙"], "中秋织金马面裙云肩"),
-            (["元宵", "唐装", "短唐装", "花灯", "兔子灯", "绒毛斗篷"], "元宵绒毛斗篷短唐装"),
-        ]
-        for kw_list, target in keyword_map:
-            if any(w in q for w in kw_list) and target in outfits:
-                return target
-
-        # 4. 子字符串匹配
-        for k in outfits:
-            if k in query or query in k:
-                return k
-
-        return None
+        return next((key for key in self.get_outfits() if key.casefold() == query.strip().casefold()), None)
 
 
     def get_qzone_candidates(self, post_text="", theme_desc="", season_name=""):
-        """Let the LLM match the theme; season metadata never excludes an outfit."""
-        outfits = self.get_outfits()
-        kind = scene_kind(post_text)
-        if kind == "daily":
-            kind = scene_kind(theme_desc)
-        usable = {k: v for k, v in outfits.items() if v.get("clothing_tags")}
-        if kind == "sleepwear":
-            # Indoor sleepwear can span seasons. Counts guarantee every designed set
-            # gets a turn, including seasonal sets; season remains visible to the LLM.
-            pool = {k: v for k, v in usable.items() if v.get("category") == "sleepwear"}
-            counts = self._data.get("qzone_outfit_usage", {})
-            minimum = min((counts.get(k, 0) for k in pool), default=0)
-            return {k: v for k, v in pool.items() if counts.get(k, 0) == minimum}
-        pool = usable
-        if kind == "outdoor":
-            pool = {k: v for k, v in pool.items() if v.get("category") != "sleepwear"}
-        return pool
+        """Expose every usable outfit; semantic selection belongs to the LLM."""
+        return {key: obj for key, obj in self.get_outfits().items() if obj.get("clothing_tags")}
 
     def resolve_qzone_outfit(self, key, post_text="", theme_desc=""):
-        """Validate a model key and enforce least-used rotation if it selects sleepwear."""
-        outfits = self.get_outfits()
-        obj = outfits[key]
-        if obj.get("category") == "sleepwear":
-            pool = {k: v for k, v in outfits.items()
-                    if v.get("category") == "sleepwear" and v.get("clothing_tags")}
-            counts = self._data.get("qzone_outfit_usage", {})
-            minimum = min(counts.get(k, 0) for k in pool)
-            if counts.get(key, 0) > minimum:
-                key = next(k for k in pool if counts.get(k, 0) == minimum)
-                obj = pool[key]
+        """Keep the model's exact key; never replace it by category or usage count."""
+        obj = self.get_outfits()[key]
         return {"name": key, "clothing_tags": obj.get("clothing_tags", ""),
-                "no_hat": obj.get("no_hat", False) or obj.get("category") == "sleepwear",
-                "matched_by": "llm_key"}
+                "no_hat": obj.get("no_hat", False), "matched_by": "llm_key"}
 
     def record_qzone_outfit_usage(self, key):
         """Called only after a post containing its image has been published."""
@@ -1598,125 +1402,32 @@ class WardrobeManager:
             counts[key] = counts.get(key, 0) + 1
             self._save_to_disk()
 
-    def pick_base_outfit_for_theme(self, theme_desc: str = "", post_text: str = "", is_first_today: bool = False, season_name: str = "") -> dict:
-        """Deterministic fallback when LLM selection is unavailable or invalid."""
-        pool = self.get_qzone_candidates(post_text, theme_desc, season_name)
-        if not pool:
-            return {}
-        kind = scene_kind(post_text if scene_kind(post_text) != "daily" else theme_desc)
-        matched = self.match_outfit(f"{post_text} {theme_desc}")
-        if kind == "sleepwear" or matched not in pool:
-            counts = self._data.get("qzone_outfit_usage", {})
-            everyday = {k: v for k, v in pool.items() if v.get("category") in {"daily", "seasonal"}}
-            fallback_pool = everyday if kind in {"daily", "outdoor", "indoor"} and everyday else pool
-            matched = min(fallback_pool, key=lambda key: counts.get(key, 0))
-        result = self.resolve_qzone_outfit(matched, post_text, theme_desc)
-        result["matched_by"] = "fallback"
-        return result
+    def pick_base_outfit_for_theme(self, theme_desc="", post_text="", is_first_today=False, season_name=""):
+        """Compatibility accessor; never infer clothing from theme or post text."""
+        return self.get_current_outfit()
 
-    def update_from_qzone_tags(self, outfit_name: str, clothing_tags: str, is_daily_default: bool = False, no_hat: Optional[bool] = None) -> None:
-        """
-        当 Qzone 根据每日动态主题抽选或微调提示词后，回写衣橱：
-        - 更新当前穿着 tags 与免帽状态
-        - 若是今日首条动态 (is_daily_default=True)，同步更新当天默认着装 tags 与免帽状态
-        """
+    def update_from_qzone_tags(self, outfit_name: str, clothing_tags: str, no_hat: Optional[bool] = None) -> None:
+        """记录该条动态的最终穿搭；后续动态独立交给 LLM 选择。"""
         with self._rw_lock:
             if not self._data.get("enabled", True):
                 return
-            if not clothing_tags or not clothing_tags.strip():
-                return
-            clean_tags = normalize_outfit(extract_clothing_tags(clothing_tags))
-            if not clean_tags:
+            if not isinstance(clothing_tags, str) or not clothing_tags.strip():
                 return
             self._data["current_outfit"] = outfit_name
-            self._data["current_outfit_tags"] = clean_tags
+            self._data["current_outfit_tags"] = clothing_tags
             if no_hat is not None:
                 self._data["current_outfit_no_hat"] = no_hat
-            if is_daily_default:
-                self._data["today_default_outfit"] = outfit_name
-                self._data["today_default_tags"] = clean_tags
-                if no_hat is not None:
-                    self._data["today_default_no_hat"] = no_hat
-                logger.info(f"[Wardrobe] 今日首发动态已锁定今日默认着装: [{outfit_name}] -> {clean_tags[:60]}... (no_hat={no_hat})")
-            else:
-                logger.info(f"[Wardrobe] Qzone 动态更新当前着装: [{outfit_name}] -> {clean_tags[:60]}... (no_hat={no_hat})")
+            logger.info(f"[Wardrobe] Qzone 动态更新当前着装: [{outfit_name}] -> {clothing_tags[:60]}... (no_hat={no_hat})")
             self._save_to_disk()
 
-    def on_daily_first_post(self, date_str: str, post_content: str = "", theme_desc: str = "") -> bool:
-        """
-        Qzone 每日首条动态触发检查。
-        若属于新的一天，重置今日默认着装与当前穿着，并返回 True。
-        """
-        with self._rw_lock:
-            if not self._data.get("enabled", True):
-                return False
-            if self._data.get("last_daily_date") == date_str:
-                return False
-            self._data["last_daily_date"] = date_str
-            default_outfit = self._data.get("default_outfit", "常服1")
-            outfit_info = self._data.get(OUTFITS_KEY, {}).get(default_outfit, {})
-            base_tags = outfit_info.get("clothing_tags", "")
-            self._data["today_default_outfit"] = default_outfit
-            self._data["today_default_tags"] = base_tags
-            self._data["current_outfit"] = default_outfit
-            self._data["current_outfit_tags"] = base_tags
-            self._save_to_disk()
-            logger.info(f"[Wardrobe] 新的一天 ({date_str})，重置今日着装与当前穿着为: {default_outfit}")
-            return True
 
-    def on_post_change_check(self, task_name: str, post_content: str = "", theme_desc: str = "") -> Optional[str]:
-        """
-        根据动态任务名称与内容判断是否需要自动更换着装：
-        - 晚安/睡觉动态 -> 更换为睡衣系列中的一款
-        - 早安/起床动态 -> 恢复为今日默认着装
-        - 运动/跑步/健身 -> 切换为运动活力
-        - 修车/街头/工装 -> 切换为常服1
-        """
-        if not self.is_enabled():
+    def on_post_change_check(self, task_name, post_content="", theme_desc="", selection=None):
+        """Apply an explicit LLM selection only; post text cannot trigger a change."""
+        if not self.is_enabled() or not selection:
             return None
-
-        combined = f"{task_name} {post_content} {theme_desc}".lower()
-
-        # 1. 晚安/睡眠场景
-        if task_name == "晚安" or scene_kind(combined) == "sleepwear":
-            current = self.get_current_outfit()
-            if (self.get_outfit(current.get("name", "")) or {}).get("category") == "sleepwear":
-                return None
-            target_sleepwear = self.pick_base_outfit_for_theme(post_text=combined).get("name")
-            if not target_sleepwear:
-                return None
-            current = self.get_current_outfit()
-            if current.get("name") != target_sleepwear:
-                self.set_current_outfit(target_sleepwear)
-                return target_sleepwear
-            return None
-
-        # 2. 早安/晨起场景 -> 恢复今日默认着装
-        morning_kw = ["早安", "起床", "醒了", "晨间", "醒来", "清晨", "morning"]
-        if task_name == "早安" or any(k in combined for k in morning_kw):
-            today_def = self.get_today_default_outfit()
-            self.set_current_outfit(today_def["name"], today_def["clothing_tags"])
-            return today_def["name"]
-
-        # 3. 运动/跑步/健身场景
-        sport_kw = ["跑步", "慢跑", "运动", "健身", "夜跑", "晨跑", "gym", "workout", "sport"]
-        if any(k in combined for k in sport_kw):
-            if "运动活力" in self._data.get(OUTFITS_KEY, {}):
-                current = self.get_current_outfit()
-                if current.get("name") != "运动活力":
-                    self.set_current_outfit("运动活力")
-                    return "运动活力"
-
-        # 4. 修车/街头/骑行场景
-        street_kw = ["修车", "扳手", "电瓶车", "机车", "街头", "工装", "scooter", "wrench", "street"]
-        if any(k in combined for k in street_kw):
-            if "常服1" in self._data.get(OUTFITS_KEY, {}):
-                current = self.get_current_outfit()
-                if current.get("name") != "常服1":
-                    self.set_current_outfit("常服1")
-                    return "常服1"
-
-        return None
+        self.update_from_qzone_tags(selection["name"], selection["clothing_tags"],
+                                    no_hat=selection.get("no_hat", False))
+        return selection["name"]
 
     def get_visual_prompt_section(self) -> str:
         """
