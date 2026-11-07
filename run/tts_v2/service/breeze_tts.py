@@ -610,7 +610,7 @@ class AsyncBreezeTTSClient:
             f"2. \"instruction\"：15字以内简练生动的配音指导语。必须符合角色的固有基调【{base_tone}】，在此基调上体现当前句子的细微情绪波动（例如在基调基础上体现略带撒娇、疑惑、欣慰等细微变化）。\n"
             "3. \"tagged_text\"：在原台词的恰当位置插入0~2个上述官方列出的合法音频标签（只能使用上方列出的官方标签，严禁自行臆造标签如 [大笑]、[微笑] 或使用英文标签），不得大幅修改原台词词句，若不适合加标签则保持原台词。\n"
             f"待合成文本：\"{text}\"\n"
-            "请直接输出标准 JSON 格式：{\"instruction\": \"...\", \"tagged_text\": \"...\"}"
+            "仅输出 JSON 对象： {\"instruction\": \"...\", \"tagged_text\": \"...\"}"
         )
 
         chat_url = f"{llm_base_url.rstrip('/')}/chat/completions"
@@ -622,7 +622,7 @@ class AsyncBreezeTTSClient:
         payload = {
             "model": llm_model,
             "messages": [
-                {"role": "system", "content": "你是一个专业语音合成配音导演，请严格输出标准 JSON 格式。不要有任何多余解释和前缀，输出结果必须以{开头，以}结束，可直接解析"},
+                {"role": "system", "content": "你是一个专业语音合成配音导演，请严格输出标准 JSON 格式。"},
                 {"role": "user", "content": prompt}
             ],
             #"response_format": {"type": "json_object"},
