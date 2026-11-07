@@ -52,7 +52,7 @@ if not ban_sd:
     aiDraw_funcs.append("call_text2img")
     decrearations.append(    {
     "name": "call_text2img",
-    "description": "stable diffusion 文本转图像，仅支持英文tag。特别注意：当用户在对话中明确要求换装、换衣服、穿上特定服饰或希望你穿着特定服装自拍时，必须真实调用此工具！在调用本生图工具的同时，需调用 call_change_outfit 工具更新衣橱中的当前穿着！",
+    "description": "stable diffusion 文本转图像，仅支持英文tag。特别注意：当用户在对话中明确要求换装、换衣服、穿上特定服饰或希望你穿着特定服装自拍时，必须真实调用此工具！",
     "parameters": {
         "type": "object",
         "properties": {
