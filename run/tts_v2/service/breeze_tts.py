@@ -625,7 +625,7 @@ class AsyncBreezeTTSClient:
                 {"role": "system", "content": "你是一个专业语音合成配音导演，请严格输出标准 JSON 格式。"},
                 {"role": "user", "content": prompt}
             ],
-            "response_format": {"type": "json_object"},
+            #"response_format": {"type": "json_object"},
             "temperature": 0.5,
             "max_tokens": 250,
         }
