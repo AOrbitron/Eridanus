@@ -54,13 +54,7 @@ def refresh_function_declarations(plugin_name=None):
         function_declarations.append(updated)
 
 
-# Use the framework's existing reload hook; all refresh behavior belongs to this plugin.
-if WardrobeManager:
-    from .wardrobe_manager import YAMLManager
-    if YAMLManager is not None:
-        _yaml_manager = YAMLManager.get_instance()
-        if _yaml_manager is not None:
-            _yaml_manager.register_reload_callback(refresh_function_declarations)
+
 
 __all__ = [
     "WardrobeManager",

@@ -43,6 +43,12 @@ def extract_aliases_from_text(text: str) -> List[str]:
     return list(found)
 
 
+def _legacy_group_alias(scope, category, text):
+    return scope.startswith("user:") and (
+        category in ("alias", "nickname") or
+        any(word in text for word in ("外号", "别名", "绰号", "昵称", "称呼")))
+
+
 class EpisodeRetrieval:
     """负责跨会话多作用域隔离召回、群聊多成员感知、用户外号识别与背景事实注入"""
 
@@ -93,9 +99,9 @@ class EpisodeRetrieval:
             def fetch_known_members(db):
                 return db.execute("""
                     SELECT DISTINCT target_id, target_name FROM memories
-                    WHERE scope=? AND fact_type='fact' AND target_id IS NOT NULL AND target_id != ?
+                    WHERE scope=? AND namespace=? AND ended IS NULL AND fact_type='fact' AND target_id IS NOT NULL AND target_id != ? AND category != 'slang'
                     LIMIT 6
-                """, (current_scope, user_id_str)).fetchall()
+                """, (current_scope, self._namespace, user_id_str)).fetchall()
 
             try:
                 db_members = self._run_db(fetch_known_members)
@@ -113,44 +119,61 @@ class EpisodeRetrieval:
         resolved_entities_in_query: List[Dict[str, Any]] = []
 
         def fetch_alias_candidate_facts(db):
-            if is_group:
-                return db.execute("""
-                    SELECT target_id, target_name, text, category FROM memories
-                    WHERE (scope = ? OR scope LIKE 'user:%' OR (target_id IS NOT NULL AND target_id != ''))
-                      AND fact_type = 'fact'
-                      AND ended IS NULL
-                      AND (
-                        category IN ('profile', 'identity', 'alias', 'nickname')
-                        OR text LIKE '%外号%' OR text LIKE '%别名%' OR text LIKE '%称呼%' OR text LIKE '%自称%'
-                      )
-                    ORDER BY created DESC LIMIT 50
-                """, (current_scope,)).fetchall()
-            else:
-                return db.execute("""
-                    SELECT target_id, target_name, text, category FROM memories
-                    WHERE (scope = ? OR scope = ? OR target_id = ?)
-                      AND fact_type = 'fact'
-                      AND ended IS NULL
-                    ORDER BY created DESC LIMIT 20
-                """, (current_scope, f"user:{user_id_str}", user_id_str)).fetchall()
+            # Only explicit owners in this conversation; never guess the speaker.
+            scopes = [current_scope]
+            if not is_group:
+                scopes.append(f"user:{user_id_str}")
+            marks = ",".join("?" for _ in scopes)
+            return db.execute(f"""
+                SELECT target_id, target_name, text, category FROM memories
+                WHERE scope IN ({marks}) AND namespace=?
+                  AND fact_type='fact' AND ended IS NULL
+                  AND target_id IS NOT NULL AND target_id != ''
+                  AND category IN ('profile', 'identity', 'alias', 'nickname')
+                ORDER BY created DESC
+            """, [*scopes, self._namespace]).fetchall()
 
+        def slot_alias_rows():
+            import sqlite3
+            from contextlib import closing
+            from pathlib import Path
+            core_cfg = getattr(getattr(getattr(self, 'config', None), 'core_reply', None), 'config', {})
+            slot_path = core_cfg.get('sqlite', {}).get('impression_db_path', 'data/impression_store.db')
+            path = Path(slot_path)
+            if not path.is_file():
+                return []
+            owners = [user_id_str, *other_members]
+            marks = ','.join('?' for _ in owners)
+            try:
+                with closing(sqlite3.connect(path.resolve().as_uri() + '?mode=ro', uri=True)) as db:
+                    return db.execute(f"""
+                        SELECT owner_id, '', content, 'profile' FROM memory_slots
+                        WHERE owner_type='user' AND slot_id=1 AND owner_id IN ({marks})
+                          AND content != ''
+                    """, owners).fetchall()
+            except sqlite3.Error:
+                return []
+
+        ambiguous_aliases = set()
+        alias_owners = {}
         try:
-            cand_rows = self._run_db(fetch_alias_candidate_facts)
-            for t_id, t_name, t_text, t_cat in cand_rows:
-                u_id = str(t_id or "").strip()
-                if not u_id and t_cat == 'profile':
-                    u_id = user_id_str
-                u_name = t_name or other_members.get(u_id, "") or (f"用户{u_id}" if u_id else "")
-                aliases = extract_aliases_from_text(t_text)
-                for a in aliases:
-                    a_key = a.lower()
-                    if a_key not in known_alias_map and u_id:
-                        known_alias_map[a_key] = {
-                            "alias": a,
-                            "user_id": u_id,
-                            "user_name": u_name,
-                            "fact_text": t_text.strip(),
-                        }
+            for t_id, t_name, t_text, t_cat in [*self._run_db(fetch_alias_candidate_facts), *slot_alias_rows()]:
+                u_id = str(t_id).strip()
+                if (is_group and u_id == str(group_id)) or u_id in ('global', 'bot'):
+                    continue
+                for alias in extract_aliases_from_text(t_text):
+                    key = alias.casefold()
+                    alias_owners.setdefault(key, {})[u_id] = t_name or other_members.get(u_id, '') or u_id
+                    previous = known_alias_map.get(key)
+                    if previous and previous['user_id'] != u_id:
+                        ambiguous_aliases.add(key)
+                    known_alias_map.setdefault(key, {
+                        'alias': alias, 'user_id': u_id,
+                        'user_name': t_name or other_members.get(u_id, '') or u_id,
+                        'fact_text': t_text.strip(),
+                    })
+            for key in ambiguous_aliases:
+                known_alias_map.pop(key, None)
         except Exception as exc:
             self._warn(f"[MaiReply RAG] 提取外号知识库失败: {exc}")
 
@@ -200,7 +223,7 @@ class EpisodeRetrieval:
                 return db.execute("""
                     SELECT id, scope, text, created, ended, user_id, fact_type, category, target_id, target_name
                     FROM memories
-                    WHERE (scope = ? OR (target_id = ? AND target_id != ''))
+                    WHERE (scope = ? OR scope = ?) AND target_id = ?
                       AND namespace = ?
                       AND fact_type = 'fact'
                       AND ended IS NULL
@@ -212,61 +235,28 @@ class EpisodeRetrieval:
                       END,
                       created DESC
                     LIMIT 8
-                """, (f"user:{user_id_str}", user_id_str, self._namespace)).fetchall()
+                """, (f"user:{user_id_str}", current_scope, user_id_str, self._namespace)).fetchall()
 
             try:
                 bg_rows = self._run_db(fetch_user_background_facts)
                 for r in bg_rows:
+                    if is_group and _legacy_group_alias(r[1], r[7], r[2]):
+                        continue
                     t = r[2].strip()
                     t_name = r[9] or user_id_str
-                    if t and t not in seen_texts:
-                        seen_texts.add(t)
+                    if t and (user_id_str, t) not in seen_texts:
+                        seen_texts.add((user_id_str, t))
                         current_speaker_facts.append((1.0, t_name, t))
             except Exception as exc:
                 self._warn(f"[MaiReply RAG] 读取用户背景事实失败: {exc}")
-
-            # 若 memories 暂无该用户的事实记录，尝试从持久化 memory_slots 桥接基础档案（如外号/常住地）
-            if not current_speaker_facts:
-                try:
-                    def fetch_slot_profile(db):
-                        return db.execute("""
-                            SELECT slot_id, category, content FROM memory_slots
-                            WHERE owner_type='user' AND owner_id=? AND slot_id IN (1, 6) AND content != ''
-                            ORDER BY slot_id ASC
-                        """, (user_id_str,)).fetchall()
-
-                    slot_rows = []
-                    try:
-                        slot_rows = self._run_db(fetch_slot_profile)
-                    except Exception:
-                        pass
-
-                    if not slot_rows:
-                        import os, sqlite3
-                        imp_path = "data/dataBase/impression_store.db"
-                        if os.path.exists(imp_path):
-                            with sqlite3.connect(imp_path) as idb:
-                                slot_rows = idb.execute("""
-                                    SELECT slot_id, category, content FROM memory_slots
-                                    WHERE owner_type='user' AND owner_id=? AND slot_id IN (1, 6) AND content != ''
-                                    ORDER BY slot_id ASC
-                                """, (user_id_str,)).fetchall()
-
-                    for s_id, s_cat, s_content in slot_rows:
-                        s_text = s_content.strip()
-                        if s_text and s_text not in seen_texts:
-                            seen_texts.add(s_text)
-                            current_speaker_facts.append((0.95, user_id_str, f"[{s_cat}] {s_text}"))
-                except Exception:
-                    pass
 
         # 群聊环境下，拉取其他在场/被提及/外号命中的群成员基础档案与外号
         if is_group and other_members:
             for o_uid in list(other_members.keys())[:5]:
                 def fetch_other_bg(db, uid=o_uid):
                     return db.execute("""
-                        SELECT target_id, target_name, text FROM memories
-                        WHERE (scope = ? OR (target_id = ? AND target_id != ''))
+                        SELECT target_id, target_name, text, scope, category FROM memories
+                        WHERE (scope = ? OR scope = ?) AND target_id = ?
                           AND namespace = ?
                           AND fact_type = 'fact'
                           AND ended IS NULL
@@ -274,19 +264,36 @@ class EpisodeRetrieval:
                           CASE WHEN category IN ('profile', 'identity', 'alias', 'nickname') THEN 0 ELSE 1 END,
                           created DESC
                         LIMIT 1
-                    """, (f"user:{uid}", uid, self._namespace)).fetchall()
+                    """, (f"user:{uid}", current_scope, uid, self._namespace)).fetchall()
                 try:
                     o_rows = self._run_db(fetch_other_bg)
-                    for _, t_name, t_text in o_rows:
+                    for _, t_name, t_text, t_scope, t_category in o_rows:
+                        if _legacy_group_alias(t_scope, t_category, t_text):
+                            continue
                         t_text = t_text.strip()
-                        if t_text and o_uid not in other_members_best and t_text not in seen_texts:
-                            seen_texts.add(t_text)
+                        if t_text and o_uid not in other_members_best and (o_uid, t_text) not in seen_texts:
+                            seen_texts.add((o_uid, t_text))
                             display_name = other_members.get(o_uid, t_name or f"群友{o_uid}")
                             other_members_best[o_uid] = (0.85, display_name, t_text)
                 except Exception:
                     pass
 
         # -------------------------------------------------------------
+        # Exact local terms remain available during embedding outages.
+        if is_group and query_text:
+            def fetch_group_terms(db):
+                return db.execute("""
+                    SELECT text FROM memories WHERE scope=? AND namespace=?
+                      AND fact_type='fact' AND category='slang' AND ended IS NULL
+                    ORDER BY created DESC
+                """, (current_scope, self._namespace)).fetchall()
+            for (term_text,) in self._run_db(fetch_group_terms):
+                terms = re.findall(r'[“「"]([^”」"]{1,24})[”」"]', term_text)
+                terms.append(re.split(r'[：:=，。\s]', term_text.strip(), maxsplit=1)[0].strip('“”"「」'))
+                if any(len(term) >= 2 and term in query_text for term in terms) and (current_scope, term_text) not in seen_texts:
+                    seen_texts.add((current_scope, term_text))
+                    group_facts.append((1.0, '', term_text))
+
         # 2. 生成 Query Embedding (动态语义检索)
         # -------------------------------------------------------------
         q_vec = None
@@ -350,14 +357,17 @@ class EpisodeRetrieval:
             fact_type = r[7] or "episode"
             target_id = str(r[9] or "").strip()
             target_name = r[10] or other_members.get(target_id, "") or target_id
-
-            if text in seen_texts:
+            if is_group and _legacy_group_alias(scope, r[8], text):
                 continue
-            seen_texts.add(text)
+
+            memory_key = (target_id or scope, text)
+            if memory_key in seen_texts:
+                continue
+            seen_texts.add(memory_key)
 
             if fact_type == "fact":
                 # 当前互动发言者
-                if scope == f"user:{user_id_str}" or (target_id and target_id == user_id_str):
+                if target_id == user_id_str:
                     current_speaker_facts.append((sim, target_name, text))
                 # 群内其他成员（每人保留相似度最高的1句精炼认知，节省Token）
                 elif scope.startswith("user:") or (target_id and target_id in other_members):
@@ -370,7 +380,7 @@ class EpisodeRetrieval:
                 elif scope == "agent:global":
                     bot_facts.append((sim, text))
                 else:
-                    current_speaker_facts.append((sim, target_name, text))
+                    continue  # Unowned facts must never become speaker identity.
             else:
                 episodes.append((sim, text))
 
@@ -381,6 +391,12 @@ class EpisodeRetrieval:
         sections = []
 
         # 5.0 群成员外号与称呼映射（明确大家说的是谁）
+        if ambiguous_aliases:
+            relevant = [key for key in sorted(ambiguous_aliases) if key in query_text.casefold()]
+            if relevant:
+                sections.append("【外号歧义】以下称呼对应多个ID，须询问具体是谁，禁止默认当前发言者：\n"
+                    + "\n".join(key + '：' + '、'.join(
+                        f'{name} (ID: {uid})' for uid, name in alias_owners[key].items()) for key in relevant))
         if resolved_entities_in_query:
             lines = []
             header = "【已知群成员外号与称谓映射（明确“大家说的是谁”）】：\n"
@@ -401,7 +417,7 @@ class EpisodeRetrieval:
         # 5.1 当前互动发言者事实（包含无条件背景外号/档案及相关检索事实）
         if current_speaker_facts:
             lines = []
-            header = "【关于当前对话用户 (发言者) 的事实记忆与背景认知】：\n"
+            header = f"【当前发言者 (ID: {user_id_str}) 的事实记忆，仅适用于此ID】：\n"
             cur_len = len(header)
             for _, name, t in current_speaker_facts:
                 item = f"- {t}\n"
@@ -418,9 +434,9 @@ class EpisodeRetrieval:
             lines = []
             header = "【群内其他在场/被提及群友的认知与外号】：\n"
             cur_len = len(header)
-            sorted_others = sorted(other_members_best.values(), key=lambda x: x[0], reverse=True)
-            for _, mname, t in sorted_others[:4]:
-                item = f"- {mname}：{t}\n"
+            sorted_others = sorted(other_members_best.items(), key=lambda x: x[1][0], reverse=True)
+            for mid, (_, mname, t) in sorted_others[:4]:
+                item = f"- {mname} (ID: {mid})：{t}\n"
                 if cur_len + len(item) <= max_prompt_chars:
                     lines.append(item)
                     cur_len += len(item)

@@ -221,6 +221,9 @@ class PromptBuilder:
         if group_context_snippet:
             prompt += f"\n\n{group_context_snippet}"
 
+        if is_group and user_id is not None:
+            prompt += (f"\n\n【当前发言者：】{user_name} (ID: {user_id})。")
+
         if rag_memory:
             prompt += rag_memory
 
@@ -231,8 +234,11 @@ class PromptBuilder:
             for item in speakers:
                 name = item.get("name", "?")
                 # 防御性过滤：若该发言者即为当前对话主角，避免与下文专属记忆重复注入
-                if user_name and name == user_name:
+                member_id = item.get("user_id")
+                if member_id is not None and user_id is not None and str(member_id) == str(user_id):
                     continue
+                if member_id is not None:
+                    name = f"{name} (ID: {member_id})"
                 imp = item.get("impression", "")
                 slots = item.get("slots", "")
                 if slots and imp:
@@ -274,12 +280,12 @@ class PromptBuilder:
         # ---- 用户专属长期硬事实记忆（10个固定槽位） ----
         if user_memory:
             prompt += (
-                f"\n\n【关于 {user_name} 的长期事实记忆（背景认知）】：\n"
+                f"\n\n【关于 {user_name} (ID: {user_id}) 的长期事实记忆】：\n"
                 f"{user_memory}\n"
                 f"使用原则：\n"
                 f"1. 【被动认知】：以上是你的长期潜意识认知，用于辅助你理解对方的言下之意与处境，绝非每句话必提的“打卡任务”或“口癖”！\n"
                 f"2. 【相关才自然带出】：当对方当前话题与某条记忆明确且直接相关时提出。禁止严禁生硬尬提\n"
-                f"3. 【像真人朋友一样自然相处，无需刻意证明“我还记得你做这件事”】）"
+                f"3. 【自然相处，无需刻意证明“我还记得你做这件事”】）"
             )
 
         # ---- 当前交互对象的主观印象 ----

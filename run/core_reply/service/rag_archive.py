@@ -22,7 +22,10 @@ FACT_EXTRACT_SYSTEM_PROMPT = """你是一个高效、客观的长期记忆提取
 请提取三类实体的客观事实：
 1. user: 用户的长期个人背景、稳定作息习惯、重要喜好/雷区、当前重大现实事件/人生节点、重要人际关系等。
    - 【特别强调：用户外号、别名与称呼严格绑定】：当用户提到自己的外号、昵称时，提取为 category: "profile"，并将 target_id 设为该发言用户的 ID。严禁混淆用户名！
+   - 群内外号必须记录 category: "alias"，target_id 为被称呼者ID，不能把提及者当作被称呼者；无法确定ID则不提取。
+   - 同一外号可指向不同成员，不得自行合并身份。第三人称外号必须有明确ID证据。
 2. group: 本群特有的社群定位、群专属黑话/梗文化、共同话题、重大集体事件。
+   - 群内黑话记录 category: "slang"，每个词条单独ADD，content包含词语、含义及适用语境，禁止绑定到所有群成员。
 3. bot: Bot自身经历的真实独立事件、明确认同的个性/习惯设定、收到的关键契约或重大生活足迹。
 
 操作类型判断规则：
@@ -32,7 +35,7 @@ FACT_EXTRACT_SYSTEM_PROMPT = """你是一个高效、客观的长期记忆提取
 
 输出格式要求：
 返回一个标准的 JSON 数组，数组中每个对象包含以下字段：
-- "action": "ADD" | "UPDATE" | "DELETE"
+- "previous_content": UPDATE/DELETE时提供被修改事实的原文；同分类存在多条时必须精确指定。\n- "action": "ADD" | "UPDATE" | "DELETE"
 - "target_type": "user" | "bot" | "group"
 - "target_id": 实体的唯一标识（用户的QQ号/ID，群号，若是Bot自身则固定为 "global"）
 - "target_name": 实体名称（用户昵称、群名称，或Bot名字）
@@ -194,7 +197,7 @@ class EpisodeArchive:
             # 1. 保存对话片段 (fact_type='episode')
             chunk_lines = []
             for e in buf:
-                chunk_lines.append(f"{e['name']}: {e['text']}")
+                chunk_lines.append(f"{e['name']} (ID:{e['id']}): {e['text']}")
             episode_text = "\n".join(chunk_lines).strip()
 
             if episode_text:
@@ -246,9 +249,13 @@ class EpisodeArchive:
             for fact in facts:
                 # 确定该事实归属的存储范围
                 target_type = str(fact.get("target_type", "user")).lower()
-                target_id = str(fact.get("target_id", "")).strip()
+                target_id = str(fact.get("target_id") or "").strip()
+                if target_type == "user" and not target_id:
+                    continue
+                if target_type == "group" and (not is_group or target_id != str(group_id)):
+                    continue
                 if target_type == "user":
-                    fact_scope = f"user:{target_id}" if target_id else (f"user:{user_id}" if user_id else scope)
+                    fact_scope = scope if is_group else f"user:{target_id}"
                 elif target_type == "bot":
                     fact_scope = "agent:global"
                 elif target_type == "group":
@@ -327,49 +334,35 @@ class EpisodeArchive:
         # 若已有完全一致的有效事实，仅刷新 updated_at，保留已有 vector 不重置，彻底防止重复调用 Embedding
         exact_row = db.execute("""
             SELECT id, text FROM memories
-            WHERE scope=? AND target_id=? AND text=? AND fact_type='fact' AND ended IS NULL
+            WHERE scope=? AND namespace=? AND target_id=? AND text=? AND fact_type='fact' AND ended IS NULL
             LIMIT 1
-        """, (fact_scope, target_id, content)).fetchone()
+        """, (fact_scope, self._namespace, target_id, content)).fetchone()
 
-        if exact_row:
+        if exact_row and action == "ADD":
             db.execute("UPDATE memories SET updated_at=? WHERE id=?", (now, exact_row[0]))
             self._log("[MaiReply RAG] Mem0 事实无变化，保留已有向量不重算 scope=%s target=%s: %s", fact_scope, target_name, content)
             return
 
         if action == "ADD":
-            row = db.execute("""
-                SELECT id, text FROM memories
-                WHERE scope=? AND target_id=? AND category=? AND fact_type='fact' AND ended IS NULL
-                ORDER BY id DESC LIMIT 1
-            """, (fact_scope, target_id, category)).fetchone()
-
-            if row:
-                old_text = (row[1] or "").strip()
-                if old_text == content:
-                    db.execute("UPDATE memories SET updated_at=? WHERE id=?", (now, row[0]))
-                    self._log("[MaiReply RAG] Mem0 事实无变化，保留已有向量 scope=%s target=%s: %s", fact_scope, target_name, content)
-                else:
-                    # 内容确实变化，更新文本并重置 vector=NULL 重新索引
-                    db.execute("""
-                        UPDATE memories SET text=?, updated_at=?, vector=NULL
-                        WHERE id=?
-                    """, (content, now, row[0]))
-                    self._log("[MaiReply RAG] Mem0 更新事实 scope=%s target=%s: %s", fact_scope, target_name, content)
-            else:
-                db.execute("""
-                    INSERT INTO memories (
-                        scope, text, created, ended, user_id, namespace,
-                        fact_type, category, target_id, target_name, updated_at
-                    ) VALUES (?, ?, ?, NULL, ?, ?, 'fact', ?, ?, ?, ?)
-                """, (fact_scope, content, now, target_id, self._namespace, category, target_id, target_name, now))
-                self._log("[MaiReply RAG] Mem0 新增事实 scope=%s target=%s: %s", fact_scope, target_name, content)
+            db.execute("""
+                INSERT INTO memories (
+                    scope, text, created, ended, user_id, namespace,
+                    fact_type, category, target_id, target_name, updated_at
+                ) VALUES (?, ?, ?, NULL, ?, ?, 'fact', ?, ?, ?, ?)
+            """, (fact_scope, content, now, target_id, self._namespace, category, target_id, target_name, now))
+            self._log("[MaiReply RAG] Mem0 新增事实 scope=%s target=%s: %s", fact_scope, target_name, content)
 
         elif action == "UPDATE":
-            row = db.execute("""
+            rows = db.execute("""
                 SELECT id, text FROM memories
-                WHERE scope=? AND target_id=? AND fact_type='fact' AND ended IS NULL
-                ORDER BY id DESC LIMIT 1
-            """, (fact_scope, target_id)).fetchone()
+                WHERE scope=? AND namespace=? AND target_id=? AND category=?
+                  AND fact_type='fact' AND ended IS NULL
+            """, (fact_scope, self._namespace, target_id, category)).fetchall()
+            previous = str(fact.get('previous_content') or (content if action == 'DELETE' else '')).strip()
+            selected = [r for r in rows if r[1] == previous] if previous else rows
+            if len(selected) > 1 or (previous and not selected):
+                return  # Refuse an ambiguous mutation.
+            row = selected[0] if selected else None
 
             if row:
                 old_text = (row[1] or "").strip()
@@ -392,11 +385,19 @@ class EpisodeArchive:
                 self._log("[MaiReply RAG] Mem0 新增事实 scope=%s target=%s: %s", fact_scope, target_name, content)
 
         elif action == "DELETE":
-            db.execute("""
-                UPDATE memories SET ended=?
-                WHERE scope=? AND target_id=? AND fact_type='fact' AND ended IS NULL
-            """, (now, fact_scope, target_id))
-            self._log("[MaiReply RAG] Mem0 失效事实 scope=%s target=%s", fact_scope, target_name)
+            rows = db.execute("""
+                SELECT id, text FROM memories
+                WHERE scope=? AND namespace=? AND target_id=? AND category=?
+                  AND fact_type='fact' AND ended IS NULL
+            """, (fact_scope, self._namespace, target_id, category)).fetchall()
+            previous = str(fact.get('previous_content') or (content if action == 'DELETE' else '')).strip()
+            selected = [r for r in rows if r[1] == previous] if previous else rows
+            if len(selected) > 1 or (previous and not selected):
+                return  # Refuse an ambiguous mutation.
+            row = selected[0] if selected else None
+
+            if row:
+                db.execute("UPDATE memories SET ended=? WHERE id=?", (now, row[0]))
 
     def _pending(self, db, limit: int = 16, exclude_ids: Optional[set] = None):
         if exclude_ids:
