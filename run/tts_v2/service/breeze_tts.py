@@ -635,7 +635,7 @@ class AsyncBreezeTTSClient:
 
         try:
             logger.info(f"[BreezeTTS] 正在调用 trigger_llm 增强语气与标签 (model={llm_model})...")
-            async with httpx.AsyncClient(timeout=15.0, trust_env=False) as client:
+            async with httpx.AsyncClient(timeout=20.0, trust_env=False) as client:
                 resp = await client.post(chat_url, headers=headers, json=payload)
                 if resp.status_code == 200:
                     data = resp.json()
