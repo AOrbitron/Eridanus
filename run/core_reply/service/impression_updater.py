@@ -34,11 +34,11 @@ MEMORY_SLOT_EXTRACT_PROMPT_TEMPLATE = """你是一个严谨客观的事实与记
 {history_text}
 
 ---
-【用户 {user_name} 当前的固定硬事实槽位（1-10）】：
+【用户 {user_name} 当前的固定硬事实槽位（1-{user_slot_count}）】：
 {user_slots_text}
 
 ---
-【Bot自身当前的全局独立生活经历槽位（1-10）】：
+【Bot自身当前的全局独立生活经历槽位（1-{global_slot_count}）】：
 {global_slots_text}
 
 ---
@@ -52,6 +52,7 @@ MEMORY_SLOT_EXTRACT_PROMPT_TEMPLATE = """你是一个严谨客观的事实与记
 - 槽位7 [契约约定承诺]：与Bot约定好的具体事项、承诺做到的事、共同秘密或暗号
 - 槽位8-9 [重大生平里程]：过往重要生平经历与转折事件（求学、考研、就业等里程碑成就及年份）
 - 槽位10 [近期核心焦点]：近期正全力攻关或牵挂的持续数周/数月级重大现实事件（毕业设计、考研备考、找工作面试、转正答辩等阶段性攻坚；严禁记录当天瞬态或日常琐事）
+- 若配置了额外槽位（11-{user_slot_count}）：这些槽位不设固定主题。仅当信息确实属于用户、具有长期价值且比现有槽位更值得保留时，按重要程度选择一个空闲或最适合的额外槽位写入；不要为了填满槽位而记录，也不要记录短期瞬态、闲聊或低价值细节。若没有符合条件的信息，不调用工具。
 
 ---
 【执行指令（严谨判定，杜绝瞬时噪音）】：
@@ -74,13 +75,13 @@ GLOBAL_SLOT_EXTRACT_PROMPT_TEMPLATE = """审查以下对话，仅提取Bot自身
 """
 
 # 阶段2：增量更新主观印象：融合旧印象与新对话
-GROUP_MEMORY_SLOT_EXTRACT_PROMPT_TEMPLATE = """你是一个严谨客观的社群生态与群聊记忆分析专家。你的唯一职责是审查群聊记录，提取群【{group_name}】的社群特征与客观事实，并调用工具写入对应的群记忆槽位（1-10）。
+GROUP_MEMORY_SLOT_EXTRACT_PROMPT_TEMPLATE = """你是一个严谨客观的社群生态与群聊记忆分析专家。你的唯一职责是审查群聊记录，提取群【{group_name}】的社群特征与客观事实，并调用工具写入对应的群记忆槽位（1-{group_slot_count}）。
 
 【群【{group_name}】最新公屏聊天片段】：
 {window_text}
 
 ---
-【群【{group_name}】当前的固定特征与生态槽位（1-10）】：
+【群【{group_name}】当前的固定特征与生态槽位（1-{group_slot_count}）】：
 {group_slots_text}
 
 ---
@@ -95,6 +96,7 @@ GROUP_MEMORY_SLOT_EXTRACT_PROMPT_TEMPLATE = """你是一个严谨客观的社群
 - 槽位8 [重大历史与里程碑大事件]：本群经历过的重大历史事件、大型集体活动、具有纪念意义的转折时刻与大事件
 - 槽位9 [Bot在本群的角色与契约]：Bot在本群被赋予的角色定位（如吉祥物/毒舌吐槽担当/小管家/游戏玩伴）、与本群约定好的专属互动方式或暗号
 - 槽位10 [近期核心焦点与走向]：群内近期正在集中关注、组织或筹备的新事件（如近期新游戏开测、线下聚餐面基、群内比赛等）
+- 若配置了额外槽位（11-{group_slot_count}）：这些槽位不设固定主题。仅当信息确实属于本群、具有长期社群价值且比现有槽位更值得保留时，按重要程度选择一个空闲或最适合的额外槽位写入；不要为了填满槽位而记录，也不要记录短期闲聊、单次事件或低价值细节。若没有符合条件的信息，不调用工具。
 
 ---
 【执行指令】：
@@ -525,6 +527,8 @@ class ImpressionUpdater:
                     history_text=history_text,
                     user_slots_text=user_slots_text,
                     global_slots_text=global_slots_text or "（已关闭）",
+                    user_slot_count=self._ctx.memory_slots.user_slot_count,
+                    global_slot_count=self._ctx.memory_slots.global_slot_count,
                 )
             else:
                 prompt = GLOBAL_SLOT_EXTRACT_PROMPT_TEMPLATE.format(
@@ -664,6 +668,7 @@ class ImpressionUpdater:
                 group_name=group_name,
                 window_text=window_text,
                 group_slots_text=group_slots_text,
+                group_slot_count=self._ctx.memory_slots.group_slot_count,
             )
 
             executed_calls = []
