@@ -28,7 +28,7 @@ GROUP_IMP_TRIGGER_MSGS = 10  # 每累计 N 条群消息触发一次群印象更�
 GROUP_IMP_MAX_CHARS = 400    # 群印象最大字数
 
 # 阶段1：专属硬事实提取与记忆槽位维护提示词（专注 Tool Calling）
-MEMORY_SLOT_EXTRACT_PROMPT_TEMPLATE = """你是一个严谨客观的事实与记忆分析专家。你的唯一职责是审查对话，提取用户【{user_name}】的长期硬事实，并调用工具写入对应的长期记忆槽位（1-10）。
+MEMORY_SLOT_EXTRACT_PROMPT_TEMPLATE = """你是一个严谨客观的事实与记忆分析专家。审查对话，提取用户【{user_name}】的长期硬事实；只有提供Bot全局记忆工具时才可更新Bot自身经历。仅调用本次提供的工具。
 
 【你和TA的最新对话记录】：
 {history_text}
@@ -62,6 +62,15 @@ MEMORY_SLOT_EXTRACT_PROMPT_TEMPLATE = """你是一个严谨客观的事实与记
 2. 如果旧槽位信息被明确更正、或阶段焦点已完成/已失效（例如用户提到“毕设答辩过了”、“顺利离职了”、“考完研了”），必须调用更新覆盖或调用 `clear_user_memory_slot(slot_id)` 清空！
 3. 如果对话中提及了Bot自己的独立生活事件，可调用 `set_global_memory_slot(slot_id, content)` 更新Bot全局槽位。
 4. 如果审查后确认本轮对话完全没有任何新的长期硬事实需要沉淀（例如纯日常寒暄、临时状态报备、表情包、无任何新事实），不要调用工具，直接回复【无事实更新】。
+"""
+
+GLOBAL_SLOT_EXTRACT_PROMPT_TEMPLATE = """审查以下对话，仅提取Bot自身独立生活经历、稳定偏好和重大状态变化，更新Bot全局记忆槽位。普通用户的昵称、撒娇、闲聊或临时状态不属于Bot自我记忆，不要记录。无新事实则回复【无事实更新】。
+
+对话：
+{history_text}
+
+现有Bot全局记忆槽位：
+{global_slots_text}
 """
 
 # 阶段2：增量更新主观印象：融合旧印象与新对话
@@ -399,6 +408,12 @@ class ImpressionUpdater:
             return False
 
         applied = False
+        manager = self._ctx.memory_slots
+
+        def allowed(tool_name: str) -> bool:
+            return ("global" in tool_name and manager.enable_global_slots) or (
+                "global" not in tool_name and manager.enable
+            )
 
         # 1. 提取 XML/函数标记 (<tool_call>, <function=...>)
         xml_matches = re.finditer(r'(?:<tool_call>|<function=(?P<fn>[\w_]+)>)(.*?)(?:</tool_call>|</function>)', text, re.DOTALL)
@@ -410,7 +425,7 @@ class ImpressionUpdater:
                 sid = d.get("slot_id") or (d.get("parameters", {}).get("slot_id") if isinstance(d.get("parameters"), dict) else None)
                 cnt = d.get("content") or (d.get("parameters", {}).get("content") if isinstance(d.get("parameters"), dict) else "")
                 tname = fn_tag or str(d.get("tool", "") or d.get("name", ""))
-                if sid is not None and cnt:
+                if sid is not None and cnt and allowed(tname):
                     sid_int = int(sid)
                     if "global" in tname:
                         self._ctx.memory_slots.set_global_slot(sid_int, str(cnt).strip())
@@ -439,7 +454,7 @@ class ImpressionUpdater:
                         sid = item.get("slot_id")
                         content = item.get("content")
                         tool_name = str(item.get("tool", "") or item.get("name", "") or item.get("action", ""))
-                        if sid is not None:
+                        if sid is not None and allowed(tool_name):
                             try:
                                 sid_int = int(sid)
                                 if "clear" in tool_name:
@@ -472,7 +487,7 @@ class ImpressionUpdater:
             args_str = m.group(2)
             sid_m = re.search(r'(?:slot_id\s*=\s*)?(\d+)', args_str)
             cnt_m = re.search(r'(?:content\s*=\s*)?["\'](.*?)["\'](?:\s*[,)]|\s*$)', args_str, re.DOTALL)
-            if sid_m:
+            if sid_m and allowed(full_fn):
                 try:
                     sid = int(sid_m.group(1))
                     cnt = cnt_m.group(1).strip() if cnt_m else ""
@@ -504,12 +519,18 @@ class ImpressionUpdater:
             user_slots_text = self._ctx.memory_slots.format_user_slots_for_updater(user_id)
             global_slots_text = self._ctx.memory_slots.format_global_slots_for_updater()
 
-            prompt = MEMORY_SLOT_EXTRACT_PROMPT_TEMPLATE.format(
-                user_name=user_name,
-                history_text=history_text,
-                user_slots_text=user_slots_text,
-                global_slots_text=global_slots_text,
-            )
+            if self._ctx.memory_slots.enable:
+                prompt = MEMORY_SLOT_EXTRACT_PROMPT_TEMPLATE.format(
+                    user_name=user_name,
+                    history_text=history_text,
+                    user_slots_text=user_slots_text,
+                    global_slots_text=global_slots_text or "（已关闭）",
+                )
+            else:
+                prompt = GLOBAL_SLOT_EXTRACT_PROMPT_TEMPLATE.format(
+                    history_text=history_text,
+                    global_slots_text=global_slots_text,
+                )
 
             executed_calls = []
             wrapped_tools = {}
@@ -686,7 +707,7 @@ class ImpressionUpdater:
     def tick(self, user_id: int, group_id, user_name: str, bot_name: str) -> None:
         """每次对话完成后调用，达到触发轮数时异步更新用户印象与硬事实记忆"""
         user_mode = self._ctx.get_effective_user_memory_mode() if hasattr(self._ctx, "get_effective_user_memory_mode") else "slots"
-        if user_mode == "none":
+        if user_mode == "none" and not getattr(self._ctx, "enable_global_memory_slots", False):
             return
         key = self._counter_key(user_id, group_id)
         self._counters[key] = self._counters.get(key, 0) + 1
@@ -716,11 +737,11 @@ class ImpressionUpdater:
             history_text = "\n".join(lines)
 
             user_mode = self._ctx.get_effective_user_memory_mode() if hasattr(self._ctx, "get_effective_user_memory_mode") else "slots"
-            if user_mode == "none":
+            if user_mode == "none" and not getattr(self._ctx, "enable_global_memory_slots", False):
                 return
 
             # 阶段 1：独立提取客观硬事实并更新记忆槽位
-            if user_mode in ("slots", "both"):
+            if (user_mode in ("slots", "both") and getattr(self._ctx, "enable_memory_slots", False)) or getattr(self._ctx, "enable_global_memory_slots", False):
                 await self._extract_and_update_memory_slots(
                     user_id=user_id,
                     user_name=user_name,

@@ -193,6 +193,31 @@ class RAGMemory(EpisodeArchive, EpisodeRetrieval):
     def scope_for(self, group_id: Optional[str], user_id: Any) -> str:
         return f"group:{group_id}" if group_id is not None else f"private:{user_id}"
 
+    def record_bot_experience(self, content: str, category: str = "qzone_daily") -> bool:
+        """Store a Bot-owned experience independently of user/group conversation archives."""
+        text = " ".join((content or "").split())[:160]
+        if not self.enable or not text or self._db is None:
+            return False
+        now = time.time()
+
+        def save(db):
+            self._apply_mem0_fact(db, {
+                "action": "ADD", "target_type": "bot", "target_id": "global",
+                "target_name": "Bot", "category": category, "content": text,
+            }, "agent:global", now)
+            if category == "qzone_daily":
+                db.execute("""
+                    UPDATE memories SET ended=? WHERE id IN (
+                        SELECT id FROM memories
+                        WHERE scope='agent:global' AND namespace=? AND fact_type='fact'
+                          AND category='qzone_daily' AND target_id='global' AND ended IS NULL
+                        ORDER BY updated_at DESC, id DESC LIMIT -1 OFFSET 4
+                    )
+                """, (now, self._namespace))
+
+        self._run_db(save)
+        return True
+
     @property
     def replaces_legacy(self) -> bool:
         mode = str(self.cfg.get("integration_mode", "replace")).strip().lower()

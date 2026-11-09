@@ -925,26 +925,57 @@ def main(bot: ExtendBot, config: YAMLManager):
     # 定时早晚发空间任务
     # ---------------------------------------------------------
     async def sync_post_to_global_memory(content_text: str):
-        """提炼动态日常存入 core_reply 的全局独立生活记忆层（严格限制在25字内）"""
-        if mai_context and mai_llm:
-            try:
+        """提炼已发布动态，并分别写入启用的 Bot Slots 与 RAG。"""
+        try:
+            rag_cfg = getattr(config.core_reply, "rag", {}) or {}
+            if not (mai_context and mai_context.enable_global_memory_slots) and not rag_cfg.get("enable", False):
+                return
+            if mai_llm:
                 mem_prompt = (
                     f"根据这条Bot动态内容，提炼成一句话极简日常事实（严格在25字以内，杜绝'今天也'等套话，客观记录少女日常行为，如'烤吐司涂果酱吃了美味早餐'或'下班路上偶遇可爱的胖橘猫'），若无实质日常则回复空：\n"
                     f"动态：{content_text}\n"
                     f"只输出提炼后的极简短句：\n"
                 )
-                refined_mem = await mai_llm.chat(
-                    messages=[{"role": "user", "content": mem_prompt}],
-                    system_prompt="你是一个极简日常信息提炼助手。",
-                )
-                if refined_mem and len(refined_mem.strip()) > 0:
-                    clean_mem = refined_mem.strip().replace("\n", " ")[:30]
-                    clean_mem = re.sub(r"^[\'\"\s\[\]]+|[\'\"\s\[\]]+$", "", clean_mem)
-                    now_str = datetime.datetime.now().strftime("%m-%d %H:%M")
-                    mai_context.update_global_memory(f"[{now_str}] {clean_mem}")
-                    logger.info(f"[Qzone 全局记忆] 成功录入Bot日常生活记忆: [{now_str}] {clean_mem}")
-            except Exception as e:
-                logger.error(f"[Qzone] 全局记忆更新异常: {e}")
+                try:
+                    refined_mem = await mai_llm.chat(
+                        messages=[{"role": "user", "content": mem_prompt}],
+                        system_prompt="你是一个极简日常信息提炼助手。",
+                    )
+                    clean_mem = (refined_mem or "").strip().replace("\n", " ")[:30]
+                except Exception as exc:
+                    logger.warning(f"[Qzone] 动态记忆提炼失败，使用原动态摘要: {exc}")
+                    clean_mem = " ".join(content_text.split())[:60]
+            else:
+                clean_mem = " ".join(content_text.split())[:60]
+            clean_mem = re.sub(r"^[\'\"\s\[\]]+|[\'\"\s\[\]]+$", "", clean_mem)
+            if not clean_mem or clean_mem in ("空", "无", "无实质日常"):
+                return
+            now_str = datetime.datetime.now().strftime("%m-%d %H:%M")
+            experience = f"[{now_str}] {clean_mem}"
+            if mai_context:
+                mai_context.update_global_memory(experience)
+            if rag_cfg.get("enable", False):
+                from run.core_reply.service.rag_memory import RAGMemory
+                RAGMemory(config).record_bot_experience(experience)
+            logger.info(f"[Qzone 全局记忆] 成功录入Bot日常生活记忆: {experience}")
+        except Exception as e:
+            logger.error(f"[Qzone] 全局记忆更新异常: {e}")
+
+    def post_succeeded(response) -> bool:
+        if isinstance(response, str):
+            try:
+                response = json.loads(response)
+            except ValueError:
+                match = re.search(r"\((\{.*\})\)\s*;?\s*$", response, re.DOTALL)
+                if not match:
+                    return False
+                try:
+                    response = json.loads(match.group(1))
+                except ValueError:
+                    return False
+        if not isinstance(response, dict):
+            return False
+        return response.get("code", response.get("ret")) == 0
 
     task_history_file = base_data_dir / "qzone_task_history.json"
 
@@ -1113,9 +1144,6 @@ def main(bot: ExtendBot, config: YAMLManager):
             "time": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         })
 
-        # 提炼极简日常存入全局记忆
-        await sync_post_to_global_memory(post_content)
-
         # 判断是否需要 SD 绘图
         pic_paths = []
         outfit_selection = {}
@@ -1132,6 +1160,8 @@ def main(bot: ExtendBot, config: YAMLManager):
             commit_post_outfit(get_wardrobe_manager() if get_wardrobe_manager else None,
                                outfit_selection, res, bool(pic_paths))
             logger.info(f"[Qzone] 发布动态完成: {res}")
+            if post_succeeded(res):
+                await sync_post_to_global_memory(post_content)
         except Exception as e:
             logger.error(f"[Qzone] 发布动态异常: {e}")
 
@@ -1300,9 +1330,6 @@ def main(bot: ExtendBot, config: YAMLManager):
             "time": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         })
 
-        # 提炼日常存入 core_reply 全局独立生活记忆层
-        await sync_post_to_global_memory(daily_content)
-
         # 概率配图
         pic_paths = []
         outfit_selection = {}
@@ -1319,6 +1346,8 @@ def main(bot: ExtendBot, config: YAMLManager):
             commit_post_outfit(get_wardrobe_manager() if get_wardrobe_manager else None,
                                outfit_selection, res, bool(pic_paths))
             logger.info(f"[Qzone Vtuber日常] 发布动态完成: {res}")
+            if post_succeeded(res):
+                await sync_post_to_global_memory(daily_content)
             vtuber_post_count_today += 1
         except Exception as e:
             logger.error(f"[Qzone Vtuber日常] 发送异常: {e}")

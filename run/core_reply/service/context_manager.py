@@ -139,6 +139,9 @@ class ContextManager:
         raw_user_mode = str(ccfg.get("user_memory_mode", "")).strip().lower()
         cfg_imp = bool(imp_cfg.get("enable_impression", ccfg.get("enable_impression", False)))
         cfg_slots = bool(slots_cfg.get("enable_memory_slots", ccfg.get("enable_memory_slots", True)))
+        self.enable_global_memory_slots = bool(slots_cfg.get(
+            "enable_global_memory_slots", ccfg.get("enable_global_memory_slots", True)
+        ))
 
         if raw_user_mode == "slots":
             self.user_memory_mode = "slots"
@@ -229,6 +232,7 @@ class ContextManager:
             config=config,
         )
         self.memory_slots.enable = self.enable_memory_slots
+        self.memory_slots.enable_global_slots = self.enable_global_memory_slots
         self.memory_slots.enable_group_slots = self.enable_group_memory_slots
 
     # ------------------------------------------------------------------ 内部读写辅助（带双层 fallback）
@@ -756,10 +760,11 @@ class ContextManager:
 
     def get_global_memory(self) -> str:
         """获取全局独立生活记忆（优先结构化记忆槽位，降级回退旧版字符串）"""
-        if self.enable_memory_slots:
-            formatted = self.memory_slots.format_global_slots_for_prompt()
-            if formatted:
-                return formatted
+        if not self.enable_global_memory_slots:
+            return ""
+        formatted = self.memory_slots.format_global_slots_for_prompt()
+        if formatted:
+            return formatted
 
         raw = self._imp_get(self._global_memory_key())
         if not raw:
@@ -774,10 +779,9 @@ class ContextManager:
 
     def update_global_memory(self, content: str, max_items: int = 5) -> None:
         """更新全局生活记忆（与 qq_zone 联动，自动推入槽位并兼顾旧版存储）"""
-        if not content or not content.strip():
+        if not self.enable_global_memory_slots or not content or not content.strip():
             return
-        if self.enable_memory_slots:
-            self.memory_slots.add_global_event(content)
+        self.memory_slots.add_global_event(content)
 
         raw = self._imp_get(self._global_memory_key())
         history_items = []
@@ -798,8 +802,7 @@ class ContextManager:
         self._imp_set(self._global_memory_key(), json.dumps(history_items, ensure_ascii=False))
 
     def clear_global_memory(self) -> None:
-        if self.enable_memory_slots:
-            self.memory_slots.clear_all_global_slots()
+        self.memory_slots.clear_all_global_slots()
         self._imp_delete(self._global_memory_key())
 
     def close(self) -> None:

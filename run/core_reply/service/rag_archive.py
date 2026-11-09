@@ -26,7 +26,7 @@ FACT_EXTRACT_SYSTEM_PROMPT = """你是一个高效、客观的长期记忆提取
    - 同一外号可指向不同成员，不得自行合并身份。第三人称外号必须有明确ID证据。
 2. group: 本群特有的社群定位、群专属黑话/梗文化、共同话题、重大集体事件。
    - 群内黑话记录 category: "slang"，每个词条单独ADD，content包含词语、含义及适用语境，禁止绑定到所有群成员。
-3. bot: Bot自身经历的真实独立事件、明确认同的个性/习惯设定、收到的关键契约或重大生活足迹。
+3. bot: Bot自身经历的独立事件、明确认同的个性/习惯、生活状态与重大足迹。普通用户的昵称、撒娇、闲聊或短暂互动不是Bot自我经历，应归属user或忽略；仅真正改变Bot自身状态的关系事件才可归属bot。
 
 操作类型判断规则：
 - ADD: 首次获知的新事实、新偏好或新经历。
@@ -251,6 +251,8 @@ class EpisodeArchive:
                 target_type = str(fact.get("target_type", "user")).lower()
                 target_id = str(fact.get("target_id") or "").strip()
                 if target_type == "user" and not target_id:
+                    continue
+                if target_type == "bot" and (target_id != "global" or not any(e["is_bot"] for e in buf)):
                     continue
                 if target_type == "group" and (not is_group or target_id != str(group_id)):
                     continue

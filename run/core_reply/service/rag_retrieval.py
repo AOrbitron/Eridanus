@@ -218,6 +218,22 @@ class EpisodeRetrieval:
         episodes = []
         seen_texts = set()
 
+        def fetch_bot_background(db):
+            return db.execute("""
+                SELECT text, category FROM memories
+                WHERE scope='agent:global' AND namespace=? AND fact_type='fact'
+                  AND target_id='global' AND ended IS NULL
+                  AND category NOT IN ('relationship', 'alias', 'nickname')
+                ORDER BY CASE WHEN category='qzone_daily' THEN 0 ELSE 1 END,
+                         updated_at DESC, id DESC LIMIT 8
+            """, (self._namespace,)).fetchall()
+
+        for text, category in self._run_db(fetch_bot_background):
+            text = text.strip()
+            if text and ("agent:global", text) not in seen_texts:
+                seen_texts.add(("agent:global", text))
+                bot_facts.append((1.0, text))
+
         if user_id_str:
             def fetch_user_background_facts(db):
                 return db.execute("""
@@ -360,12 +376,16 @@ class EpisodeRetrieval:
             if is_group and _legacy_group_alias(scope, r[8], text):
                 continue
 
-            memory_key = (target_id or scope, text)
+            memory_key = (scope if scope == "agent:global" else target_id or scope, text)
             if memory_key in seen_texts:
                 continue
             seen_texts.add(memory_key)
 
             if fact_type == "fact":
+                if scope == "agent:global":
+                    if target_id == "global" and r[8] not in ("relationship", "alias", "nickname"):
+                        bot_facts.append((sim, text))
+                    continue
                 # 当前互动发言者
                 if target_id == user_id_str:
                     current_speaker_facts.append((sim, target_name, text))
@@ -377,8 +397,6 @@ class EpisodeRetrieval:
                         other_members_best[mid] = (sim, display_name, text)
                 elif scope.startswith("group:"):
                     group_facts.append((sim, target_name, text))
-                elif scope == "agent:global":
-                    bot_facts.append((sim, text))
                 else:
                     continue  # Unowned facts must never become speaker identity.
             else:
@@ -473,7 +491,10 @@ class EpisodeRetrieval:
                 else:
                     break
             if lines:
-                sections.append(header + "".join(lines).strip())
+                sections.append(
+                    header + "".join(lines).strip()
+                    + "\n（这是Bot自身的生活状态与经历；不要把其他用户的昵称、喜好或闲聊当成自己的经历。）"
+                )
 
         # 5.5 历史对话片段（近期对话原型）
         if episodes:

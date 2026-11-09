@@ -224,6 +224,10 @@ class MemorySlotManager:
         else:
             self.enable: bool = cfg_slots
 
+        self.enable_global_slots: bool = bool(slots_cfg.get(
+            "enable_global_memory_slots", ccfg.get("enable_global_memory_slots", True)
+        ))
+
         if raw_group_mode in ("impression", "none"):
             self.enable_group_slots: bool = False
         else:
@@ -265,6 +269,8 @@ class MemorySlotManager:
 
     def _migrate_legacy_global_memory(self) -> None:
         """将旧版 kv_store 中的 memory:global 平滑迁移到全局槽位 6..9"""
+        if not self.enable_global_slots:
+            return
         try:
             cur = self._conn.execute(
                 "SELECT COUNT(*) FROM memory_slots WHERE owner_type = 'global' AND content != ''"
@@ -507,14 +513,14 @@ class MemorySlotManager:
     # --------------------------------------------------------------------------
 
     def get_global_slots(self) -> List[Dict[str, Any]]:
-        if not self.enable:
+        if not self.enable_global_slots:
             return []
         return self._get_all_slots("global", "global", self.get_global_blueprints())
 
     def set_global_slot(
         self, slot_id: int, content: str, category: Optional[str] = None
     ) -> bool:
-        if not self.enable:
+        if not self.enable_global_slots:
             return False
         slot_id = int(slot_id)
         if slot_id < 1 or slot_id > self.global_slot_count:
@@ -566,7 +572,7 @@ class MemorySlotManager:
         与 QQ 空间动态及日常事件联动：
         将新的生活日常或空间动态推入槽位 6..9，依次后移淘汰最老记录
         """
-        if not self.enable or not content or not content.strip():
+        if not self.enable_global_slots or not content or not content.strip():
             return False
 
         clean_text = content.strip()
@@ -739,7 +745,7 @@ class MemorySlotManager:
 
     def format_global_slots_for_prompt(self) -> str:
         """格式化 Bot 全局独立生活记忆，注入到回复时的 system prompt"""
-        if not self.enable:
+        if not self.enable_global_slots:
             return ""
         slots = self.get_global_slots()
         lines = []
@@ -765,6 +771,8 @@ class MemorySlotManager:
 
     def format_global_slots_for_updater(self) -> str:
         """格式化给印象更新器查看的当前 Bot 全局生活槽位"""
+        if not self.enable_global_slots:
+            return ""
         slots = self.get_global_slots()
         lines = []
         for s in slots:
@@ -917,6 +925,12 @@ class MemorySlotManager:
             },
         }
 
+        if not self.enable:
+            tools.pop("set_user_memory_slot")
+            tools.pop("clear_user_memory_slot")
+        if not self.enable_global_slots:
+            tools.pop("set_global_memory_slot")
+            tools.pop("clear_global_memory_slot")
         return tools
 
 

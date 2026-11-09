@@ -92,7 +92,8 @@ context: # 上下文相关配置
     enable_group_impression: false # 是否启用群聊气氛印象
     group_max_chars: 120 #群聊印象最大字数
   Slots: # Slots 结构化记忆槽位系统
-    enable_memory_slots: true   # 是否开启结构化长期固定事实记忆与Bot全局独立生活记忆层
+    enable_memory_slots: true   # 是否开启用户结构化长期事实记忆槽位
+    enable_global_memory_slots: true  # 是否开启Bot专属全局生活经历记忆槽位
     global_memory_slot_count: 10  # Bot全局独立生活经历记忆槽位数（默认10条）
     user_memory_slot_count: 10    # 每个用户的长期客观事实记忆槽位数（默认10条）
     memory_slot_max_chars: 50    # 单条槽位记忆最大字数限制
