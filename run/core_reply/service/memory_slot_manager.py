@@ -407,7 +407,12 @@ class MemorySlotManager:
             if cached:
                 try:
                     data = json.loads(cached)
-                    if isinstance(data, list):
+                    # Rebuild stale cached layouts after shrinking or expanding slot counts.
+                    # Persisted out-of-range memories remain available for future expansion.
+                    expected_ids = [bp["slot_id"] for bp in blueprints]
+                    if (isinstance(data, list)
+                            and all(isinstance(item, dict) for item in data)
+                            and [item.get("slot_id") for item in data] == expected_ids):
                         return data
                 except Exception:
                     pass
