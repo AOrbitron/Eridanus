@@ -58,7 +58,6 @@ follow_up:  # 私聊沉默后，追问未完成的话头
   max_idle_seconds: 600  # 超过该时间则视为久远会话，不再追问（默认10分钟）
   check_interval_seconds: 10  # 后台轮询检查间隔秒数（默认10秒）
   max_follow_up_turns: 1  # 每轮真实对话最多追问1次（固定上限，避免反复催问）
-  require_friend: true  # 是否仅对好友生效（防止群临时会话骚扰，默认true）
 
 persona:  # 人设
   name: ""  # 角色名（可选，留空则读取默认配置

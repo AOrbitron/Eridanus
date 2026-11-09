@@ -102,7 +102,6 @@ class FollowUpService:
                 "max_idle_seconds": max(10, int(follow.get("max_idle_seconds", 600))),
                 "check_interval_seconds": max(3, int(follow.get("check_interval_seconds", 10))),
                 "max_follow_up_turns": 1,
-                "require_friend": follow.get("require_friend", True) is not False,
             }
         except (AttributeError, TypeError, ValueError):
             logger.warning("[FollowUp] 配置无效，本轮关闭追问")
@@ -165,19 +164,6 @@ class FollowUpService:
         age = time.time() - float(history[-1].get("ts", 0))
         return cfg["idle_seconds"] <= age <= max(cfg["idle_seconds"], cfg["max_idle_seconds"])
 
-    async def _friend_allowed(self, bot, uid=None):
-        if not self.get_follow_up_config().get("require_friend", True):
-            return True
-        try:
-            response = await bot.get_friend_list()
-            if not self._send_succeeded(response) or not isinstance(response.get("data"), list):
-                return False
-            friends = {int(f["user_id"]) for f in response["data"]}
-            return friends if uid is None else uid in friends
-        except Exception as exc:
-            logger.warning(f"[FollowUp] 好友校验失败，跳过本轮: {exc}")
-            return False
-
     def _get_trigger_llm_params(self) -> Tuple[str, str, str]:
         """获取 trigger_llm 独立配置的模型与接口"""
         m_cfg = getattr(self.cfg, "core_reply", None)
@@ -223,7 +209,7 @@ class FollowUpService:
                 lang_type=lang_type,
                 api_key=api_key,
             )
-            if audio_path and is_current() and await self._friend_allowed(bot, user_id) and is_current():
+            if audio_path and is_current():
                 response = await bot.send_friend_message(user_id, [Record(file=audio_path)])
                 if self._send_succeeded(response):
                     logger.info(f"[FollowUp] 用户 {user_id} 语音继续 ({speaker}) 发送成功")
@@ -297,7 +283,7 @@ class FollowUpService:
                 delay = calc_typing_delay(text, self.processor.typing_ms_per_char, self.processor.typing_max_ms)
                 if delay > 0:
                     await asyncio.sleep(delay)
-                if not is_current() or not await self._friend_allowed(bot, user_id) or not is_current():
+                if not is_current():
                     break
                 response = await bot.send_friend_message(user_id, [Text(text)])
                 if not self._send_succeeded(response):
@@ -384,9 +370,6 @@ class FollowUpService:
             return
         cfg = self.get_follow_up_config()
         await self._bootstrap_stale_sessions(cfg["idle_seconds"])
-        friends = await self._friend_allowed(bot)
-        if friends is False:
-            return
         for key in self.context._ctx_keys("ctx:private:*"):
             if not self.is_enabled():
                 break
@@ -394,8 +377,6 @@ class FollowUpService:
             if not match:
                 continue
             uid = int(match.group(1))
-            if friends is not True and uid not in friends:
-                continue
             if self._follow_up_counts.get(uid, 0) or uid in self._pending_tasks:
                 continue
             try:
