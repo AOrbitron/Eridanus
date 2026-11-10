@@ -458,22 +458,6 @@ class RAGMemory(EpisodeArchive, EpisodeRetrieval):
             await asyncio.sleep(0.5)
         return False
 
-    async def query_user_facts(self, group_id, user_id) -> str:
-        """List this user's active facts only; no semantic search or embedding API."""
-        if not self.allowed(group_id) or self._db is None:
-            return ""
-        uid = str(user_id)
-        scope = self.scope_for(group_id, user_id)
-        def fetch(db):
-            return db.execute("""
-                SELECT text FROM memories
-                WHERE scope IN (?, ?) AND namespace=? AND target_id=?
-                  AND fact_type='fact' AND ended IS NULL
-                ORDER BY created DESC, text
-            """, (scope, f"user:{uid}", self._namespace, uid)).fetchall()
-        rows = await asyncio.to_thread(self._run_db, fetch)
-        return "\n".join(dict.fromkeys(row[0].strip() for row in rows if row[0] and row[0].strip()))
-
     async def recall(self, group_id: Optional[str], user_id: Any, query: str, recent_context=None, now=None) -> str:
         if not self.allowed(group_id):
             return ""

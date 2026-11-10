@@ -34,7 +34,6 @@ from run.core_reply.service.reply_processor import ReplyProcessor
 from run.core_reply.service.impression_updater import ImpressionUpdater
 from run.core_reply.service.concurrency import ConcurrencyController
 from run.core_reply.service.rag_memory import RAGMemory
-from run.core_reply.service.message_identity import resolve_user_name
 
 logger = get_logger(__name__)
 
@@ -591,7 +590,16 @@ class ReplyEngine:
         if cached is not None:
             return cached
 
-        name = await resolve_user_name(bot, event, user_id, group_id)
+        try:
+            if group_id:
+                info = await bot.get_group_member_info(group_id=group_id, user_id=user_id)
+                name = info["data"]["nickname"]
+            else:
+                info = await bot.get_stranger_info(user_id=user_id)
+                name = info["data"]["nickname"]
+            name = name.strip() or str(user_id)
+        except Exception:
+            name = str(user_id)
 
         self._cache_set(cache_key, name)
         return name

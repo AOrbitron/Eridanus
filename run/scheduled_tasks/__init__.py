@@ -12,7 +12,7 @@ dynamic_imports = {
 function_declarations = [
     {
         "name": "call_create_schedule_task",
-        "description": "创建或安排一个定时任务。支持一次性(once)、每天循环(daily)、每周特定天(weekly)、工作日(workday)、周末(weekend)、每年特定日期(yearly)。可在触发时执行可用工具列表中任意已注册的function，或生成问候、祝福、提醒等文本消息。根据用户请求选择动作、参数和循环模式；系统会根据用户的城市和时区进行时间换算。",
+        "description": "创建或安排一个定时任务。支持一次性(once)、每天循环(daily)、每周特定天(weekly)、工作日(workday)、周末(weekend)、每年特定日期(yearly，如每年生日、纪念日等)。支持预输入其他function到点执行（例如‘每天睡前给我发个asmr’），或者生成拟人化早安/叫起床/生日祝福/提醒消息。系统会自动根据用户的城市和时区进行时间换算。",
         "parameters": {
             "type": "object",
             "properties": {
@@ -36,7 +36,7 @@ function_declarations = [
                 "action_type": {
                     "type": "string",
                     "enum": ["message", "tool"],
-                    "description": "message 仅生成问候、祝福、提醒等文本；需要在触发时实际执行已注册function（查询数据、生成内容、发送资源或执行操作）时使用 tool，通过 tool_name 和 tool_params 指定调用，不能用文本生成代替函数执行。循环模式由 recur_type 独立指定。"
+                    "description": "动作类型：message表示到点由AI生成贴心问候/叫起/祝福/提醒消息；tool表示预输入其他function到点执行（如call_asmr）"
                 },
                 "prompt_or_message": {
                     "type": "string",
@@ -44,11 +44,11 @@ function_declarations = [
                 },
                 "tool_name": {
                     "type": "string",
-                    "description": "当 action_type 为 tool 时必填：从当前可用工具声明中选择要在触发时执行的已注册function的准确名称，不可编造函数名。"
+                    "description": "当action_type为tool时要执行的function名称，例如‘call_asmr’"
                 },
                 "tool_params": {
                     "type": "object",
-                    "description": "当 action_type 为 tool 时，按所选function的参数声明提供业务参数字典；必填参数必须提供，可选参数仅在该函数支持缺省值时省略。bot、event、config 由执行框架注入，不应填写。"
+                    "description": "当action_type为tool时预输入的function参数字典，例如{'mode': 'hotest'}"
                 },
                 "city": {
                     "type": "string",

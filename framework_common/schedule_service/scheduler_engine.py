@@ -27,9 +27,7 @@ from typing import Optional, Dict, Any, List, Union, Tuple
 import aiosqlite
 
 from developTools.message.message_components import Text
-from developTools.message.message_components import MessageComponent
-from developTools.event.events import GroupMessageEvent, PrivateMessageEvent
-from framework_common.database_util.User import get_user
+from framework_common.framework_util.any_event import AnyEvent
 from framework_common.schedule_service.timezone_helper import TimezoneHelper
 
 logger = get_logger("DynamicScheduler")
@@ -57,11 +55,6 @@ class ScheduledTask:
     next_run_timestamp: float
     created_at: str
     last_run_at: str = ""
-
-    @classmethod
-    def from_row(cls, row):
-        # SELECT * must tolerate extra columns installed by future plugins.
-        return cls(**{key: value for key, value in dict(row).items() if key in cls.__dataclass_fields__})
 
     def get_payload_dict(self) -> Dict[str, Any]:
         if isinstance(self.action_payload, dict):
@@ -544,7 +537,7 @@ class DynamicScheduler:
             async with db.execute(query, tuple(params)) as cursor:
                 rows = await cursor.fetchall()
                 for row in rows:
-                    t = ScheduledTask.from_row(row)
+                    t = ScheduledTask(**dict(row))
                     if is_all:
                         # 保护机制：批量取消全部时，自动豁免系统后台常驻守护任务（如 QQ 空间巡检、保活等）
                         if not self.is_system_task(t):
@@ -597,7 +590,7 @@ class DynamicScheduler:
             async with db.execute(query, tuple(params)) as cursor:
                 rows = await cursor.fetchall()
                 for row in rows:
-                    tasks.append(ScheduledTask.from_row(row))
+                    tasks.append(ScheduledTask(**dict(row)))
         return tasks
 
     async def list_all_tasks(
@@ -631,7 +624,7 @@ class DynamicScheduler:
             async with db.execute(query, tuple(params)) as cursor:
                 rows = await cursor.fetchall()
                 for row in rows:
-                    tasks.append(ScheduledTask.from_row(row))
+                    tasks.append(ScheduledTask(**dict(row)))
         return tasks
 
     def _find_callable_tool(cls, tool_name: str) -> Optional[Any]:
@@ -693,7 +686,7 @@ class DynamicScheduler:
             "random_asmr": "run.resource_collector.service.asmr.asmr100.random_asmr_100",
             "bing": "run.basic_plugin.service.life_service.bingEveryDay",
             "danxiangli": "run.basic_plugin.service.life_service.danxianglii",
-            "weather": "run.basic_plugin.basic_plugin.call_weather_query",
+            "weather": "run.basic_plugin.service.weather_query.free_weather_query",
             "free_weather_query": "run.basic_plugin.service.weather_query.free_weather_query",
             "epic": "run.anime_game_service.service.epicfree.epic_free_game_get",
             "nasa": "run.basic_plugin.service.nasa_api.get_nasa_apod",
@@ -715,94 +708,6 @@ class DynamicScheduler:
     # -------------------------------------------------------------------------
     # 执行逻辑：支持嵌套 Function Calling、LLM 智能消息生成与主动对话
     # -------------------------------------------------------------------------
-    @staticmethod
-    def _tool_call_from_payload(payload):
-        """Read both persisted protocol generations without rewriting stored tasks."""
-        name = payload.get("tool_name") or payload.get("func_name") or ""
-        params = next((payload[key] for key in ("tool_params", "tool_args", "parameters")
-                       if key in payload and payload[key] is not None), {})
-        if isinstance(params, str):
-            params = json.loads(params)
-        if not isinstance(params, dict):
-            raise ValueError("工具参数必须是 JSON 对象")
-        if not isinstance(name, str):
-            raise ValueError("工具名称必须是字符串")
-        return name.strip(), dict(params)
-
-    async def _build_task_event(self, task):
-        """Give registered tools the same typed event interface as live FC calls."""
-        uid = task.target_id if task.target_type == "private" else task.creator_id
-        sender = {"user_id": uid, "nickname": f"用户{uid}", "role": "member"}
-        try:
-            user = await get_user(uid)
-            if user:
-                sender.update(nickname=user.nickname or sender["nickname"], card=user.card or "")
-        except Exception as exc:
-            logger.warning(f"[DynamicScheduler] 读取任务用户信息失败: {exc}")
-        fields = dict(post_type="message", sub_type="normal" if task.target_type == "group" else "friend",
-                      user_id=uid, message_type=task.target_type, message_id=0, font=0,
-                      message=[{"type": "text", "data": {"text": task.description}}],
-                      sender=sender, self_id=getattr(self.bot, "id", 0), time=int(time.time()),
-                      scheduled_task_id=task.task_id)
-        if task.target_type == "group":
-            return GroupMessageEvent(group_id=task.target_id, **fields)
-        return PrivateMessageEvent(**fields)
-
-    async def _invoke_tool(self, func, params, event):
-        sig = inspect.signature(func)
-        kwargs = dict(params)
-        has_var_kw = any(p.kind == inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values())
-        # Context belongs to the scheduler, never to serialized model arguments.
-        for key, value in (("bot", self.bot), ("event", event), ("config", self.config)):
-            if key in sig.parameters or has_var_kw:
-                kwargs[key] = value
-        for key in ("user_id", "group_id"):
-            if key in sig.parameters and key not in kwargs and hasattr(event, key):
-                kwargs[key] = getattr(event, key)
-        if not has_var_kw:
-            kwargs = {key: value for key, value in kwargs.items() if key in sig.parameters}
-        args = []
-        for parameter in sig.parameters.values():
-            if parameter.kind == inspect.Parameter.POSITIONAL_ONLY:
-                if parameter.name in kwargs:
-                    args.append(kwargs.pop(parameter.name))
-                elif parameter.default is not inspect.Parameter.empty:
-                    args.append(parameter.default)
-                else:
-                    raise TypeError(f"缺少工具参数: {parameter.name}")
-        bound = sig.bind(*args, **kwargs)
-        if asyncio.iscoroutinefunction(func):
-            result = await func(*bound.args, **bound.kwargs)
-        else:
-            result = await asyncio.to_thread(func, *bound.args, **bound.kwargs)
-        return await result if inspect.isawaitable(result) else result
-
-    async def _send_tool_result(self, task, result):
-        """Deliver FC envelopes, structured data and native message components."""
-        if result is None or self.bot is None:
-            return  # A self-sending tool need not return anything.
-        if isinstance(result, dict) and "result" in result:
-            result = result["result"]
-        if result is None:
-            return
-        if isinstance(result, MessageComponent):
-            message = [result]
-        elif isinstance(result, (list, tuple)) and all(
-                isinstance(item, (MessageComponent, str)) or
-                (isinstance(item, dict) and "type" in item and "data" in item) for item in result):
-            message = [Text(item) if isinstance(item, str) else item for item in result]
-        elif isinstance(result, dict) and "type" in result and "data" in result:
-            message = [result]
-        else:
-            text = result if isinstance(result, str) else json.dumps(result, ensure_ascii=False, default=str)
-            message = [Text(text)] if text.strip() else []
-        if not message:
-            return
-        if task.target_type == "private":
-            await self.bot.send_friend_message(task.target_id, message)
-        else:
-            await self.bot.send_group_message(task.target_id, message)
-
     async def execute_task(self, task: ScheduledTask):
         """执行单个任务的具体动作"""
         if task.task_id in self._running_tasks:
@@ -816,11 +721,17 @@ class DynamicScheduler:
 
         logger.info(f"[DynamicScheduler] 开始执行任务 {task.task_id}: {task.description} (action={task.action_type})")
 
+        # 构造虚拟事件
+        event = AnyEvent()
+        event.user_id = task.target_id if task.target_type == "private" else task.creator_id
+        if task.target_type == "group":
+            event.group_id = task.target_id
+
         try:
-            event = await self._build_task_event(task)
             # 1. 嵌套工具调用（执行任意已注册 Function，如 call_asmr 或其他 tool）
             if task.action_type in ("tool", "function_call"):
-                tool_name, tool_params = self._tool_call_from_payload(payload)
+                tool_name = payload.get("tool_name", "")
+                tool_params = payload.get("tool_params") or payload.get("tool_args") or {}
                 # 若因历史数据或解析问题缺少 tool_name，根据 task_type/task_id/description 智能回退识别
                 if not tool_name:
                     if task.task_type == "qzone_post":
@@ -838,10 +749,41 @@ class DynamicScheduler:
                 if func and callable(func):
                     logger.info(f"[DynamicScheduler] 触发嵌套工具 {tool_name} (参数: {tool_params})")
 
-                    res = await self._invoke_tool(func, tool_params, event)
-                    await self._send_tool_result(task, res)
+                    sig = inspect.signature(func)
+                    kwargs_to_pass = dict(tool_params)
+                    if "bot" in sig.parameters and "bot" not in kwargs_to_pass:
+                        kwargs_to_pass["bot"] = bot
+                    if "event" in sig.parameters and "event" not in kwargs_to_pass:
+                        kwargs_to_pass["event"] = event
+                    if "config" in sig.parameters and "config" not in kwargs_to_pass:
+                        kwargs_to_pass["config"] = config
+
+                    # 参数过滤：如果函数不接收 **kwargs，过滤掉未声明的参数
+                    has_var_kw = any(p.kind == inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values())
+                    if not has_var_kw:
+                        kwargs_to_pass = {k: v for k, v in kwargs_to_pass.items() if k in sig.parameters}
+
+                    if asyncio.iscoroutinefunction(func):
+                        res = await func(**kwargs_to_pass)
+                    else:
+                        res = func(**kwargs_to_pass)
+                        if inspect.isawaitable(res):
+                            res = await res
+
+                    # 若工具返回了字符串或消息结果，协助发送
+                    if res is not None and bot:
+                        if isinstance(res, str) and res.strip():
+                            if task.target_type == "private":
+                                await bot.send_friend_message(task.target_id, [Text(res)])
+                            else:
+                                await bot.send_group_message(task.target_id, [Text(res)])
+                        elif isinstance(res, (list, tuple)) and len(res) > 0:
+                            if task.target_type == "private":
+                                await bot.send_friend_message(task.target_id, list(res))
+                            else:
+                                await bot.send_group_message(task.target_id, list(res))
                 else:
-                    raise LookupError(f"工具 {tool_name} 未找到或不可调用")
+                    logger.error(f"[DynamicScheduler] 工具 {tool_name} 未找到或不可调用")
 
             # 2. 自然语言 / 提示词触发生成个性化消息（早安、叫起床、喝水提醒等）或需要由LLM生成的任务
             elif task.action_type in ("message", "prompt", "reminder", "morning_greeting", "night_greeting"):
@@ -976,10 +918,6 @@ class DynamicScheduler:
 
         except Exception as e:
             logger.error(f"[DynamicScheduler] 执行任务 {task.task_id} 出错: {e}", exc_info=True)
-            try:
-                await self._send_tool_result(task, f"定时任务「{task.description}」执行失败，请检查工具名称、参数和日志。")
-            except Exception:
-                logger.exception(f"[DynamicScheduler] 任务 {task.task_id} 失败通知发送失败")
         finally:
             self._running_tasks.discard(task.task_id)
 
@@ -1300,7 +1238,7 @@ class DynamicScheduler:
                 ) as cursor:
                     rows = await cursor.fetchall()
                     for row in rows:
-                        t = ScheduledTask.from_row(row)
+                        t = ScheduledTask(**dict(row))
                         if t.task_id not in self._running_tasks:
                             tasks_to_run.append(t)
 
