@@ -43,6 +43,7 @@ from framework_common.framework_util.yamlLoader import YAMLManager
 from framework_common.utils.utils import download_img, get_img
 
 from run.core_reply.service.trigger import TriggerChecker
+from run.core_reply.service.message_identity import resolve_message_text, sender_display_name
 from run.core_reply.service.reply_engine import ReplyEngine
 
 
@@ -58,7 +59,7 @@ def compress_image_to_b64(file_path: str, quality: int = 70) -> str:
         return base64.b64encode(buf.getvalue()).decode("utf-8")
 
 
-async def extract_message_content(event, bot) -> tuple:
+async def extract_message_content(event, bot, message_text=None) -> tuple:
     """
     从消息链中提取文本和图片，构建 OpenAI 多模态 content 列表。
     返回 (pure_text: str, content: str | list)
@@ -68,7 +69,8 @@ async def extract_message_content(event, bot) -> tuple:
     新增：自动检测消息链中的 Reply 组件，通过 bot.get_msg() 拉取被引用消息，
     提取其中的图片一并注入 content，让 LLM 能"看到"用户引用的图。
     """
-    text_parts = []
+    resolved_text = message_text if message_text is not None else await resolve_message_text(event, bot)
+    text_parts = [resolved_text] if resolved_text else []
     image_items = []
 
     # ── 第一步：检测 Reply 组件，拉取被引用消息中的图片 ──
@@ -127,14 +129,8 @@ async def extract_message_content(event, bot) -> tuple:
     for msg in event.message_chain:
         if isinstance(msg, Reply):
             continue  # 已在上方处理
-        if isinstance(msg, Text):
-            text_parts.append(msg.text)
-        elif isinstance(msg, At):
-            # Preserve every mention in the multimodal text passed to
-            # TriggerChecker/LLM, including its stable QQ identifier.
-            qq = int(msg.qq)
-            name = getattr(msg, "name", None) or ("全体成员" if qq == 0 else str(qq))
-            text_parts.append(f"[@{name}，QQ: {qq}]")
+        if isinstance(msg, (Text, At)):
+            continue  # 文本和艾特身份已统一解析，避免重复追加
         elif isinstance(msg, (Image, Mface)):
             try:
                 url = await get_img(event, bot)
@@ -239,22 +235,6 @@ def main(bot: ExtendBot, config: YAMLManager):
         if not getattr(event, "message_chain", None) or not event.message_chain.has(At):
             return False
         return int(event.message_chain.get(At)[0].qq) != 0
-
-    def context_text(event, fallback: str = "") -> str:
-        """构建当前消息的结构化文本，明确保留每个 @ 的昵称和 QQ 号。"""
-        parts = []
-        at_index = 0
-        chain = getattr(event, "message_chain", None)
-        if chain:
-            for component in chain:
-                if isinstance(component, Text):
-                    parts.append(component.text)
-                elif isinstance(component, At):
-                    at_index += 1
-                    qq = int(component.qq)
-                    name = getattr(component, "name", None) or ("全体成员" if qq == 0 else str(qq))
-                    parts.append(f"[@{name}( id:{qq})]")
-        return "".join(parts).strip() or fallback.strip()
 
     def command_matches(text: str, command: str, has_at_target: bool) -> bool:
         if text == command or text.startswith(command + " "):
@@ -432,7 +412,8 @@ def main(bot: ExtendBot, config: YAMLManager):
     @bot.on(GroupMessageEvent)
     async def handle_group(event: GroupMessageEvent):
         text = event.pure_text or ""
-        message_context_text = context_text(event, text)
+        message_context_text = await resolve_message_text(
+            event, bot, config.common_config.basic_config["bot"])
 
         # 清理指令
         if await handle_clear_command(event, is_group=True):
@@ -440,9 +421,9 @@ def main(bot: ExtendBot, config: YAMLManager):
 
         async def add_to_context():
             """把消息存入旁观窗口（不触发回复时仍需感知群氛围）"""
-            if text.strip():
+            if message_context_text.strip():
                 try:
-                    user_name = event.sender.nickname
+                    user_name = sender_display_name(event)
                     engine.context.push_group_window(
                         event.group_id,
                         user_name,
@@ -470,12 +451,12 @@ def main(bot: ExtendBot, config: YAMLManager):
 
         if trigger._has_at(event, bot.id):
             should_reply = True
-            pure_text, content = await extract_message_content(event, bot)
+            pure_text, content = await extract_message_content(event, bot, message_text=message_context_text)
             clean_text = pure_text or "(艾特了你)"
 
         elif prefix_check(text, config.core_reply.config["trigger"]["prefix"]):
             should_reply = True
-            pure_text, content = await extract_message_content(event, bot)
+            pure_text, content = await extract_message_content(event, bot, message_text=message_context_text)
             clean_text = pure_text
 
         else:
@@ -495,8 +476,9 @@ def main(bot: ExtendBot, config: YAMLManager):
                 bot_self_id=bot.id,
                 bot_name=config.common_config.basic_config["bot"],
                 pure_text=text,
+                message_text=message_context_text,
             )
-            pure_text, content = await extract_message_content(event, bot)
+            pure_text, content = await extract_message_content(event, bot, message_text=message_context_text)
             if should_reply:
                 triggered_by_llm = True  # ← 由 LLM 语义触发，需严格限制回复长度
 

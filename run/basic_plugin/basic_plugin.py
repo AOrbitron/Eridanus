@@ -40,10 +40,15 @@ async def call_menu(bot, event, config):
 
 
 
-async def call_weather_query(bot, event, config, location=None):
-    user_info = await get_user(event.user_id, event.sender.nickname)
-    if location is None:
-        location = user_info.city
+async def call_weather_query(bot, event, config, location=None, city=None):
+    """Explicit location/city wins; otherwise use the current user's saved city."""
+    location = (location or city or "").strip()
+    if not location or location.lower() in {"无", "未设置", "none", "null"}:
+        # Scheduled AnyEvent has user_id but no sender.
+        user_info = await get_user(event.user_id)
+        location = (getattr(user_info, "city", None) or "").strip()
+    if not location or location.lower() in {"无", "未设置", "none", "null"}:
+        return {"result": "你还没有设置所在城市，请先发送“修改城市 城市名”，再查询天气。"}
     r = await weather_query(config.common_config.basic_config["proxy"]["http_proxy"],
                             config.basic_plugin.config["心知天气"]["api_key"], location)
     return {"result": r}
