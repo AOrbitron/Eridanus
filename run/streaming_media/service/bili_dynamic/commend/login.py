@@ -105,7 +105,11 @@ async def _bili_new_qr_login(bot=None, event=None):
             try:
                 import qrcode
 
-                fd, generated_qr_path = tempfile.mkstemp(prefix="bili_login_", suffix=".png")
+                cache_dir = os.path.join("data", "pictures", "cache")
+                os.makedirs(cache_dir, exist_ok=True)
+                fd, generated_qr_path = tempfile.mkstemp(
+                    prefix="bili_login_", suffix=".png", dir=cache_dir
+                )
                 os.close(fd)
                 try:
                     qrcode.make(qr_url).save(generated_qr_path)
@@ -126,8 +130,10 @@ async def _bili_new_qr_login(bot=None, event=None):
 
             if bot and event:
                 message = ["请扫描下方二维码登录喵"]
-                message.append(Image(file=qr_path) if qr_path else qr_url)
-                recall_id = await bot.send(event, message)
+                # message.append(Image(file=qr_path) if qr_path else qr_url)
+                # recall_id = await bot.send(event, message)
+                if qr_path is None: qr_path = qr_url
+                recall_id = await bot.send(event, ['请扫描下方二维码登录喵', Image(file=qr_path)])
             else:
                 print(qr_terminal)
                 print(qr_path)
@@ -248,15 +254,6 @@ async def bili_login_new(bot=None, event=None, cookies=None, is_save=True):
                 print(msg)
             return None
 
-    # Test mode deliberately returns before date/data initialization, which
-    # keeps it independent of the database and of follow/group side effects.
-    if not is_save:
-        if bot and event:
-            if recall_id:
-                await bot.recall(recall_id["data"]["message_id"])
-            await bot.send(event, "B站登录成功喵（测试模式，未写入数据库）")
-        return cookies
-
     day_info = await date_get()
     info = await data_init()
     info["cookies"]["sessdata"] = cookies["SESSDATA"]
@@ -274,7 +271,7 @@ async def bili_login_new(bot=None, event=None, cookies=None, is_save=True):
             await bot.recall(recall_id["data"]["message_id"])
         recall_id = await bot.send(event, msg)
     logger.info(msg)
-
+    msg = ''
     credential = Credential(
         sessdata=cookies["SESSDATA"],
         bili_jct=cookies["bili_jct"],
@@ -305,7 +302,8 @@ async def bili_login_new(bot=None, event=None, cookies=None, is_save=True):
         logger.error(f"用户关注分组创建失败: {exc}")
         if bot and event:
             await bot.send(event, msg)
-        await data_save(info)
+        if is_save:
+            await data_save(info)
         return cookies
 
     up_lists = [
@@ -316,28 +314,32 @@ async def bili_login_new(bot=None, event=None, cookies=None, is_save=True):
     ]
     if not up_lists:
         if bot and event:
-            await bot.send(event, msg + "您此后所有订阅up都将分入此组")
-        await data_save(info)
+            await bot.send(event, msg + "您此后所有订阅up都将分入此组喵")
+        if is_save: await data_save(info)
         return cookies
 
     try:
+        update_flag = False
         for up in up_lists:
             up_info = user.User(up, credential)
             relation = await up_info.get_relation()
+            #print(relation)
             if relation["relation"]["attribute"] not in [2, 6]:
+                update_flag = True
                 await up_info.modify_relation(user.RelationType(1))
+        if update_flag: await asyncio.sleep(5)
         await set_subscribe_group(up_lists, [info["cookies"]["subscribe_group_id"]], credential)
     except Exception as exc:
         msg += "\n相关up关注失败喵，bot订阅up请手动关注喵"
         logger.error(f"用户up主批量关注失败: {exc}")
         if bot and event:
             await bot.send(event, msg)
-        await data_save(info)
+        if is_save: await data_save(info)
         return cookies
 
     if bot and event:
         await bot.send(event, msg + "所有订阅up都已完成关注并分组喵")
-    await data_save(info)
+    if is_save: await data_save(info)
     return cookies
 
 
