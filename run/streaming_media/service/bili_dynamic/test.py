@@ -15,10 +15,10 @@ async def test():
     #pprint.pprint(info)
 
     #await data_delete(7071924)
-    #info = await bili_login_new(is_save=False)
+    info = await bili_login_new(is_save=False)
     # info = await data_init()
 
-    #pprint.pprint(info)
+    pprint.pprint(info)
     # print(await check_credential())
     # print(await upgrade_credential())
 
