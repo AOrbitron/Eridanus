@@ -56,6 +56,8 @@ retrieval:
   query_cache_size: 256
   anchor_seconds: 1800
   ambiguity_margin: 0.08
+  user_background_facts: 8  # 当前发言者固定背景事实条数；0关闭此项固定注入
+  bot_background_facts: 8   # Bot固定自身事实条数；0关闭此项固定注入
   top_k: 8
   min_similarity: 0.35
   max_prompt_tokens: 1500  # 充足的token预算，彻底消除截断

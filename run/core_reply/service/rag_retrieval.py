@@ -206,6 +206,8 @@ class EpisodeRetrieval:
         top_k = max(1, int(cfg.get("top_k", 10)))
         min_sim = float(cfg.get("min_similarity", 0.30))
         max_prompt_chars = int(cfg.get("max_prompt_chars", 1200))
+        user_background_limit = max(0, int(cfg.get("user_background_facts", 8)))
+        bot_background_limit = max(0, int(cfg.get("bot_background_facts", 8)))
 
         # -------------------------------------------------------------
         # 1.5 无条件背景事实召回 (Background Identity, Alias & Profile Facts)
@@ -225,8 +227,8 @@ class EpisodeRetrieval:
                   AND target_id='global' AND ended IS NULL
                   AND category NOT IN ('relationship', 'alias', 'nickname')
                 ORDER BY CASE WHEN category='qzone_daily' THEN 0 ELSE 1 END,
-                         updated_at DESC, id DESC LIMIT 8
-            """, (self._namespace,)).fetchall()
+                         updated_at DESC, id DESC LIMIT ?
+            """, (self._namespace, bot_background_limit)).fetchall()
 
         for text, category in self._run_db(fetch_bot_background):
             text = text.strip()
@@ -250,8 +252,9 @@ class EpisodeRetrieval:
                         ELSE 2 
                       END,
                       created DESC
-                    LIMIT 8
-                """, (f"user:{user_id_str}", current_scope, user_id_str, self._namespace)).fetchall()
+                    LIMIT ?
+                """, (f"user:{user_id_str}", current_scope, user_id_str, self._namespace,
+                       user_background_limit)).fetchall()
 
             try:
                 bg_rows = self._run_db(fetch_user_background_facts)
@@ -341,10 +344,14 @@ class EpisodeRetrieval:
             query_sql = f"""
                 SELECT id, scope, text, vector, created, ended, user_id, fact_type, category, target_id, target_name
                 FROM memories
-                WHERE scope IN ({placeholders}) AND namespace=? AND vector IS NOT NULL AND ended IS NULL
-                ORDER BY COALESCE(ended, created) DESC LIMIT 200
+                WHERE scope IN ({placeholders}) AND namespace=? AND vector IS NOT NULL
+                  AND (COALESCE(fact_type, 'episode') = 'episode' OR ended IS NULL)
+                ORDER BY COALESCE(ended, created) DESC
             """
             params = list(unique_scopes) + [self._namespace]
+            # For facts, ended means superseded; for episodes it is the last
+            # message timestamp. Rank all eligible history, not just the latest
+            # 200 rows (which can be dominated by unrelated background facts).
             rows = self._run_db(lambda db: db.execute(query_sql, params).fetchall())
 
             if rows:
@@ -508,7 +515,7 @@ class EpisodeRetrieval:
                     lines.append(item)
                     cur_len += len(item)
                 else:
-                    break
+                    continue  # A long episode must not hide shorter matches.
             if lines:
                 sections.append(header + "".join(lines).strip())
 
