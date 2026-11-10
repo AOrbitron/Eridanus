@@ -55,7 +55,7 @@ async def initialize_db():
                 card TEXT,
                 sex TEXT DEFAULT '0',
                 age INTEGER DEFAULT 0,
-                city TEXT DEFAULT '通辽',
+                city TEXT DEFAULT '无',
                 permission INTEGER DEFAULT 0,
                 signed_days TEXT,
                 registration_date TEXT,
@@ -71,7 +71,7 @@ async def initialize_db():
                 'card': 'TEXT',
                 'sex': 'TEXT DEFAULT "0"',
                 'age': 'INTEGER DEFAULT 0',
-                'city': 'TEXT DEFAULT "通辽"',
+                'city': 'TEXT DEFAULT "无"',
                 'permission': 'INTEGER DEFAULT 0',
                 'signed_days': 'TEXT',
                 'registration_date': 'TEXT',
@@ -127,7 +127,7 @@ class User:
                 f"portrait_update_time={self.portrait_update_time})")
 
 
-async def add_user(user_id, nickname, card, sex="0", age=0, city="通辽", permission=0, ai_token_record=0):
+async def add_user(user_id, nickname, card, sex="0", age=0, city="无", permission=0, ai_token_record=0):
     """添加新用户"""
     # 确保数据库已初始化
     await ensure_db_initialized()
@@ -198,7 +198,7 @@ async def get_user(user_id, nickname="", times=1) -> User:
             "card": "00000",
             "sex": "0",
             "age": 0,
-            "city": "通辽",
+            "city": "无",
             "permission": 0,
             "signed_days": "[]",
             "registration_date": datetime.date.today().isoformat(),

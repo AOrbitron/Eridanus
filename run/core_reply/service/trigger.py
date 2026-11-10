@@ -15,6 +15,7 @@ import httpx
 from typing import Tuple, Dict, List, Optional, Any
 from developTools.event.events import GroupMessageEvent, PrivateMessageEvent
 from developTools.message.message_components import At, Text
+from run.core_reply.service.message_identity import render_message_text, sender_display_name
 from developTools.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -74,6 +75,7 @@ class TriggerChecker:
         bot_self_id: int,
         bot_name: str,
         pure_text: str,
+        message_text: Optional[str] = None,
     ) -> Tuple[bool, str]:
         """
         判断是否触发（异步），返回 (should_reply, clean_text)
@@ -89,7 +91,8 @@ class TriggerChecker:
         is_reply = self._is_reply_to_bot(event, bot_self_id)
 
         # 净化文本（去除残留的@字符）
-        clean_text = self._remove_at_segments(event, text, bot_name, bot_self_id)
+        clean_text = (message_text.strip() if message_text is not None else
+                      self._remove_at_segments(event, text, bot_name, bot_self_id))
         if not clean_text:
             return False, text  # 无法提取文本时，默认不回复，但返回原始文本以供记录
 
@@ -116,7 +119,7 @@ class TriggerChecker:
         # 未开启窗口时，回退到单条判定
         batch_item = {
             "event": event,
-            "sender_name": getattr(getattr(event, "sender", None), "nickname", f"用户{user_id}"),
+            "sender_name": sender_display_name(event),
             "clean_text": clean_text,
             "user_id": user_id,
             "is_reply": is_reply,
@@ -140,7 +143,7 @@ class TriggerChecker:
         """将群消息投递入时间窗口中，等待窗口期结束一同批处理评估"""
         loop = asyncio.get_running_loop()
         item_future = loop.create_future()
-        sender_name = getattr(getattr(event, "sender", None), "nickname", f"用户{user_id}")
+        sender_name = sender_display_name(event)
 
         item = {
             "event": event,
@@ -309,6 +312,8 @@ class TriggerChecker:
 
 【机器人当前状态】
 名字/别名：{self.bot_persona_name or bot_name} / {self.aliases}
+机器人自身 QQ/ID：{bot_self_id}
+艾特标注中的 QQ/ID 是实际目标；标注“非机器人”或“全体成员”不等于在对机器人说话。
 当前心情状态：{current_mood} (心情分数：{current_score}，-100为极差，100为极好)
 
 【群聊前序聊天上下文（近期背景）】
@@ -461,30 +466,9 @@ class TriggerChecker:
             qq = getattr(seg, "qq", None)
             if qq is None:
                 qq = (getattr(seg, "data", {}) or {}).get("qq")
-            if str(qq) in {str(bot_self_id), "1000000"} or (hasattr(event, "group_id") and str(event.group_id).startswith("11111")):
+            if str(qq) == str(bot_self_id):
                 return True
         return False
     @staticmethod
     def _remove_at_segments(event, text: str, bot_name: str, bot_self_id: int) -> str:
-        # Rebuild from every segment so multiple At/Text parts are retained
-        # in their original order (the old implementation only used [0]).
-        chain = event.message_chain
-        parts = []
-        for seg in chain:
-            if isinstance(seg, Text):
-                parts.append(seg.text)
-            elif isinstance(seg, At):
-                qq = seg.qq
-                name = getattr(seg, "name", None) or str(qq or "")
-                if str(qq) in {str(bot_self_id), "1000000"}:
-                    logger.info(f"[TriggerChecker] 消息中包含@机器人自己的At，已替换为 '@{bot_name}'")
-                    continue
-                else:
-                    parts.append(f"[@{name}，QQ: {qq}]")
-        if parts:
-            text = "".join(parts)
-        if not chain.has(Text) and not chain.has(At):
-            logger.warning(f"[TriggerChecker] 无法提取文本内容，消息链中既没有 Text 也没有 At，原始消息链: {event.message_chain}")
-            return None
-        logger.info(f"清洗后的text: {text}")
-        return text
+        return render_message_text(event, bot_self_id, bot_name, fallback=text)

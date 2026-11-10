@@ -12,18 +12,16 @@ dynamic_imports = {
 function_declarations=[
     {
         "name": "call_weather_query",
-        "description": "Get the current weather in a given location.",
+        "description": "查询天气。",
         "parameters": {
             "type": "object",
             "properties": {
                 "location": {
                     "type": "string",
-                    "description": "The city and state, e.g. 上海"
+                    "description": "可选，指定要查询的城市，未指定 location 时，自动读取当前用户数据库中城市数据"
                 }
             },
-            "required": [
-                "location"
-            ]
+            "required": []
         }
     },
     {
