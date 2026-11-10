@@ -291,7 +291,7 @@ class GroupFunHandler:
             '透群主': {'persona': 1, 'check': 'owner'},
             '透管理': {'persona': 2, 'check': 'admin'},
             '透群友': {'persona': 3, 'check': None},
-            '透': {'persona': 3, 'check': None},
+            #'透': {'persona': 3, 'check': None},
             '娶群友': {'persona': 4, 'check': None},
             '离婚': {'persona': 'divorce', 'check': None},
             '/今日群主': {'persona': 5, 'check': 'owner'}
@@ -306,9 +306,12 @@ class GroupFunHandler:
     async def handle_message(self, event):
         """主消息处理入口"""
         context = event.pure_text or event.raw_message
-
+        if event.message_chain.has(At) and event.message_chain.has(Text):
+            userid, context = event.message_chain.get(At)[0].qq, event.message_chain.get(Text)[0].text
+            context = f'{context} {userid}'
+            #print(context)
         # 检查前缀 - 如果前缀不匹配，直接返回，不执行任何后续逻辑
-        if not context or self.wife_prefix not in context:
+        if not context or not context.startswith(self.wife_prefix):
             return
 
         self.bot.logger.debug(f"透群友功能触发，消息内容: {context}")
@@ -406,7 +409,7 @@ class GroupFunHandler:
     async def _get_target_user(self, event, context, persona, from_id, target_group):
         """获取目标用户ID"""
         existing_wife = None
-
+        #print(context)
         # 处理娶群友的特殊逻辑
         if persona == 4:
             try:
@@ -415,9 +418,10 @@ class GroupFunHandler:
                     return existing_wife, existing_wife
             except Exception:
                 pass
-
+        #print(context)
         # 解析指定目标
         target_id = await self._parse_target_from_context(event, context, persona)
+        #print(target_id)
         if target_id:
             # 验证目标用户 (85%概率通过)
             if random.randint(1, 20) > 3:
@@ -438,9 +442,9 @@ class GroupFunHandler:
             return int(name_id_number.group())
 
         # 按昵称搜索
-        search_term = self._extract_search_term(context)
-        if search_term:
-            return await self._search_member_by_name(event.group_id, search_term)
+        # search_term = self._extract_search_term(context)
+        # if search_term:
+        #     return await self._search_member_by_name(event.group_id, search_term)
 
         return None
 
@@ -568,7 +572,7 @@ class GroupFunHandler:
             1: lambda times: [
                 f'@{from_name} 恭喜你涩到群主！！！！',
                 Image(file=target_img),
-                f'群主【{target_name}】今天这是第{times}次被透了呢'
+                f'群主【{target_name}】这是第{times}次被透了呢'
             ],
             2: lambda: [
                 f'@{from_name} 恭喜你涩到管理！！！！',

@@ -53,7 +53,9 @@ def main(bot, config):
         if event.message_chain.has(At) and event.message_chain.has(Text):
             userid, context = event.message_chain.get(At)[0].qq, event.message_chain.get(Text)[0].text
         if context.lower().startswith('steambind '):
-            steamid=get_steam_id(context.replace('steambind ', ''))
+            #print(context)
+            steamid=get_steam_id(context.replace('steambind ', '').strip())
+            #print(steamid)
             if not steamid:
                 await bot.send(event, '请输入正确的 Steam ID 或 Steam好友代码，格式: steambind [Steam ID 或 Steam好友代码]')
                 return
