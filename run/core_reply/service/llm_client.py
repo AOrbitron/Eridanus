@@ -139,7 +139,7 @@ class LLMClient:
         for _round in range(self.max_tool_rounds):
             payload = {
                 "model": self._oa_model if not model else model,
-                "messages": full_messages,
+                "messages": self._build_openai_messages(full_messages),
 
                 #"max_tokens": self._oa_max_tokens,
                 "stream": True
@@ -320,7 +320,7 @@ class LLMClient:
         accumulated_text = ""
         for _round in range(self.max_tool_rounds):
             payload: Dict[str, Any] = {
-                "model": temp_model, "messages": full_messages,
+                "model": temp_model, "messages": self._build_openai_messages(full_messages),
                 #"max_tokens": self._oa_max_tokens,
             }
             if not self.no_extra_paramters:
@@ -410,6 +410,15 @@ class LLMClient:
     # ==================================================================
     # 辅助构建与执行方法
     # ==================================================================
+    @staticmethod
+    def _build_openai_messages(messages: List[Dict]) -> List[Dict]:
+        """Copy messages for transport, leaving local activity metadata intact."""
+        return [
+            {key: value for key, value in message.items()
+             if key not in ("ts", "hour", "timestamp")}
+            for message in messages
+        ]
+
     def _build_gemini_contents(self, messages: List[Dict]) -> List[Dict]:
         contents = []
         for msg in messages:
