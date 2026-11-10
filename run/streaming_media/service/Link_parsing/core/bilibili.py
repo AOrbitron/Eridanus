@@ -506,6 +506,7 @@ async def bilibili(url,filepath=None,is_twice=None,type=None,credential_bili=Non
         video_url, audio_url = None, None
         if credential_bili is not None:
             for stream in streams:
+                #print(stream.video_quality)
                 if hasattr(stream, 'video_quality') and video_url is None and stream.video_quality == VideoQuality._1080P:
                     video_url = stream.url
                     #print(stream.video_quality)

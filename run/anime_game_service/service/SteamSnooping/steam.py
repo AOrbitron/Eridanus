@@ -4,8 +4,9 @@ from pathlib import Path
 from bs4 import BeautifulSoup
 from typing import List, Optional
 from datetime import datetime, timezone
-
-
+import pprint
+from developTools.utils.logger import get_logger
+logger=get_logger("SteamSnooping")
 
 STEAM_ID_OFFSET = 76561197960265728
 
@@ -37,7 +38,7 @@ async def get_steam_users_info(
             )
             result["response"]["players"].extend(batch_result["response"]["players"])
         return result
-
+    #print(steam_ids)
     for api_key in steam_api_key:
         try:
             async with httpx.AsyncClient(proxy=proxy) as client:
@@ -47,13 +48,10 @@ async def get_steam_users_info(
                 if response.status_code == 200:
                     return response.json()
                 else:
-                    if bot:
-                        bot.logger.error(f"API key {api_key} failed to get steam users info.")
+                    logger.error(f"API key {api_key} failed to get steam users info.")
         except httpx.RequestError as exc:
-            if bot:
-                bot.logger.error(f"API key {api_key} encountered an error: {exc}")
-    if bot:
-        bot.logger.error("All API keys failed to get steam users info.")
+            logger.error(f"API key {api_key} encountered an error: {exc}")
+    logger.error("All API keys failed to get steam users info.")
     return {"response": {"players": []}}
 
 
@@ -75,7 +73,7 @@ async def _fetch(
         return default
 
 
-async def get_user_data(steam_id: int, proxy='http://127.0.0.1:7890'):
+async def get_user_data(steam_id: int, proxy='http://127.0.0.1:20172'):
     url = f"https://steamcommunity.com/profiles/{steam_id}"
     default_background = (Path(__file__).parent / "res/bg_dots.png")
     default_avatar = (Path(__file__).parent / "res/unknown_avatar.jpg")
@@ -201,21 +199,27 @@ async def get_user_data(steam_id: int, proxy='http://127.0.0.1:7890'):
             achievement_info["image_url"] = achievement.find("img")["src"]
             achievements.append(achievement_info)
         game_info["achievements"] = achievements
-        game_info_achievement_summary = game.find(
-            "span", class_="game_info_achievement_summary"
-        )
-        if game_info_achievement_summary is None:
-            game_data.append(game_info)
-            continue
-        remain_achievement_text = game_info_achievement_summary.find(
-            "span", class_="ellipsis"
-        ).text
-        game_info["completed_achievement_number"] = int(
-            remain_achievement_text.split("/")[0].strip()
-        )
-        game_info["total_achievement_number"] = int(
-            remain_achievement_text.split("/")[1].strip()
-        )
+        try:
+            game_info_achievement_summary = game.find(
+                "span", class_="game_info_achievement_summary"
+            )
+            if game_info_achievement_summary is None:
+                game_data.append(game_info)
+                continue
+            #pprint.pprint(game_info_achievement_summary)
+            remain_achievement_text = game_info_achievement_summary.find(
+                "span", class_="ellipsis"
+            ).text
+            game_info["completed_achievement_number"] = int(
+                remain_achievement_text.split("/")[0].strip()
+            )
+            game_info["total_achievement_number"] = int(
+                remain_achievement_text.split("/")[1].strip()
+            )
+        except:
+            #上文获取失败，此处数据似乎并未用到，设定为0
+            game_info["completed_achievement_number"] = 0
+            game_info["total_achievement_number"] = 0
 
         game_data.append(game_info)
 
@@ -236,21 +240,27 @@ async def date_get():
     return return_json
 
 async def test():
-    proxies = {
-        "http://": "http://127.0.0.1:7890",
-        "https://": "http://127.0.0.1:7890"
-    }
-    async with httpx.AsyncClient(proxies=proxies) as client:
-        r = await client.get("https://avatars.steamstatic.com/9cf396a0da9cb87d7faefe58feeae7acf6e2b363_full.jpg", timeout=10.0)
-        print(r.status_code)
 
+    proxies = {
+        "http://": "http://127.0.0.1:20172",
+        "https://": "http://127.0.0.1:20172"
+    }
+    # async with httpx.AsyncClient(proxies=proxies) as client:
+    #     r = await client.get("https://avatars.steamstatic.com/9cf396a0da9cb87d7faefe58feeae7acf6e2b363_full.jpg", timeout=10.0)
+    #     print(r.status_code)
+
+    info = await get_steam_users_info(['76561199025034455'],['A3780E7FA6FEB3C9E0A17DE6E2A51CFF'],None,"http://127.0.0.1:20172")
+    pprint.pprint(info)
 
 if __name__ == "__main__":
     import asyncio
+    asyncio.run(test())
 
-    #asyncio.run(test())
-    data = asyncio.run(get_user_data(76561199025034455))
-    for item in data:print(item,data[item])
-    print(data['avatar_url'])
+    # data = asyncio.run(get_user_data(76561199025034455))
+    # pprint.pprint(data)
+    # for item in data:print(item,data[item])
+    # print(data['avatar_url'])
+
+    #data = asyncio.run(get_steam_users_info(76561199025034455))
 
 

@@ -46,7 +46,7 @@ def main(bot, config):
         if userid != config.common_config.basic_config["master"]["id"]:
             await bot.send(event, '您非超级管理员喵')
             return
-        await bili_login(bot,event)
+        await bili_login_new(bot,event)
 
     # B站手动登录
     @bot.on(GroupMessageEvent)
