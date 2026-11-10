@@ -183,7 +183,7 @@ async def steamsnoopall(bot, config, db, steam_api_key):
                         logger.error(f"Notification task {i} failed: {result}")
 
         except Exception as e:
-            bot.logger.error(f"Steam视奸检测出错：{e}\n{traceback.format_exc()}")
+            logger.error(f"Steam视奸检测出错：{e}\n{traceback.format_exc()}")
             continue
 
         logger.info("steam用户活动检查完成")

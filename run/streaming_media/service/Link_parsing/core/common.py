@@ -35,7 +35,7 @@ GENERAL_REQ_LINK = "http://47.99.158.118/video-crack/v2/parse?content={}"
 # 解析列表文件名
 RESOLVE_SHUTDOWN_LIST_NAME = "resolver_shutdown_list"
 
-json_init={'status':False,'content':{},'reason':{},'pic_path':{},'url':{},'video_url':False,'soft_type':False,'pic_url_list':[],'code':0}
+json_init={'status':False,'content':{},'reason':{},'pic_path':{},'url':{},'video_url':False,'audio_url':False,'soft_type':False,'pic_url_list':[],'code':0}
 filepath_init=f'{os.path.dirname(os.path.dirname(os.path.abspath(inspect.getfile(bili_init))))}/data/cache/'
 if not os.path.exists(filepath_init):  # 初始化检测文件夹
     os.makedirs(filepath_init)
@@ -216,22 +216,56 @@ async def download_img(url: str, path: str = '', proxy: str = None, session=None
 
 
 
-async def download_audio(url):
-    # 从URL中提取文件名
+async def download_audio(url: str, path: str = '', proxy: str = None, headers=None) -> str:
+    """流式下载音频文件并返回本地路径。
+
+    音频链接通常是带查询参数的临时 CDN 地址，因此文件名只取 URL 路径部分。
+    ``path``、``proxy`` 和 ``headers`` 均为可选参数，保持了旧调用方式的兼容性。
+    """
+    if not isinstance(url, str) or not url.strip():
+        raise ValueError("音频下载地址不能为空")
+
     parsed_url = urlparse(url)
-    file_name = parsed_url.path.split('/')[-1]
-    # 去除可能存在的请求参数
-    file_name = file_name.split('?')[0]
+    file_name = os.path.basename(parsed_url.path)
+    if not file_name:
+        file_name = f"{int(time.time() * 1000)}.m4s"
+    if '.' not in file_name:
+        file_name += '.m4s'
+    # 避免 URL 文件名中的路径分隔符或 Windows 保留字符污染本地路径。
+    file_name = re.sub(r'[<>:"/\\|?*]', '_', file_name)
 
-    path = os.path.join(os.getcwd(), file_name)
+    path = path or os.getcwd()
+    os.makedirs(path, exist_ok=True)
+    full_path = os.path.join(path, file_name)
+    request_headers = headers or COMMON_HEADER
+    client_config = {
+        'headers': request_headers,
+        'timeout': httpx.Timeout(60, connect=5.0),
+        'follow_redirects': True,
+    }
+    if proxy:
+        # 项目依赖的 httpx 版本使用 ``proxies`` 参数（0.28 之前）。
+        client_config['proxies'] = proxy
 
-    async with httpx.AsyncClient() as client:
-        response = await client.get(url)
-        response.raise_for_status()  # 检查请求是否成功
-
-        async with aiofiles.open(path, 'wb') as file:
-            await file.write(response.content)
-    return path
+    download_completed = False
+    try:
+        async with httpx.AsyncClient(**client_config) as client:
+            async with client.stream('GET', url) as response:
+                response.raise_for_status()
+                async with aiofiles.open(full_path, 'wb') as file:
+                    async for chunk in response.aiter_bytes():
+                        await file.write(chunk)
+                download_completed = True
+        return full_path
+    except Exception:
+        if download_completed and os.path.isfile(full_path) and os.path.getsize(full_path) > 0:
+            return full_path
+        if os.path.isfile(full_path):
+            try:
+                os.remove(full_path)
+            except OSError:
+                pass
+        raise
 
 
 def delete_boring_characters(sentence):
