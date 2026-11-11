@@ -1,65 +1,63 @@
-enable: false  # RAG 为独立的长期记忆系统，既可单用，也可与 impression/slots 共存。
+enable: false  # RAG 总开关
 integration_mode: replace  # replace: 回复只注入RAG；augment: 与旧记忆叠加（不保证省token）
 db_path: data/dataBase/mai_rag_memory.db
 private:
   enable: true
 group:
   enable: true
-  whitelist_enabled: false  # false全开群；true配合下方名单，为空时自动读取trigger_llm白名单群
+  whitelist_enabled: false # false全开群；true配合下方名单，为空时自动读取trigger_llm白名单群
   whitelist: []
-  observe_untriggered: true  # 旁观消息也做语义分析并参与检索，但绝不替群友抢答
-embedding:
-  provider: openai  # cloudflare: Workers AI；openai: 兼容接口 / 本地 Embedding 服务
-  base_url: http://api.apollodorus.xyz/v1
-  endpoint: embeddings
-  model: qwen3-embedding-4b
-  api_key: ''
-  api_key_env: MAI_RAG_API_KEY  # 运行时优先读取环境变量
+  observe_untriggered: true  # 是否把未触发回复的群消息加入归档缓冲；不直接生成回复
+embedding:  # 记忆入库和查询使用的向量接口设置
+  provider: openai  # openai/cloudflare
+  base_url: http://api.apollodorus.xyz/v1  # OpenAI 兼容向量接口的根地址，需包含服务要求的 /v1 等路径
+  endpoint: embeddings  # OpenAI 兼容接口子路径，与 base_url 拼接后请求
+  model: qwen3-embedding-4b  # OpenAI 兼容接口请求的向量模型名
+  api_key: ''  # OpenAI 兼容接口密钥；此值非空时优先使用
   timeout_seconds: 15
-  dimensions: 2560  # qwen3-embedding-4b 维度
-  query_instruction: Given a conversation query, retrieve relevant past conversations and memories
-  cloudflare:
-    account_id: ''
+  dimensions: 2560  # 仅参与 OpenAI 向量命名空间隔离，不控制接口返回维度
+  query_instruction: Given a conversation query, retrieve relevant past conversations and memories  # 仅查询向量添加的文本前缀；入库向量不添加
+  cloudflare:  # provider 为 cloudflare 时使用的向量服务设置
+    account_id: ''  # Cloudflare 账户 ID，用于请求地址和向量命名空间
     model: '@cf/baai/bge-m3'
-    api_token: ''
-    api_token_env: CLOUDFLARE_API_TOKEN
+    api_token: ''  # Cloudflare API Token；此值非空时优先使用
     timeout_seconds: 30
-    query_instruction: ''
-fact_extraction:  # 原子事实提取模型；各项留空时分别继承 config.yaml 的 trigger_llm
-  base_url: ''  # OpenAI 兼容接口地址，包含 /v1（若服务需要）
+    query_instruction: ''  # BGE-M3: no instruction needed; optional query prefix, Cloudflare only
+fact_extraction:  # 从归档对话提取事实的聊天模型设置；空项逐项继承 trigger_llm
+  base_url: ''
   api_key: ''
   model: ''
-archive:
-  private_turns: 6  # 每6轮完整用户/Bot对话归档一次并抽取Mem0原子事实
-  group_messages: 10  # 群内累计15条用户消息归档，Bot发言一起沉淀
-  idle_seconds: 600  # 超过阈值但尾部空闲10分钟后归档；0表示关闭空闲补归档
+archive:  # 对话缓冲与历史片段归档设置
+  private_turns: 6  # 私聊缓冲累计多少条 Bot 回复后归档
+  group_messages: 10  # 群聊缓冲累计多少条用户消息后归档
+  idle_seconds: 600  # 写入时检查归档间隔，首次从入缓冲起算；超时且至少 2 条则归档，0 关闭
   max_buffer_chars: 6000
-  max_buffer_messages: 200
+  max_buffer_messages: 200  # 每个会话的缓冲消息上限，含用户和 Bot；超出丢弃最旧消息
   chunk_chars: 1800
   overlap_messages: 2
   context_gap_seconds: 1800
-index:
+index:  # 后台向量化索引设置
   max_message_chars: 16000
-  batch_size: 16
-  retry_seconds: 60
+  batch_size: 16  # 每批最多处理的待向量化记忆条数，至少为 1
+  retry_seconds: 60  # 向量化失败后的冷却秒数，最少为 5 秒
   max_pending: 10000
-logging:
-  enable: true
+logging:  # RAG 详细信息日志设置
+  enable: true  # 是否输出 RAG 详细 INFO 日志；警告和启动日志仍会输出
 retention:
   days: 365
   max_per_scope: 4000
-retrieval:
+retrieval:  # 固定背景事实、动态语义召回与段落打包设置
   mode: adaptive
   context_messages: 4
   context_chars: 700
-  query_cache_seconds: 300
-  query_cache_size: 256
-  anchor_seconds: 1800
-  ambiguity_margin: 0.08
-  user_background_facts: 8  # 当前发言者固定背景事实条数；0关闭此项固定注入
-  bot_background_facts: 8   # Bot固定自身事实条数；0关闭此项固定注入
-  top_k: 8
-  min_similarity: 0.35
-  max_prompt_tokens: 1500  # 充足的token预算，彻底消除截断
-  max_prompt_chars: 1200   # 充足的字符预算
-  timeout_seconds: 15.0
+  query_cache_seconds: 300  # 相同查询的向量缓存有效秒数
+  query_cache_size: 256  # 查询向量缓存条数上限，满时淘汰最早缓存；应大于 0
+  anchor_seconds: 1800  # 当前未读取，修改不影响召回
+  ambiguity_margin: 0.08  # 当前未读取，修改不影响召回
+  user_background_facts: 8  # 当前用户固定背景事实读取上限；0 关闭固定注入，仍可动态召回
+  bot_background_facts: 8  # Bot 固定自身事实读取上限；0 关闭固定注入，仍可动态召回
+  top_k: 8  # 动态候选总条数上限，事实和历史片段共用；至少为 1
+  min_similarity: 0.35  # 动态候选的向量相似度门槛；低于此值不召回
+  max_prompt_tokens: 1500  # 当前未读取；实际按 max_prompt_chars 限制
+  max_prompt_chars: 1200  # 各段条目打包的字符预算，含标题；不是整个 RAG 的总预算
+  timeout_seconds: 15.0  # 查询向量的最长等待秒数；超时仍可注入固定背景事实

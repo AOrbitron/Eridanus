@@ -406,12 +406,12 @@ class EpisodeArchive:
             placeholders = ",".join("?" for _ in exclude_ids)
             return db.execute(f"""
                 SELECT id, text, scope, fact_type FROM memories
-                WHERE vector IS NULL AND namespace=? AND id NOT IN ({placeholders})
+                WHERE (vector IS NULL OR namespace!=?) AND id NOT IN ({placeholders})
                 ORDER BY id ASC LIMIT ?
             """, [self._namespace, *exclude_ids, limit]).fetchall()
         return db.execute("""
             SELECT id, text, scope, fact_type FROM memories
-            WHERE vector IS NULL AND namespace=?
+            WHERE (vector IS NULL OR namespace!=?)
             ORDER BY id ASC LIMIT ?
         """, (self._namespace, limit)).fetchall()
 
