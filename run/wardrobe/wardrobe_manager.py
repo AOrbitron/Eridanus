@@ -34,7 +34,7 @@ logger = logging.getLogger("Wardrobe")
 
 YAML_CONFIG_PATH = os.path.join("run", "wardrobe", "config.yaml")
 OUTFITS_KEY = "outfits_v7"  # Stable configuration key; adding presets does not change it.
-RECENT_QZONE_OUTFIT_LIMIT = 15
+RECENT_QZONE_OUTFIT_LIMIT = 3
 RETIRED_DAILY_FIELDS = ("today_default_outfit", "today_default_tags", "today_default_no_hat", "last_daily_date")
 
 DEFAULT_CHARACTER_ANCHOR = (

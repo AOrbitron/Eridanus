@@ -1,5 +1,6 @@
 """The configured LLM chooses the outfit and scene directly from the full wardrobe."""
 import json
+import re
 from run.wardrobe.outfit_policy import validate_outfit_prompt
 
 
@@ -80,16 +81,35 @@ def post_scene_instruction(task_name):
     return "本次是日常动态。由你根据完整文案和主题选择合适穿搭和场景。"
 
 
+def parse_publish_response(response):
+    """Decode JSON or Qzone's JSON-in-HTML callback without executing JS."""
+    if isinstance(response, dict):
+        return response
+    if not isinstance(response, str):
+        return {}
+    try:
+        parsed = json.loads(response)
+    except ValueError:
+        # The HTML includes try/catch blocks before the actual payload, so a
+        # greedy brace match is not JSON. Decode only the known callback arg.
+        match = re.search(r'(?<![\w.])(?:frameElement\.callback|_Callback|callback)\s*\(', response)
+        if not match:
+            return {}
+        try:
+            parsed, end = json.JSONDecoder().raw_decode(response[match.end():].lstrip())
+        except ValueError:
+            return {}
+        if not response[match.end():].lstrip()[end:].lstrip().startswith(')'):
+            return {}
+    return parsed if isinstance(parsed, dict) else {}
+
+
 def commit_post_outfit(manager, selection, response, has_image):
     """Record this published outfit without creating a daily outfit constraint."""
     if not manager or not selection or not has_image:
         return False
-    if isinstance(response, str):
-        try:
-            response = json.loads(response)
-        except ValueError:
-            return False
-    if not isinstance(response, dict) or response.get("code") != 0:
+    response = parse_publish_response(response)
+    if response.get("code", response.get("ret")) != 0:
         return False
     manager.update_from_qzone_tags(selection["name"], selection["clothing_tags"],
                                    no_hat=selection.get("no_hat", False))
