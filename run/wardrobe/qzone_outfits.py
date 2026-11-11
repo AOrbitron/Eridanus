@@ -103,6 +103,16 @@ async def select_post_outfit(manager, llm, post_text, theme_desc, season_name=""
     if not llm:
         raise RuntimeError("Qzone 穿搭决策需要已配置的 LLM")
     candidates = manager.get_qzone_candidates() if manager else {}
+    recent = manager.get_recent_qzone_outfits() if manager else []
+    excluded = list(recent)
+    # Match theme deduplication: remove recently published outfits before the
+    # model chooses. For a small wardrobe, release oldest entries only as needed.
+    while candidates:
+        available = {key: obj for key, obj in candidates.items() if key not in excluded}
+        if available:
+            candidates = available
+            break
+        excluded.pop(0)
     counts = manager._data.get("qzone_outfit_usage", {}) if manager else {}
     catalog = [{"key": key, "description": obj.get("description", ""),
                 "occasion": obj.get("occasion", ""), "season": obj.get("season", "all"),
@@ -112,14 +122,16 @@ async def select_post_outfit(manager, llm, post_text, theme_desc, season_name=""
         character_anchor = manager.get_character_anchor() or character_anchor
         art_anchor = manager.get_art_anchor() or art_anchor
     seeds = outfit_seed_catalog()
-    response = await llm.chat(
-        messages=[{"role": "user", "content": (
+    messages = [{"role": "user", "content": (
             f"动态类型：{task_name}\n已确定的动态文案：{post_text}\n主题参考：{theme_desc}\n季节：{season_name}\n"
             f"character_anchor: {character_anchor}\nart_anchor: {art_anchor}\n"
             f"完整可选衣橱：{json.dumps(catalog, ensure_ascii=False)}\n"
+            f"近期已发布服饰（按时间先后）：{json.dumps(recent, ensure_ascii=False)}\n"
+            f"本次排除的近期服饰：{json.dumps(excluded, ensure_ascii=False)}\n"
             f"原生服饰设计种子：{json.dumps(seeds, ensure_ascii=False)}\n"
             f"{post_scene_instruction(task_name)}\n"
-            "每条动态独立设计，不沿用或受限于当天首条、上一条动态的着装；使用次数仅作为多样性参考。"
+            "每条动态独立设计，不沿用当天首条或上一条动态的着装。近期服饰已从可选衣橱排除，禁止重新选择或用自定义复刻；"
+            "在剩余衣橱中选择符合实际活动的款式，晚安睡裙也应轮换；使用次数仅作为多样性参考。"
             "正文已经发散完成。根据正文结果选择服饰款型，并从原生种子中选择一个最适合的style_id、"
             "一个palette_id和零到三个detail_ids，供下一步完成服饰提示词。"
             "衣橱提供服饰的款型和角色气质；style seed提供材质剪裁灵感，palette提供整套协调配色，details提供兼容的细节。"
@@ -134,8 +146,17 @@ async def select_post_outfit(manager, llm, post_text, theme_desc, season_name=""
             "\"style_id\":\"原生style的精确id\",\"palette_id\":\"原生palette的精确id\","
             "\"detail_ids\":[\"原生detail的精确id\"],"
             "\"scene_tags\":\"英文逗号分隔的场景tags\",\"no_hat\":true或false}"
-        )}], system_prompt="你负责空间动态的穿搭与配图决策。直接选服装并设计一致的场景，只输出一个JSON对象。")
+        )}]
+    system_prompt = "你负责空间动态的穿搭与配图决策。直接选服装并设计一致的场景，只输出一个JSON对象。"
+    response = await llm.chat(messages=messages, system_prompt=system_prompt)
     choice = parse_json_response(response)
+    if isinstance(choice.get("outfit_key"), str) and choice["outfit_key"] in excluded:
+        # A stale model choice must not silently bypass the exclusion window.
+        retry_prompt = "你选择的服饰属于近期排除项，请按上述完整要求重新选择；不得选择近期排除项或用自定义复刻。"
+        response = await llm.chat(
+            messages=[dict(messages[0], content=messages[0]["content"] + "\n" + retry_prompt)],
+            system_prompt=system_prompt)
+        choice = parse_json_response(response)
     if not isinstance(choice, dict) or "outfit_key" not in choice:
         raise ValueError("LLM missing outfit_key")
     if (not isinstance(choice.get("scene_tags"), str) or not choice["scene_tags"].strip()

@@ -34,6 +34,7 @@ logger = logging.getLogger("Wardrobe")
 
 YAML_CONFIG_PATH = os.path.join("run", "wardrobe", "config.yaml")
 OUTFITS_KEY = "outfits_v7"  # Stable configuration key; adding presets does not change it.
+RECENT_QZONE_OUTFIT_LIMIT = 15
 RETIRED_DAILY_FIELDS = ("today_default_outfit", "today_default_tags", "today_default_no_hat", "last_daily_date")
 
 DEFAULT_CHARACTER_ANCHOR = (
@@ -317,6 +318,18 @@ class WardrobeManager:
         return {"name": key, "clothing_tags": obj.get("clothing_tags", ""),
                 "no_hat": obj.get("no_hat", False), "matched_by": "llm_key"}
 
+    def get_recent_qzone_outfits(self):
+        """Return successful pictured posts, oldest first, across task types."""
+        with self._rw_lock:
+            recent = self._data.get("qzone_outfit_history", [])
+            if isinstance(recent, list) and recent:
+                return [key for key in recent[-RECENT_QZONE_OUTFIT_LIMIT:] if isinstance(key, str)]
+            # Older configs have counts but no chronological history. Seed only
+            # the last published outfit; counts cannot reconstruct older order.
+            current = self._data.get("current_outfit")
+            counts = self._data.get("qzone_outfit_usage", {})
+            return [current] if isinstance(current, str) and counts.get(current, 0) > 0 else []
+
     def record_qzone_outfit_usage(self, key):
         """Called only after a post containing its image has been published."""
         with self._rw_lock:
@@ -324,6 +337,9 @@ class WardrobeManager:
                 return
             counts = self._data.setdefault("qzone_outfit_usage", {})
             counts[key] = counts.get(key, 0) + 1
+            recent = self._data.get("qzone_outfit_history", [])
+            recent = recent if isinstance(recent, list) else []
+            self._data["qzone_outfit_history"] = (recent + [key])[-RECENT_QZONE_OUTFIT_LIMIT:]
             self._save_to_disk()
 
     def pick_base_outfit_for_theme(self, theme_desc="", post_text="", is_first_today=False, season_name=""):
