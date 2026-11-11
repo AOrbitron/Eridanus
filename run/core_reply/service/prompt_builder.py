@@ -282,8 +282,6 @@ class PromptBuilder:
             prompt += (
                 f"\n\n【关于 {user_name} (ID: {user_id}) 的长期事实记忆】：\n"
                 f"{user_memory}\n"
-                f"使用原则：\n"
-                f"1. 【被动认知】：自然相处，无需刻意证明“我还记得你做这件事”"
             )
 
         # ---- 当前交互对象的主观印象 ----
