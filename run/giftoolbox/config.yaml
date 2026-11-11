@@ -1,0 +1,183 @@
+﻿# 表情包工具箱 Eridanus 版配置
+# 改动保存后会自动热重载，无需重启 bot。
+
+enable: true                 # 总开关
+enable_private: true         # 是否响应私聊消息
+prefixes:                   # 指令前缀，写了会先被剥掉再匹配；留空则必须原样发送
+- /
+- '#'
+- ＃
+output_format: GIF           # 动图输出格式：GIF / WEBP / APNG
+split_mb: 1                  # 结果图超过这个大小(MB)时拆成「先文字、后图片」两条消息，避免动图被转成静图
+fail_reply: 表情包处理失败    # 处理失败时的固定开头，后面会自动接失败原因
+
+# 识别到指令后先发一句「正在处理」。text 可随意修改；
+# 单条指令想用别的提示语，可以在该指令下写 processing: "自定义"；
+# 想某条指令不发提示，写 processing: ""（空字符串）；全局关掉就 enable: false。
+processing:
+  enable: true
+  text: "正在处理ing..."
+
+# 合并转发每条最多包含多少条消息（QQ 单条聊天记录上限 100），
+# 分解 / 裁剪 结果超过这个数时会自动拆成多条转发，不会丢图。
+forward_max_nodes: 100
+
+# 帮助指令本身也在这里配置
+help:
+  triggers:
+  - 表情包帮助
+  - 表情帮助
+  - 表情包指令
+  title: "📦 表情包工具箱"
+  intro: "回复图片 / 动图后发送下面的指令即可，也可以直接把指令和图片发在同一条消息里。"
+  footer: "指令和文案都可以在本插件的 config.yaml 里自行修改或新增。"
+
+# ---------------------------------------------------------------------------
+# 指令表。每个条目就是一条指令，可以随意改动 triggers（触发词）、name、desc、usage、reply。
+# 想给同一个功能加一套新的触发词，复制一整段（action 保持不变）即可，例如：
+#
+#   倒放_沙雕版:
+#     action: reverse
+#     enable: true          # 单条开关，默认开启；改成 false 即关闭该指令（帮助列表也会消失）
+#     name: 鬼畜倒放
+#     desc: 把动图倒着放
+#     usage: 鬼畜倒放
+#     triggers: ["鬼畜倒放", "回放"]
+#     reply: "又一次时光倒流……"
+#
+# action 可用值：speed / reverse / decompose / crop / age / lineart / concat / video
+# reply 是可自定义的那半句；处理结果（帧率、倍数、张数等）由插件自动追加，不需要也不能在 reply 里写。
+# reply 留空("")则该指令不发送这句提示。
+# ---------------------------------------------------------------------------
+commands:
+
+  变速:
+    action: speed
+    enable: true          # 单条开关，默认开启；改成 false 即关闭该指令（帮助列表也会消失）
+    name: 变速
+    desc: 动图按倍数或帧率调快 / 调慢（支持超过 50fps，会自动抽帧）
+    usage: 变速 2x   /   变速 30fps
+    triggers:
+    - gif变速
+    - 变速
+    - 倍速
+    direction: auto          # auto=按倍数自动判断快慢，acc=强制加速，dec=强制减速
+    default_value: 2         # 没写参数时的默认值（倍速模式是倍数，帧率模式是 fps）
+    reply: "搞定啦～"
+
+  加速:
+    action: speed
+    enable: true          # 单条开关，默认开启；改成 false 即关闭该指令（帮助列表也会消失）
+    name: 加速
+    desc: 动图加速，不带参数默认 2 倍
+    usage: 加速 3
+    triggers:
+    - gif加速
+    - 加速
+    - 快放
+    direction: acc
+    default_value: 2
+    reply: "加速好了喵~"
+
+  减速:
+    action: speed
+    enable: true          # 单条开关，默认开启；改成 false 即关闭该指令（帮助列表也会消失）
+    name: 减速
+    desc: 动图减速，不带参数默认 2 倍慢
+    usage: 减速 0.5
+    triggers:
+    - gif减速
+    - 减速
+    - 慢放
+    direction: dec
+    default_value: 2
+    reply: "慢慢悠悠地～"
+
+  倒放:
+    action: reverse
+    enable: true          # 单条开关，默认开启；改成 false 即关闭该指令（帮助列表也会消失）
+    name: 倒放
+    desc: 动图倒着播
+    usage: 倒放
+    triggers:
+    - gif倒放
+    - 倒放
+    - 倒带
+    # 这是触发后先发的那句风格话语，改成什么都可以；删掉或留空就不再发送
+    reply: "倒带一下……"
+
+  分解:
+    action: decompose
+    enable: true          # 单条开关，默认开启；改成 false 即关闭该指令（帮助列表也会消失）
+    name: 分解
+    desc: 把动图拆成一帧帧图片
+    usage: 分解
+    triggers:
+    - gif分解
+    - 分解
+    - 拆帧
+    reply: "一帧一帧拆开哦～"
+    frame_label: "第{n}帧"
+    max_frames: 500          # 最多拆多少帧，超出的帧会被丢弃（不是分批发条数，发条由 forward_max_nodes 控制）
+
+  裁剪:
+    action: crop
+    enable: true          # 单条开关，默认开启；改成 false 即关闭该指令（帮助列表也会消失）
+    name: 裁剪
+    desc: 按网格把一张图切成多张小图（可顺手切边）
+    usage: 裁剪 3x4    /    裁剪 2x2 边距10
+    triggers:
+    - 裁剪
+    - 切图
+    reply: "我切切切～"
+
+  做旧:
+    action: age
+    enable: true          # 单条开关，默认开启；改成 false 即关闭该指令（帮助列表也会消失）
+    name: 做旧
+    desc: 模拟早期互联网反复转发的效果，次数越大越绿越糊
+    usage: 做旧 10
+    triggers:
+    - 表情包做旧
+    - 做旧
+    - 做古
+    default_times: 5
+    reply: "赛博考古～"
+
+  线稿:
+    action: lineart
+    enable: true          # 单条开关，默认开启；改成 false 即关闭该指令（帮助列表也会消失）
+    name: 线稿
+    desc: 图片转成素描线稿
+    usage: 线稿
+    triggers:
+    - 图片转线稿
+    - 线稿
+    - 转线稿
+    reply: "启动画画模式～"
+
+  表情合成:
+    action: concat
+    enable: true          # 单条开关，默认开启；改成 false 即关闭该指令（帮助列表也会消失）
+    name: 表情合成
+    desc: 把多张表情 / 动图按顺序接成一条动图（动图沿用原速，静图每帧取指定秒数）
+    usage: 表情合成 0.5
+    triggers:
+    - 表情合成
+    - 多图合成
+    default_frame_sec: 0.5
+    reply: "拼好了～"
+
+  视频转gif:
+    action: video
+    enable: true          # 单条开关，默认开启；改成 false 即关闭该指令（帮助列表也会消失）
+    name: 视频转 GIF
+    desc: 截取视频的一段转成动图（需要 imageio[ffmpeg]）
+    usage: 视频转gif 0s-5s    /    视频转gif 1s-3s 帧率12 缩放0.4
+    triggers:
+    - 视频转gif
+    - 转gif
+    default_scale: 0.3
+    default_fps: 10
+    max_duration: 10         # 单次最多截取多少秒
+    reply: "交给我吧～"
