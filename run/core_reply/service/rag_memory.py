@@ -109,6 +109,14 @@ class RAGMemory(EpisodeArchive, EpisodeRetrieval):
                 # 初始化或迁移表结构
                 self._init_db_schema()
 
+                # Shared model-switch handling: preserve memory text/scopes,
+                # invalidate incompatible vectors, then use the original indexer.
+                moved = self._db.execute(
+                    'UPDATE memories SET vector=NULL, namespace=? WHERE namespace!=?',
+                    (self._namespace, self._namespace),
+                ).rowcount
+                if moved:
+                    self._log('[MaiReply RAG] model switch: queued %d memories for reindexing', moved)
                 self.start()
             except Exception as exc:
                 self.enable = False
@@ -130,7 +138,7 @@ class RAGMemory(EpisodeArchive, EpisodeRetrieval):
             "开启" if self.cfg.get("private", {}).get("enable", True) else "关闭",
             wl_desc,
             self._provider,
-            self._cloudflare_cfg.get('model', '@cf/baai/bge-m3') if self._provider == 'cloudflare' else e.get('model', 'default'),
+            (self._cloudflare_cfg if self._provider == 'cloudflare' else e).get('model', 'default'),
         )
 
         self._initialized = True
@@ -257,78 +265,61 @@ class RAGMemory(EpisodeArchive, EpisodeRetrieval):
     async def _embed(self, texts: List[str], is_query: bool = False) -> List[np.ndarray]:
         if not texts:
             return []
-        cfg = self._embedding_cfg
-        if self._provider not in ('openai', 'cloudflare'):
-            raise ValueError(f'Unsupported embedding provider: {self._provider}')
-        active_cfg = self._cloudflare_cfg if self._provider == 'cloudflare' else cfg
-        model = str(active_cfg.get('model') or ('@cf/baai/bge-m3' if self._provider == 'cloudflare' else 'qwen3-embedding-4b')).strip()
-        if is_query:
-            # BGE-M3 uses raw queries; Qwen3 uses its retrieval template.
-            inst = str(active_cfg.get('query_instruction') or '').strip()
-            is_qwen3 = 'qwen3' in model.lower() and 'embedding' in model.lower()
-            if not inst and is_qwen3:
-                inst = 'Given a conversation query, retrieve relevant past conversations and memories'
-            if inst:
-                texts = [f'Instruct: {inst}\nQuery: {t}' if is_qwen3 else f'{inst}: {t}' for t in texts]
-        timeout = float(active_cfg.get('timeout_seconds', 30.0 if self._provider == 'cloudflare' else 15.0))
-        if self._provider == "openai":
-            base_url = str(cfg.get("base_url", "http://api.apollodorus.xyz/v1")).rstrip("/")
-            endpoint = str(cfg.get("endpoint", "embeddings")).strip("/")
-            url = f"{base_url}/{endpoint}"
-            model = str(cfg.get("model", "qwen3-embedding-4b")).strip()
-            api_key = str(cfg.get("api_key", "")).strip()
+        provider = self._provider
+        if provider not in ('openai', 'cloudflare'):
+            raise ValueError(f'Unsupported embedding provider: {provider}')
+        cfg = self._cloudflare_cfg if provider == 'cloudflare' else self._embedding_cfg
+        model = str(cfg.get('model') or ('@cf/baai/bge-m3' if provider == 'cloudflare' else 'qwen3-embedding-4b')).strip()
+        instruction = str(cfg.get('query_instruction') or '').strip()
+        if is_query and instruction:
+            texts = [f'{instruction}: {text}' for text in texts]
+        timeout = float(cfg.get('timeout_seconds', 30.0 if provider == 'cloudflare' else 15.0))
+        headers = {'Content-Type': 'application/json'}
 
-            headers = {"Content-Type": "application/json"}
-            if api_key:
-                headers["Authorization"] = f"Bearer {api_key}"
-
-            payload = {"model": model, "input": texts}
-
-            async with httpx.AsyncClient(timeout=timeout, trust_env=False) as client:
-                resp = await client.post(url, headers=headers, json=payload)
-                if resp.status_code != 200:
-                    raise RuntimeError(f"Embedding API HTTP {resp.status_code}: {resp.text[:300]}")
-                data = resp.json()
-                items = sorted(data.get("data", []), key=lambda x: x.get("index", 0))
-                vecs = []
-                for it in items:
-                    v = np.array(it.get("embedding", []), dtype=np.float32)
-                    norm = np.linalg.norm(v)
-                    if v.ndim != 1 or not v.size or not np.isfinite(v).all() or not np.isfinite(norm) or norm <= 1e-12:
-                        raise RuntimeError('Embedding API returned an invalid vector')
-                    v = v / norm
-                    vecs.append(v)
-                if len(vecs) != len(texts):
-                    raise RuntimeError(f"Expected {len(texts)} embeddings, got {len(vecs)}")
-                return vecs
+        # Only the wire format differs. Indexing, recall and prompt injection
+        # always use this same adapter and the same normalized vector result.
+        if provider == 'cloudflare':
+            account = str(cfg.get('account_id') or '').strip()
+            key = str(cfg.get('api_token') or '').strip()
+            if not account or not key:
+                raise ValueError('Cloudflare embedding requires account_id and api_token in rag.yaml')
+            url = f'https://api.cloudflare.com/client/v4/accounts/{account}/ai/run/{model}'
+            payload = {'text': texts}
         else:
-            # Cloudflare Workers AI 保底
-            account_id = str(self._cloudflare_cfg.get("account_id", "")).strip()
-            model = str(self._cloudflare_cfg.get("model", "@cf/baai/bge-m3")).strip()
-            token = str(self._cloudflare_cfg.get("api_token", "")).strip()
-            if not account_id or not token:
-                raise ValueError("Cloudflare embedding requires account_id and api_token in rag.yaml")
-            url = f"https://api.cloudflare.com/client/v4/accounts/{account_id}/ai/run/{model}"
-            headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
-            async with httpx.AsyncClient(timeout=timeout, trust_env=False) as client:
-                resp = await client.post(url, headers=headers, json={"text": texts})
-                if resp.status_code != 200:
-                    raise RuntimeError(f"Cloudflare AI HTTP {resp.status_code}: {resp.text[:200]}")
-                body = resp.json()
-                if body.get('success') is False:
-                    raise RuntimeError('Cloudflare AI returned success=false')
-                data = body.get('result', {}).get('data', [])
-                if len(data) != len(texts):
-                    raise RuntimeError(f'Expected {len(texts)} embeddings, got {len(data)}')
-                vecs = []
-                for row in data:
-                    v = np.array(row, dtype=np.float32)
-                    norm = np.linalg.norm(v)
-                    if v.ndim != 1 or not v.size or not np.isfinite(v).all() or not np.isfinite(norm) or norm <= 1e-12:
-                        raise RuntimeError('Embedding API returned an invalid vector')
-                    v = v / norm
-                    vecs.append(v)
-                return vecs
+            key = str(cfg.get('api_key') or '').strip()
+            base = str(cfg.get('base_url', 'http://api.apollodorus.xyz/v1')).rstrip('/')
+            endpoint = str(cfg.get('endpoint', 'embeddings')).strip('/')
+            url = f'{base}/{endpoint}'
+            payload = {'model': model, 'input': texts}
+        if key:
+            headers['Authorization'] = f'Bearer {key}'
+
+        async with httpx.AsyncClient(timeout=timeout, trust_env=False) as client:
+            response = await client.post(url, headers=headers, json=payload)
+            if response.status_code != 200:
+                raise RuntimeError(f'Embedding API HTTP {response.status_code}: {response.text[:200]}')
+            body = response.json()
+
+        if provider == 'cloudflare':
+            if body.get('success') is False:
+                raise RuntimeError('Embedding API returned success=false')
+            values = body.get('result', {}).get('data', [])
+        else:
+            items = sorted(body.get('data', []), key=lambda item: item.get('index', 0))
+            values = [item.get('embedding', []) for item in items]
+
+        if len(values) != len(texts):
+            raise RuntimeError(f'Expected {len(texts)} embeddings, got {len(values)}')
+        vectors = []
+        for value in values:
+            vector = np.asarray(value, dtype=np.float32)
+            norm = np.linalg.norm(vector)
+            if vector.ndim != 1 or not vector.size or not np.isfinite(vector).all() or not np.isfinite(norm) or norm <= 1e-12:
+                raise RuntimeError('Embedding API returned an invalid vector')
+            if vectors and vector.size != vectors[0].size:
+                raise RuntimeError('Embedding API returned inconsistent vector dimensions')
+            vectors.append(vector / norm)
+        return vectors
 
     def _index_worker(self):
         """后台守护线程：消费未向量化的记忆并批量调用 Embedding API"""
@@ -477,10 +468,10 @@ class RAGMemory(EpisodeArchive, EpisodeRetrieval):
         def fetch(db):
             return db.execute("""
                 SELECT text FROM memories
-                WHERE scope IN (?, ?) AND target_id=?
+                WHERE scope IN (?, ?) AND namespace=? AND target_id=?
                   AND fact_type='fact' AND ended IS NULL
                 ORDER BY created DESC, text
-            """, (scope, f"user:{uid}", uid)).fetchall()
+            """, (scope, f"user:{uid}", self._namespace, uid)).fetchall()
         rows = await asyncio.to_thread(self._run_db, fetch)
         return "\n".join(dict.fromkeys(row[0].strip() for row in rows if row[0] and row[0].strip()))
 

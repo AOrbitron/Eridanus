@@ -520,7 +520,6 @@ class EpisodeRetrieval:
                 sections.append(header + "".join(lines).strip())
 
         if not sections:
-            self._log('[MaiReply RAG] recall completed: scope=%s no injectable memories query_vector=%s', current_scope, q_vec is not None)
             return ""
 
         result = RAG_PREFIX + "\n" + "\n\n".join(sections) + "\n"
