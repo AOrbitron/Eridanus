@@ -109,14 +109,14 @@ class RAGMemory(EpisodeArchive, EpisodeRetrieval):
                 # 初始化或迁移表结构
                 self._init_db_schema()
 
-                # Shared model-switch handling: preserve memory text/scopes,
-                # invalidate incompatible vectors, then use the original indexer.
-                moved = self._db.execute(
-                    'UPDATE memories SET vector=NULL, namespace=? WHERE namespace!=?',
-                    (self._namespace, self._namespace),
-                ).rowcount
-                if moved:
-                    self._log('[MaiReply RAG] model switch: queued %d memories for reindexing', moved)
+                pending_count = self._db.execute(
+                    "SELECT COUNT(*) FROM memories WHERE vector IS NULL AND namespace=?",
+                    (self._namespace,)
+                ).fetchone()[0]
+                self._log(
+                    "[MaiReply RAG] 索引队列就绪 provider=%s namespace=%s 待索引=%d "
+                    "（已有向量不重算；队列清空后仅本地轮询）",
+                    self._provider, self._namespace[:12], pending_count)
                 self.start()
             except Exception as exc:
                 self.enable = False
@@ -138,7 +138,7 @@ class RAGMemory(EpisodeArchive, EpisodeRetrieval):
             "开启" if self.cfg.get("private", {}).get("enable", True) else "关闭",
             wl_desc,
             self._provider,
-            (self._cloudflare_cfg if self._provider == 'cloudflare' else e).get('model', 'default'),
+            (self._cloudflare_cfg if self._provider == "cloudflare" else e).get("model", "默认"),
         )
 
         self._initialized = True
@@ -418,7 +418,21 @@ class RAGMemory(EpisodeArchive, EpisodeRetrieval):
                             updates
                         ).rowcount
                     saved = self._run_db(save)
-                    self._log("[MaiReply RAG] 成功向量化索引 %d 条记忆 (API调用=%d, 复用=%d)", saved, len(unembedded_unique), len(updates) - len(unembedded_unique))
+                    remaining = self._run_db(lambda db: db.execute(
+                        "SELECT COUNT(*) FROM memories WHERE vector IS NULL AND namespace=?",
+                        (self._namespace,)
+                    ).fetchone()[0])
+                    self._log(
+                        "[MaiReply RAG] 索引进度 namespace=%s 本批ID=%s 写入=%d "
+                        "HTTP请求=%d 请求文本=%d 复用=%d 待索引=%d",
+                        self._namespace[:12], [r[0] for r in pending], saved,
+                        int(bool(unembedded_unique)), len(unembedded_unique),
+                        len(updates) - len(unembedded_unique), remaining)
+                    if remaining == 0:
+                        self._log(
+                            "[MaiReply RAG] 索引队列已清空 namespace=%s；"
+                            "无待索引记录时不发起索引API请求（聊天检索请求另计）",
+                            self._namespace[:12])
             except Exception as exc:
                 self._cooldown = time.monotonic() + retry_seconds
                 self._warn("[MaiReply RAG] 向量化索引发生异常 (%s)，冷却等待 %.0fs: %s", type(exc).__name__, retry_seconds, exc)
