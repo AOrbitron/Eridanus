@@ -70,6 +70,8 @@ class RAGMemory(EpisodeArchive, EpisodeRetrieval):
         self._client: Optional[httpx.Client] = None
         self._closed = False
         self._cooldown = 0.0
+        self._embedding_http_state = threading.local()
+        self._embedding_batch_limit = 0
         self._generation = 0
 
         self._init_retrieval()
@@ -294,32 +296,79 @@ class RAGMemory(EpisodeArchive, EpisodeRetrieval):
         if key:
             headers['Authorization'] = f'Bearer {key}'
 
+        # One request path for both providers. A context-length rejection is
+        # deterministic: split the batch now instead of retrying it unchanged.
+        request_count = 0
+        state = getattr(self, '_embedding_http_state', None)
+        if state is not None:
+            state.count = 0
+
         async with httpx.AsyncClient(timeout=timeout, trust_env=False) as client:
-            response = await client.post(url, headers=headers, json=payload)
-            if response.status_code != 200:
-                raise RuntimeError(f'Embedding API HTTP {response.status_code}: {response.text[:200]}')
-            body = response.json()
+            async def request_batch(batch, allow_fallback=True):
+                nonlocal request_count
+                limit = getattr(self, '_embedding_batch_limit', 0)
+                if limit and len(batch) > limit:
+                    result = []
+                    for offset in range(0, len(batch), limit):
+                        result.extend(await request_batch(batch[offset:offset + limit], allow_fallback))
+                    return result
 
-        if provider == 'cloudflare':
-            if body.get('success') is False:
-                raise RuntimeError('Embedding API returned success=false')
-            values = body.get('result', {}).get('data', [])
-        else:
-            items = sorted(body.get('data', []), key=lambda item: item.get('index', 0))
-            values = [item.get('embedding', []) for item in items]
+                wire = dict(payload)
+                wire['text' if provider == 'cloudflare' else 'input'] = batch
+                request_count += 1
+                if state is not None:
+                    state.count = request_count
+                response = await client.post(url, headers=headers, json=wire)
+                if response.status_code != 200:
+                    error = response.text.lower()
+                    context_error = response.status_code in (400, 413) and any(
+                        marker in error for marker in (
+                            'max context reached', 'maximum context length',
+                            'context length exceeded', 'too many tokens',
+                            'maximum number of tokens', 'input is too long'))
+                    if context_error and len(batch) > 1 and allow_fallback:
+                        middle = len(batch) // 2
+                        learned = max(1, middle)
+                        old_limit = getattr(self, '_embedding_batch_limit', 0)
+                        self._embedding_batch_limit = min(old_limit, learned) if old_limit else learned
+                        self._warn(
+                            "[MaiReply RAG] Embedding输入超限，拆批 %d -> %d+%d；"
+                            "原文不截断，后续请求最多 %d 条",
+                            len(batch), middle, len(batch) - middle,
+                            self._embedding_batch_limit)
+                        return await request_batch(batch[:middle], False) + await request_batch(batch[middle:], False)
+                    detail = (' (single text exceeds model context; not truncated)' if len(batch) == 1
+                              else ' (context fallback exhausted; no further immediate retry)') if context_error else ''
+                    raise RuntimeError(
+                        f'Embedding API HTTP {response.status_code}{detail}: {response.text[:200]}')
+                body = response.json()
 
-        if len(values) != len(texts):
-            raise RuntimeError(f'Expected {len(texts)} embeddings, got {len(values)}')
-        vectors = []
-        for value in values:
-            vector = np.asarray(value, dtype=np.float32)
-            norm = np.linalg.norm(vector)
-            if vector.ndim != 1 or not vector.size or not np.isfinite(vector).all() or not np.isfinite(norm) or norm <= 1e-12:
-                raise RuntimeError('Embedding API returned an invalid vector')
-            if vectors and vector.size != vectors[0].size:
-                raise RuntimeError('Embedding API returned inconsistent vector dimensions')
-            vectors.append(vector / norm)
+                if provider == 'cloudflare':
+                    if body.get('success') is False:
+                        raise RuntimeError('Embedding API returned success=false')
+                    values = body.get('result', {}).get('data', [])
+                else:
+                    items = sorted(body.get('data', []), key=lambda item: item.get('index', 0))
+                    values = [item.get('embedding', []) for item in items]
+
+                if len(values) != len(batch):
+                    raise RuntimeError(f'Expected {len(batch)} embeddings, got {len(values)}')
+                vectors = []
+                for value in values:
+                    vector = np.asarray(value, dtype=np.float32)
+                    norm = np.linalg.norm(vector)
+                    if vector.ndim != 1 or not vector.size or not np.isfinite(vector).all() or not np.isfinite(norm) or norm <= 1e-12:
+                        raise RuntimeError('Embedding API returned an invalid vector')
+                    if vectors and vector.size != vectors[0].size:
+                        raise RuntimeError('Embedding API returned inconsistent vector dimensions')
+                    vectors.append(vector / norm)
+                return vectors
+
+            vectors = await request_batch(texts)
+        if vectors and any(v.size != vectors[0].size for v in vectors):
+            raise RuntimeError('Embedding API returned inconsistent vector dimensions across batches')
         return vectors
+
 
     def _index_worker(self):
         """后台守护线程：消费未向量化的记忆并批量调用 Embedding API"""
@@ -426,7 +475,7 @@ class RAGMemory(EpisodeArchive, EpisodeRetrieval):
                         "[MaiReply RAG] 索引进度 namespace=%s 本批ID=%s 写入=%d "
                         "HTTP请求=%d 请求文本=%d 复用=%d 待索引=%d",
                         self._namespace[:12], [r[0] for r in pending], saved,
-                        int(bool(unembedded_unique)), len(unembedded_unique),
+                        getattr(self._embedding_http_state, "count", 0) if unembedded_unique else 0, len(unembedded_unique),
                         len(updates) - len(unembedded_unique), remaining)
                     if remaining == 0:
                         self._log(
