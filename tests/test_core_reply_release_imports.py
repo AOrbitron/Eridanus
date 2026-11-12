@@ -96,6 +96,80 @@ asyncio.run(exercise())
 ''')
         self.assertIn('GROUP_AND_PRIVATE_HANDLERS_OK', output)
 
+    def test_reply_injects_knowledge_independently_of_legacy_memory(self):
+        output = self.run_child('''import asyncio
+from types import SimpleNamespace as NS
+from unittest.mock import AsyncMock, Mock, patch
+from framework_common.database_util.RedisCacheManager import RedisCacheManager
+with patch.object(RedisCacheManager, '_init_connection', lambda self: None):
+    from run.core_reply.service.reply_engine import ReplyEngine
+    from run.core_reply.service.rag_memory import RAGMemory
+    from run.core_reply.service.prompt_builder import PromptBuilder
+
+async def exercise():
+    engine = object.__new__(ReplyEngine)
+    engine.cfg = NS(core_reply=NS(config={'skills': {'enable': False}, 'tts': {}, 'trigger_llm': {'api_key': ''}}))
+    engine.emotion = NS(get_mood=lambda: '平静', get_score=lambda: 0)
+    engine.prompt_builder = PromptBuilder(engine.cfg, engine.emotion)
+    engine._get_user_name = AsyncMock(return_value='用户')
+    engine._get_bot_name = AsyncMock(return_value='测试Bot')
+    engine._get_group_name = AsyncMock(return_value='测试群')
+    engine.is_master = Mock(return_value=False)
+    engine.concurrency = NS(
+        merge_or_process=AsyncMock(return_value='管理员怎么设置'),
+        preempt_and_register=AsyncMock(return_value='管理员怎么设置'),
+        acquire_global=AsyncMock(), unregister_task=AsyncMock(), release_global=Mock(),
+    )
+    engine.context = Mock(
+        acquire_lock=AsyncMock(return_value=True), get_session_history=Mock(return_value=[]),
+        get_group_user_session_context=Mock(return_value=[]), build_group_context_snippet=Mock(return_value=''),
+        get_global_memory=Mock(return_value='旧版全局记忆'), get_user_memory=Mock(return_value='旧版用户记忆'),
+        get_effective_user_memory_mode=Mock(return_value='slots'),
+        get_effective_group_memory_mode=Mock(return_value='slots'),
+        get_group_memory_slots=Mock(return_value='旧版群记忆'), get_recent_speaker_memories=Mock(return_value=[]),
+    )
+    engine.llm = NS(chat=AsyncMock(return_value='测试回复'))
+    engine.processor = NS(process=lambda text: [text], send_with_delay=AsyncMock())
+    engine.impression_updater = Mock(is_group_memory_enabled=Mock(return_value=False))
+    engine.audit_system = Mock()
+    memory = object.__new__(RAGMemory)
+    memory.enable = True
+    memory.cfg = {'group': {'whitelist_enabled': True, 'whitelist': [42]}}
+    memory.recall = AsyncMock(return_value='\\n\\n【长期记忆】\\n已归档对话')
+    memory.record_turn = AsyncMock()
+    knowledge = '\\n\\n【知识库参考资料】\\n> 管理员手册含原文 {bot_name}'
+    service = NS(recall=AsyncMock(return_value=knowledge))
+    engine.rag_memory = memory
+
+    for mode, group_id, enabled, allowed in (
+        ('replace', None, True, True), ('augment', 42, True, True),
+        ('replace', 99, True, False), ('augment', None, False, True),
+    ):
+        memory.cfg['integration_mode'] = mode
+        memory.knowledge = service if enabled else None
+        service.recall.reset_mock()
+        memory.recall.reset_mock()
+        memory.record_turn.reset_mock()
+        await engine.handle(NS(logger=Mock()), NS(user_id=7, group_id=group_id), '管理员怎么设置', include_tools=False)
+        prompt = engine.llm.chat.call_args.kwargs['system_prompt']
+        assert ('已归档对话' in prompt) == allowed
+        assert ('旧版用户记忆' in prompt) == (not allowed or mode == 'augment')
+        assert ('旧版全局记忆' in prompt) == (not allowed or mode == 'augment')
+        if group_id is not None and (mode == 'augment' or not allowed):
+            assert '旧版群记忆' in prompt
+        assert (knowledge in prompt) == (enabled and allowed)
+        assert service.recall.await_count == int(enabled and allowed)
+        assert memory.recall.await_count == int(allowed)
+        assert memory.record_turn.await_count == int(allowed)
+        if allowed:
+            assert '管理员手册' not in repr(memory.record_turn.call_args)
+    assert engine.llm.chat.await_count == 4
+    print('KNOWLEDGE_REPLY_OK')
+
+asyncio.run(exercise())
+''')
+        self.assertIn('KNOWLEDGE_REPLY_OK', output)
+
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)

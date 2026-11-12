@@ -61,3 +61,34 @@ retrieval:  # 固定背景事实、动态语义召回与段落打包设置
   max_prompt_tokens: 1500  # 当前未读取；实际按 max_prompt_chars 限制
   max_prompt_chars: 1200  # 各段条目打包的字符预算，含标题；不是整个 RAG 的总预算
   timeout_seconds: 15.0  # 查询向量的最长等待秒数；超时仍可注入固定背景事实
+knowledge_base:
+  enable: false  # 需要同时开启 RAG 总开关，修改配置后重启 Bot
+  root_dir: data/knowledge  # 路径相对于项目根目录；自定义目录请加入本地 Git 忽略规则
+  libraries: []  # 手动注册，启用的库在 RAG 允许的私聊和群聊中共享
+  # libraries:
+  #   - name: bot_manual
+  #     path: data/knowledge/bot_manual
+  #     enable: true
+  #   - name: worldview
+  #     path: data/knowledge/worldview
+  #     enable: true
+  sync:
+    on_startup: true
+    interval_seconds: 300  # 0 关闭定时同步
+  chunk:
+    max_chars: 1000
+    overlap_chars: 120  # 最多为 max_chars 的一半
+  retrieval:
+    min_similarity: 0.35
+    candidate_k: 20
+    top_k: 4
+    max_prompt_chars: 1600
+    timeout_seconds: 10  # 整次知识库检索的时间预算（含 Reranker）
+  reranker:
+    enable: false
+    base_url: https://api.siliconflow.cn/v1
+    endpoint: rerank
+    api_key: ''
+    model: BAAI/bge-reranker-v2-m3
+    timeout_seconds: 10
+    # format: voyage  # 默认 standard（top_n / results）；Voyage 接口使用 top_k / data

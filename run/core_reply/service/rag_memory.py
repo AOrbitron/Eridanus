@@ -6,6 +6,7 @@ import json
 import sqlite3
 import threading
 import time
+from collections.abc import Mapping
 from pathlib import Path
 from typing import List, Dict, Optional, Tuple, Any, Union
 
@@ -69,6 +70,7 @@ class RAGMemory(EpisodeArchive, EpisodeRetrieval):
         self._worker: Optional[threading.Thread] = None
         self._client: Optional[httpx.Client] = None
         self._closed = False
+        self.knowledge = None
         self._cooldown = 0.0
         self._embedding_http_state = threading.local()
         self._embedding_batch_limit = 0
@@ -123,6 +125,19 @@ class RAGMemory(EpisodeArchive, EpisodeRetrieval):
             except Exception as exc:
                 self.enable = False
                 logger.error("[MaiReply RAG] 数据库初始化失败 (%s)，已禁用 RAG", type(exc).__name__, exc_info=True)
+
+        knowledge_cfg = self.cfg.get("knowledge_base")
+        if self.enable and isinstance(knowledge_cfg, Mapping) and knowledge_cfg.get("enable") is True:
+            try:
+                from run.core_reply.service.rag_knowledge import RAGKnowledge
+
+                knowledge = RAGKnowledge(self, knowledge_cfg)
+                knowledge.init_schema()
+                self.knowledge = knowledge
+                knowledge.start()
+            except Exception as exc:
+                self.knowledge = None
+                self._warn("[MaiReply 知识库] 初始化失败，已禁用知识库 (%s): %s", type(exc).__name__, exc)
 
         group = self.cfg.get("group", {})
         wl_enabled = bool(group.get("whitelist_enabled", False))
@@ -495,9 +510,13 @@ class RAGMemory(EpisodeArchive, EpisodeRetrieval):
             if self.enable and (self._worker is None or not self._worker.is_alive()):
                 self._worker = threading.Thread(target=self._index_worker, name="rag_index_worker", daemon=True)
                 self._worker.start()
+            if self.knowledge is not None:
+                self.knowledge.start()
 
     def close(self):
         self._closed = True
+        if self.knowledge is not None:
+            self.knowledge.stop()
         with self._lock:
             if self._db is not None:
                 try:
@@ -508,6 +527,8 @@ class RAGMemory(EpisodeArchive, EpisodeRetrieval):
             self._worker = None
     async def aclose(self):
         self.close()
+        if self.knowledge is not None:
+            await self.knowledge.wait_stopped()
 
     async def wait_indexing(self, timeout: float = 30.0) -> bool:
         """等待所有待索引的记忆完成向量化入库"""

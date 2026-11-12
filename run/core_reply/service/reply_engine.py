@@ -321,13 +321,25 @@ class ReplyEngine:
 
             # RAG 关闭时不执行查询/归档，也不额外读取上下文；旧记忆逻辑保持原状。
             rag_memory = ""
+            knowledge_context = ""
             rag_active = self.rag_memory.allowed(group_id)
             rag_replace = rag_active and self.rag_memory.replaces_legacy
             if rag_active:
                 recent_context = self.context._load_group_window(group_id) if is_group else trimmed_history
-                rag_memory = await self.rag_memory.recall(
+                memory_recall = self.rag_memory.recall(
                     group_id, user_id, final_text, recent_context=recent_context,
                 )
+                knowledge = self.rag_memory.knowledge
+                if knowledge is None:
+                    rag_memory = await memory_recall
+                else:
+                    knowledge_recall = asyncio.create_task(knowledge.recall(group_id, final_text))
+                    try:
+                        rag_memory = await memory_recall
+                        knowledge_context = await knowledge_recall
+                    finally:
+                        if not knowledge_recall.done():
+                            knowledge_recall.cancel()
 
             # 内存模式感知：按配置动态读取用户记忆（slots / impression / both）
             user_mem_mode = self.context.get_effective_user_memory_mode() if hasattr(self.context, "get_effective_user_memory_mode") else "slots"
@@ -365,6 +377,7 @@ class ReplyEngine:
                 rag_memory=rag_memory,
                 is_master=self.is_master(user_id),
                 user_id=user_id,
+                knowledge_context=knowledge_context,
             )
             if system_prompt_prefix:
                 system_prompt = f"{system_prompt_prefix.strip()}\n\n{system_prompt}"

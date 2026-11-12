@@ -176,6 +176,7 @@ class PromptBuilder:
         rag_memory: str = "",
         is_master: bool = False,
         user_id: Optional[Any] = None,
+        knowledge_context: str = "",
     ) -> str:
         """
         构建最终的 system prompt。
@@ -340,6 +341,8 @@ class PromptBuilder:
 
         # 每次构建都追加当前时间，角色卡无需配置时间占位符。
         prompt += f"【当前服务器本地时间】{now:%Y-%m-%d %H:%M:%S %z}"
+        if knowledge_context:
+            prompt += knowledge_context
 
         return prompt.strip()
 
