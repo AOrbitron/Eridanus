@@ -29,15 +29,15 @@ from run.live2d.service.process_manager import Live2DProcessManager, find_model_
 
 
 def _resolve_expr_endpoint(config):
-    """解析表情控制用的 LLM 端点：live2d.expression 优先，否则复用 mai_reply 的
-    trigger_llm（快/省），再否则复用 mai_reply 主 llm。让“LLM 控制表情”开箱即用。"""
+    """解析表情控制用的 LLM 端点：live2d.expression 优先，否则复用 core_reply 的
+    trigger_llm（快/省），再否则复用 core_reply 主 llm。让“LLM 控制表情”开箱即用。"""
     live = (config.live2d.config.get("expression", {}) or {})
     base = (live.get("base_url") or "").strip()
     key = (live.get("api_key") or "").strip()
     model = (live.get("model") or "").strip()
     enable = live.get("enable", True)
     try:
-        mr = config.mai_reply.config
+        mr = config.core_reply.config
     except Exception:
         mr = {}
     tl = (mr.get("trigger_llm") or {}) if mr else {}
@@ -104,18 +104,6 @@ def main(bot: ExtendBot, config: YAMLManager):
     # bot 正常退出时同步终止 Electron 渲染进程，避免桌宠窗口残留
     # （manager.stop 内部已用 taskkill /T 整树终止，未运行时为空操作）。
     atexit.register(manager.stop)
-
-    # 网页版桌宠（localhost:5007/live2dchat）：把解析好的运行时配置交给 WebUI 蓝图。
-    # 与 Electron 桌宠是否开启无关——纯网页版也能用；webui_enable=false 时蓝图返回未启用。
-    if cfg.get("webui_enable"):
-        try:
-            from framework_common.framework_util.live2d_webchat_state import set_runtime
-            runtime = manager.build_runtime_config()
-            set_runtime(runtime, runtime.get("model_dir"), runtime.get("model_entry"),
-                        password=cfg.get("webui_password", ""))
-            bot.logger.server("🔧 Live2D 网页版已启用：浏览器访问 http://localhost:5007/live2dchat")
-        except Exception as e:
-            bot.logger.warning(f"[Live2D] 网页版运行时配置写入失败：{e}")
 
     def _persist_enable(value: bool):
         """改写 config.yaml 的 enable 并持久化（触发 YAMLManager 保存）。"""

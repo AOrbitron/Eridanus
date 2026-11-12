@@ -8,13 +8,13 @@ from developTools.event.events import GroupMessageEvent, PrivateMessageEvent, st
 from developTools.message.message_chain import MessageChain
 from developTools.message.message_components import Record, Node, Text, Image
 from framework_common.framework_util.func_map_loader import build_tool_map
-from run.ai_llm.service.aiReplyCore import aiReplyCore
+from framework_common.framework_util.reply_config import legacy_reply as aiReplyCore, core_reply_enabled, active_llm_config
 from framework_common.database_util.User import update_user, add_user, get_user
 from framework_common.utils.utils import download_img
 from framework_common.utils.random_str import random_str
 import os
 
-from run.mai_reply.service.reply_engine import ReplyEngine
+from run.core_reply.service.reply_engine import ReplyEngine
 
 
 def main(bot, config):
@@ -23,7 +23,7 @@ def main(bot, config):
 
     avatar = False
     nudge_list = []
-    if config.ai_llm.config["llm"]["func_calling"]:
+    if active_llm_config(config).get("func_calling", False):
         tools = build_tool_map()
     else:
         tools = None
@@ -166,8 +166,8 @@ def main(bot, config):
                                                     files_img_check[random.randint(0, len(files_img_check) - 1)])
                         await bot.send_group_message(event.group_id, Image(file=img_path))
                         return
-                if config.ai_llm.config["llm"]["aiReplyCore"]:
-                    if not config.mai_reply.config["enable"]:
+                if core_reply_enabled(config) or active_llm_config(config).get("aiReplyCore", False):
+                    if not config.core_reply.config["enable"]:
                         r = await aiReplyCore(
                             [{"text": text}],
                             event.user_id,
@@ -202,8 +202,8 @@ def main(bot, config):
                 user_info = await get_user(event.user_id)
                 text = f"{user_info.nickname}{event.raw_info[2]['txt']}{bot_name}{event.raw_info[4]['txt']}"
                 bot.logger.info(text)
-                if config.ai_llm.config["llm"]["aiReplyCore"]:
-                    if not config.mai_reply.config["enable"]:
+                if core_reply_enabled(config) or active_llm_config(config).get("aiReplyCore", False):
+                    if not config.core_reply.config["enable"]:
                         r = await aiReplyCore(
                             [{"text": text}],
                             event.user_id,

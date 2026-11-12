@@ -176,7 +176,7 @@ def main(bot, config):
     if config.ai_llm.config["llm"]["func_calling"]:
         from framework_common.framework_util.func_map_loader import build_tool_map
         tools = build_tool_map()
-    if config.mai_reply.config["enable"]:
+    if config.core_reply.config["enable"]:
         bot.logger.info("[MaiReply] 功能开启，原版 心流模式 暂时禁用")
         return
 

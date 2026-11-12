@@ -6,6 +6,7 @@ import datetime
 import json
 import random
 import re
+from run.wardrobe.qzone_outfits import select_post_outfit, render_post_outfit, select_post_theme, commit_post_outfit, post_scene_instruction
 import traceback
 import uuid
 from asyncio import sleep
@@ -28,12 +29,22 @@ except ImportError:
     from chinese_calendar_helper import get_chinese_calendar_info, get_season_info, get_season_name
 
 from developTools.event.events import LifecycleMetaEvent, GroupMessageEvent, PrivateMessageEvent
+try:
+    from run.wardrobe import get_wardrobe_manager
+except Exception:
+    get_wardrobe_manager = None
 from developTools.message.message_components import Text, Image, Mface
 
 from framework_common.framework_util.websocket_fix import ExtendBot
 from framework_common.framework_util.yamlLoader import YAMLManager
 from framework_common.utils.utils import get_img, download_img
 from run.qq_zone.service.QzoneApiFixed import QzoneApiFixed
+
+FIXED_NEGATIVE_PROMPT = (
+    "lowres, bad anatomy, bad hands, text, error, missing fingers, "
+    "extra digit, fewer digits, cropped, worst quality, low quality, normal "
+    "quality, jpeg artifacts, signature, watermark, username, blurry"
+)
 
 
 def calc_bkn(p_skey: str) -> int:
@@ -276,18 +287,21 @@ def main(bot: ExtendBot, config: YAMLManager):
     _GLOBAL_QZONE_INSTANCE = current_instance
 
     # ---------------------------------------------------------
-    # 尝试加载 mai_reply 的 ContextManager 和 LLMClient
+    # 尝试加载 core_reply 的 ContextManager 和 LLMClient
     # ---------------------------------------------------------
     mai_context = None
     mai_llm = None
     try:
-        from run.mai_reply.service.context_manager import ContextManager
-        from run.mai_reply.service.llm_client import LLMClient
-        mai_context = ContextManager(config)
+        from run.core_reply.service.llm_client import LLMClient
         mai_llm = LLMClient(config)
-        logger.info("[Qzone] 成功连接 mai_reply 记忆管理与 LLMClient")
+        logger.info("[Qzone] 成功连接已配置的 LLMClient")
     except Exception as e:
-        logger.warning(f"[Qzone] 加载 mai_reply 组件失败: {e}")
+        logger.warning(f"[Qzone] 加载 LLMClient 失败: {e}")
+    try:
+        from run.core_reply.service.context_manager import ContextManager
+        mai_context = ContextManager(config)
+    except Exception as e:
+        logger.warning(f"[Qzone] 加载记忆管理失败: {e}")
 
     # ---------------------------------------------------------
     # 本地 Cookie 缓存管理与 OneBot 接口无感免密获取
@@ -562,70 +576,17 @@ def main(bot: ExtendBot, config: YAMLManager):
             if check_resp_for_expired(res):
                 await handle_cookie_expired(f"发布动态失败，登录凭证失效({str(res)[:60]})")
         return res
-    def strip_hat_tags(tags_str: str) -> str:
-        """彻底剥离提示词中的所有帽子相关 tags（包括带括号权重的修饰，如 chocolate brown beret、beanie 等）"""
-        if not tags_str:
-            return ""
-        parts = [p.strip() for p in tags_str.split(",") if p.strip()]
-        hat_pattern = re.compile(
-            r"(?:(?:beret|beanie|sunhat|bonnet|headwear)|(?:straw|bucket|baseball|knit|wool|winter|sun|felt|cowboy)\s+(?:hat|cap)|\bhat\b|\bcap\b)",
-            re.IGNORECASE
-        )
-        filtered = []
-        for part in parts:
-            clean_part = re.sub(r"[():0-9.]", "", part).strip()
-            if hat_pattern.search(clean_part):
-                continue
-            filtered.append(part)
-        return ", ".join(filtered)
 
-    def is_no_hat_scene(post_text: str = "", theme_desc: str = "", dynamic_tags: str = "", category: str = "") -> bool:
-        """
-        智能判断当前场景是否属于【根本不需要戴帽子】的生活切面（如穿睡衣、睡眠、床上、泡澡、室内放松等）
-        """
-        if category and category.lower() in ["sleepwear", "loungewear"]:
-            return True
-
-        combined_text = f"{post_text} {theme_desc} {dynamic_tags}".lower()
-
-        # 睡衣 / 睡眠 / 赖床 / 床上
-        sleep_kw = [
-            "睡衣", "睡裤", "睡袍", "睡裙", "被窝", "钻被窝", "枕头", "床沿", "床上", "躺在床上", "躺床上",
-            "打哈欠", "做梦", "困倦", "困了", "晚安", "睡觉", "入睡", "睡前", "睡眼", "刚醒", "醒来",
-            "赖床", "伸懒腰", "揉眼睛", "pajama", "pajamas", "sleepwear", "nightdress", "bathrobe",
-            "in bed", "on bed", "lying on bed", "sitting on bed", "bed edge", "pillow", "duvet",
-            "blanket", "sleepy", "sleeping", "bedtime", "yawn", "waking up", "wake up", "bedhead", "bare legs"
-        ]
-        if any(k in combined_text for k in sleep_kw):
-            return True
-
-        # 沐浴 / 洗漱 / 护肤 / 吹头发
-        bath_kw = [
-            "洗澡", "泡澡", "沐浴", "浴缸", "花洒", "吹头发", "吹风机", "擦头发", "洗脸", "敷面膜",
-            "护肤", "面霜", "梳妆台", "浴室", "bath", "bubble bath", "bathtub", "shower",
-            "washing face", "face cream", "drying hair", "damp hair", "towel", "skincare",
-            "vanity mirror", "bathroom"
-        ]
-        if any(k in combined_text for k in bath_kw):
-            return True
-
-        # 室内温馨日常（且非户外）
-        outdoor_kw = ["outdoor", "street", "park", "sidewalk", "beach", "mountain", "outside", "外出", "逛街", "路边", "公园", "街景", "海边"]
-        is_outdoor = any(k in combined_text for k in outdoor_kw)
-        if not is_outdoor:
-            indoor_kw = [
-                "室内", "房间", "卧室", "客厅", "书房", "窝在沙发", "沙发上", "地毯上", "打游戏",
-                "bedroom", "indoor", "living room", "cozy room", "sitting on sofa", "couch", "sitting cross-legged"
-            ]
-            if any(k in indoor_kw for k in combined_text):
-                return True
-
-        return False
 
     # ---------------------------------------------------------
     # Stable Diffusion 绘画服务端调用 (针对 SDXL 模型调优)
     # ---------------------------------------------------------
-    async def call_sd_generate(prompt: str, extra_negative: str = "") -> Optional[str]:
+    async def call_sd_generate(prompt: str) -> Optional[str]:
+        from run.wardrobe.sd_prompt import ensure_art_anchor
+
+        if not prompt:
+            return None
+        prompt = ensure_art_anchor(prompt)
         sd_cfg = config.qq_zone.config.get("sd绘画设置", {})
         base_url = sd_cfg.get("sdUrl", "http://api.apollodorus.xyz")
         if not base_url:
@@ -639,24 +600,10 @@ def main(bot: ExtendBot, config: YAMLManager):
         height = int(sd_cfg.get("height", 1024))
         sampler_name = sd_cfg.get("sampler_name", "Euler a")
         scheduler = sd_cfg.get("scheduler", "Automatic")
-        rules = get_chara_drawing_rules()
-        base_negative = rules.get("negative") or (
-            "jpeg artifacts, very displeasing, chromatic aberration, logo, dated, signature, "
-            "multiple views, gigantic breasts, nsfw"
-        )
-        negative_parts = [base_negative]
-        if extra_negative:
-            negative_parts.append(extra_negative)
-
-        # 针对免帽场景（如睡衣/床上/沐浴/室内放松等），在负面提示词中强力压制帽子，杜绝模型画出帽子
-        if is_no_hat_scene(dynamic_tags=prompt):
-            negative_parts.append("(hat, cap, beret, beanie, headwear, hair covering:1.2)")
-
-        negative_prompt = ", ".join([p.strip(", ") for p in negative_parts if p and p.strip(", ")])
 
         payload = {
             "prompt": prompt,
-            "negative_prompt": negative_prompt,
+            "negative_prompt": FIXED_NEGATIVE_PROMPT,
             "steps": steps,
             "cfg_scale": cfg_scale,
             "width": width,
@@ -769,10 +716,10 @@ def main(bot: ExtendBot, config: YAMLManager):
         bot_name = config.common_config.basic_config.get("bot", "小助手")
         chara_text = ""
         try:
-            pcfg = config.mai_reply.config.get("persona", {})
+            pcfg = config.core_reply.config.get("persona", {})
             chara_file_name = pcfg.get("chara_file", "").strip()
             if not chara_file_name:
-                chara_cfg = config.mai_reply.config.get("chara", {})
+                chara_cfg = config.core_reply.config.get("chara", {})
                 cur = chara_cfg.get("current", "")
                 if cur:
                     chara_file_name = f"{cur}.txt" if not cur.endswith(".txt") else cur
@@ -828,13 +775,11 @@ def main(bot: ExtendBot, config: YAMLManager):
         default_base = "1girl, teenager, solo, grey hair, gradient hair, multicolored hair, blue hair, light purple-light blue mixed eyes, (Side swept hair:1.6), ahoge, bangs, middle long hair, (round face:1.2)"
         default_art = "(Rella:1.2), (chen bin:1.3), virtual youtuber, (starshadowmagician:1.2), masterpiece, extremely detailed, lineart, (hand-drawn:1.3), (sketch:1.2), Picasso style, Van Gogh's almond blossoms, <lora:DeniaV1-Nuclear1811-IL:0.5>"
         default_outfit = "hair ornament,detached sleeves, hair bow, flower, off shoulder,layered dress, virtual youtuber,lace rim, ornaments sleeves, lolita sleeves,white pantyhose"
-        default_neg = "lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry, nsfw"
 
         chara_draw_cfg = config.qq_zone.config.get("角色绘图设置", {})
         base_prompt = str(chara_draw_cfg.get("基础形象设定", "") or "").strip() or default_base
         art_prompt = str(chara_draw_cfg.get("画风与模型设定", "") or "").strip() or default_art
         outfit_prompt = str(chara_draw_cfg.get("默认服装设定", "") or "").strip() or default_outfit
-        neg_prompt = str(chara_draw_cfg.get("负面提示词", "") or "").strip() or default_neg
 
         # 组合成说明段落，供 LLM 提取场景变体 tags 时参考
         full_section = (
@@ -847,7 +792,7 @@ def main(bot: ExtendBot, config: YAMLManager):
             "base": base_prompt,
             "art": art_prompt,
             "outfit": outfit_prompt,
-            "negative": neg_prompt,
+            "negative": FIXED_NEGATIVE_PROMPT,
             "full_section": full_section
         }
 
@@ -856,180 +801,36 @@ def main(bot: ExtendBot, config: YAMLManager):
         rules = get_chara_drawing_rules()
         return rules.get("base", "")
 
-    async def build_sd_prompt_for_post(post_text: str, theme_desc: str) -> str:
-        bot_name, _ = get_bot_persona_info()
+    async def build_sd_prompt_for_post(post_text: str, theme_desc: str, selection=None, task_name="日常") -> str:
+        from run.wardrobe.sd_prompt import ensure_art_anchor
+
         rules = get_chara_drawing_rules()
-        base_anchor = rules.get("base", "")
-        art_anchor = rules.get("art", "")
-        default_outfit = rules.get("outfit", "")
-        full_rules_text = rules.get("full_section", "")
-
-        # 结合动态文案与主题提示判断是否属于免帽场景（如睡衣/床上/沐浴/室内放松等）
-        no_hat = is_no_hat_scene(post_text=post_text, theme_desc=theme_desc)
-
-        # 随机抽取一套结构化全色谱穿搭数据（全色谱配色种子 + 服饰款式模板 + 70% 概率细节配件变体）
-        outfit_data = None
-        get_outfit_data_fn = getattr(qzone_themes, "get_random_outfit_data", None)
-        if callable(get_outfit_data_fn):
-            try:
-                # 传入文案与主题 hint，确保种子抽取时若为室内/睡衣则绝对不分配帽子饰品
-                combined_hint = f"{post_text} {theme_desc}"
-                outfit_data = get_outfit_data_fn(combined_hint)
-            except Exception as e:
-                logger.warning(f"[Qzone SD] 获取穿搭数据异常: {e}")
-
-        if outfit_data:
-            palette_name = outfit_data.get("palette_name", "经典日常色")
-            primary_color = outfit_data.get("primary_color", "navy blue")
-            secondary_color = outfit_data.get("secondary_color", "white")
-            outfit_tags = outfit_data.get("outfit_tags", "")
-            outfit_detail = outfit_data.get("detail", "")
-            category = outfit_data.get("category", "")
-            if not no_hat and category in ["sleepwear", "loungewear"]:
-                no_hat = True
-        else:
-            palette_name = "焦糖驼色配米白"
-            primary_color = "caramel camel brown"
-            secondary_color = "warm off-white"
-            outfit_tags = "caramel camel brown slouchy chunky knit cardigan, warm off-white ribbed camisole, cozy shorts"
-            outfit_detail = ""
-
-        # 如果判定为免帽场景，先清洗种子里的 outfit_tags 和 outfit_detail
-        if no_hat:
-            outfit_tags = strip_hat_tags(outfit_tags)
-            outfit_detail = strip_hat_tags(outfit_detail)
-
-        dynamic_scene_tags = ""
+        manager = get_wardrobe_manager() if get_wardrobe_manager else None
+        if manager and not manager.is_enabled():
+            manager = None
         try:
-            if mai_llm:
-                season_meta = get_current_season()
-                season_sd_full = season_meta.get("full_name", "")
-                
-                # 免帽场景严格提示词约束
-                hat_constraint = ""
-                if no_hat:
-                    hat_constraint = (
-                        "【特别强制注意（生活常识与免帽要求）】：\n"
-                        "当前为睡衣/床上/睡眠/沐浴/室内放松等生活切面，生活常识中绝对不戴帽子！\n"
-                        "严禁输出任何帽子相关的 tag（绝对禁止 beret, beanie, hat, cap, headwear, hair covering 等），"
-                        "发型保持自然（可为 loose hair, bedhead, hair ribbon 或普通日常发型）。\n"
-                    )
-                else:
-                    hat_constraint = (
-                        "【生活常识注意】：除非文案特别强调帽子，否则日常不要强制戴帽子（杜绝千篇一律画帽子，绝大多数日常情境均不戴帽子）。\n"
-                    )
-
-                prompt_generator = (
-                    f"你是一名专业动漫 Stable Diffusion 提示词专家。角色是：{bot_name}。\n"
-                    f"根据角色动态文案，仅提取【当前情绪与表情】+【当前动作/场景/日常服饰穿搭】的纯英文 tags。\n"
-                    f"角色卡绘图规则参考：\n{full_rules_text if full_rules_text else '日常场景参考: casual clothes, sitting on sofa, cozy room. 视角表情: slight blush, upper body'}\n"
-                    f"当前主题建议：{theme_desc}\n"
-                    f"当前季节时令：{season_sd_full}\n"
-                    f"【本次系统指定的服饰与色系种子（核心硬性约束）】：\n"
-                    f"- 配色方案名称：{palette_name}\n"
-                    f"- 本次指定主色：{primary_color}，指定辅色：{secondary_color}\n"
-                    f"- 款式模板与细节参考：{outfit_tags}\n"
-                    f"当前动态文案：{post_text}\n\n"
-                    f"要求：\n"
-                    f"1. 绝对不要重复生成发色、发型、眼睛等基础面部特征设定（系统已全局保留）。\n"
-                    f"2. 服饰穿搭必须严格使用上述系统分配的色系（主色：{primary_color}，辅色：{secondary_color}），严禁随意篡改色系！\n"
-                    f"3. 【重点严禁】：绝对严禁千篇一律偏向薄荷绿（mint green / pastel green / light green 等单一刻板偏见）！本次服饰主色必须明确使用指定的【{primary_color}】（如：{primary_color} 卫衣/毛衣/大衣/睡衣/衬衫等），展现全色谱多样性！\n"
-                    f"4. 可根据动态文案微调款式细节（如睡前可使用 {primary_color} 睡衣/家居服，外出/晨起使用相应外套/风衣），但服装主色必须忠实保持为 {primary_color}。\n"
-                    f"5. 服饰厚度、冷暖层次与环境细节大体契合时令即可，杜绝反季节违和常识（如寒冬穿单薄夏装短裤、盛夏裹羽绒服烤火）。\n"
-                    f"6. {hat_constraint}"
-                    f"7. 【画面要素与背景严禁单一刻板】：切忌因为时令而在每个画面都硬塞入枯燥重复的季节符号（例如：绝对不要千篇一律全是枫叶 maple leaf、落叶 fallen leaves、枯叶或红叶，已造成严重审美疲劳）！画面背景、道具与生活情境应保持丰富多样、松弛自然（如温馨房间、书桌、窗台、咖啡店、日常街景、便利店、走廊等各类日常切面均可），不要强行添加枫叶等刻板季节要素。\n"
-                    f"8. 仅输出情绪状态、服饰穿搭（含指定颜色与款式）、动作和场景，不要解释，不要输出任何中文。\n"
-                    f"9. 仅输出纯英文 tags，用英文逗号分隔。"
-                )
-                sd_tags = await mai_llm.chat(
-                    messages=[{"role": "user", "content": prompt_generator}],
-                    system_prompt="You are an expert prompt engineer specializing in anime Stable Diffusion tags with diverse clothing styles, rich full-spectrum color palettes, and natural everyday logic without forced headwear.",
-                )
-                if sd_tags:
-                    cleaned_tags = sd_tags.strip().replace("\n", ", ")
-                    cleaned_tags = cleaned_tags.strip("\"'[] \n\r\t")
-                    dynamic_scene_tags = cleaned_tags
-        except Exception as e:
-            logger.error(f"[Qzone] LLM 提取场景 tags 失败: {e}")
-
-        if not dynamic_scene_tags:
-            dynamic_scene_tags = theme_desc
-
-        # 色彩纠偏与防薄荷绿复现机制：
-        is_green_palette = ("green" in primary_color.lower()) or ("green" in secondary_color.lower())
-        if not is_green_palette and dynamic_scene_tags:
-            dynamic_scene_tags = re.sub(
-                r"\b(?:mint|pastel|light|pale)\s+green\b",
-                primary_color,
-                dynamic_scene_tags,
-                flags=re.IGNORECASE
-            )
-            dynamic_scene_tags = re.sub(
-                r"\bmint\s+(sweater|hoodie|cardigan|coat|dress|skirt|pajamas|sleepwear|shirt|jacket|top|pants|t-shirt|tee|camisole)\b",
-                rf"{primary_color} \1",
-                dynamic_scene_tags,
-                flags=re.IGNORECASE
-            )
-
-        # 结合 LLM 生成的 tags 再次全面校验是否为免帽场景
-        if not no_hat and is_no_hat_scene(post_text=post_text, theme_desc=theme_desc, dynamic_tags=dynamic_scene_tags):
-            no_hat = True
-
-        # 若命中免帽场景，彻底剥离 dynamic_scene_tags 中的任何帽子标签
-        if no_hat and dynamic_scene_tags:
-            dynamic_scene_tags = strip_hat_tags(dynamic_scene_tags)
-
-        prompt_elements = []
-        # 注入高质量与美学通用标签
-        quality_anchor = "rating:general, best quality, very aesthetic, absurdres"
-        prompt_elements.append(quality_anchor)
-
-        if base_anchor:
-            prompt_elements.append(base_anchor)
-
-        # 扩充服饰款式关键词，若 LLM 生成已包含明确服饰，则进行色彩与细节协同；若无明确服饰，则注入种子穿搭
-        cloth_keywords = [
-            "pajamas", "dress", "clothes", "hoodie", "shirt", "skirt", "jacket", "outfit",
-            "robe", "apron", "sweater", "cardigan", "coat", "uniform", "blouse", "vest",
-            "sleeves", "tank top", "crop top", "swimsuit", "kimono", "hanfu", "loungewear",
-            "sportswear", "windbreaker", "overalls", "dungarees", "jersey", "parka", "tunic",
-            "pants", "shorts", "trousers", "jeans", "nightdress"
-        ]
-        has_custom_clothing = any(ck in dynamic_scene_tags.lower() for ck in cloth_keywords)
-
-        if not has_custom_clothing:
-            outfit_to_use = outfit_tags or default_outfit
-            if no_hat and outfit_to_use:
-                outfit_to_use = strip_hat_tags(outfit_to_use)
-            if outfit_to_use:
-                prompt_elements.append(outfit_to_use)
-        else:
-            # 若 LLM 生成了衣服但未体现指定的主色或辅色，补充主色强调标签，防止色彩漂移
-            has_palette_color = (
-                primary_color.lower() in dynamic_scene_tags.lower()
-                or secondary_color.lower() in dynamic_scene_tags.lower()
-            )
-            if not has_palette_color:
-                prompt_elements.append(f"({primary_color} clothing:1.1)")
-
-            # 若本次种子抽取了 70% 概率细节/配件变体，且 LLM tags 中尚未包含，则注入丰富细节（免帽场景下已预先清洗）
-            clean_detail = strip_hat_tags(outfit_detail) if no_hat else outfit_detail
-            if clean_detail and clean_detail.lower() not in dynamic_scene_tags.lower():
-                prompt_elements.append(clean_detail)
-
-        if dynamic_scene_tags:
-            prompt_elements.append(dynamic_scene_tags)
-        if art_anchor:
-            prompt_elements.append(art_anchor)
-
-        final_prompt = ", ".join([p.strip(", ") for p in prompt_elements if p and p.strip(", ")])
-
-        # 免帽场景终极兜底保障：再次扫描 final_prompt，确保万无一失
-        if no_hat:
-            final_prompt = strip_hat_tags(final_prompt)
-
-        logger.info(f"[Qzone SD] 组合完成 SD Prompt (no_hat={no_hat}): {final_prompt}")
-        return final_prompt
+            chosen = await select_post_outfit(
+                manager, mai_llm, post_text, theme_desc,
+                get_current_season().get("full_name", ""), task_name=task_name,
+                character_anchor=rules.get("base", ""), art_anchor=rules.get("art", ""))
+            chosen = await render_post_outfit(mai_llm, chosen, post_text, theme_desc, task_name=task_name)
+        except Exception as exc:
+            logger.warning(f"[Qzone SD] LLM穿搭决策失败，跳过本次配图: {exc}")
+            return ""
+        base_anchor = (manager.get_character_anchor() if manager else "") or rules.get("base", "")
+        art_anchor = manager.get_art_anchor() if manager else None
+        outfit = chosen["clothing_tags"]
+        background = chosen["scene_tags"]
+        native_hint = chosen["native_hint_tags"]
+        native_hint = f"({native_hint}:1.2)" if native_hint else ""
+        prompt = ", ".join(value.strip(", ") for value in (
+            "rating:general, best quality, very aesthetic, absurdres",
+            base_anchor, outfit, native_hint, background) if value and value.strip(", "))
+        prompt = ensure_art_anchor(prompt, art_anchor)
+        if selection is not None:
+            selection.update(chosen, clothing_tags=outfit)
+        logger.info(f"[Qzone SD] LLM最终穿搭: {chosen['name']}, style={chosen['design_seeds']['style']['id']}, palette={chosen['design_seeds']['palette']['id']} (no_hat={chosen['no_hat']})")
+        return prompt
 
     # ---------------------------------------------------------
     # 动态历史与去重记忆管理（防题材重复、强化时间流动感）
@@ -1096,47 +897,85 @@ def main(bot: ExtendBot, config: YAMLManager):
     theme_mutation_directives = getattr(qzone_themes, 'THEME_MUTATION_DIRECTIVES', [])
     post_archetypes = getattr(qzone_themes, 'POST_STRUCTURE_ARCHETYPES', [])
 
-    def pick_next_theme(task_name: str) -> dict:
+    async def pick_next_theme(task_name: str) -> dict:
         if task_name == "早安":
-            pool = morning_theme_pool
+            pools = [morning_theme_pool]
         elif task_name == "晚安":
-            pool = night_theme_pool
+            bedroom_pool = getattr(qzone_themes, 'NIGHT_BEDROOM_THEMES', [])
+            bedroom_weight = getattr(qzone_themes, 'NIGHT_BEDROOM_PROBABILITY', 0.40)
+            pools = [bedroom_pool if bedroom_pool and random.random() < bedroom_weight else night_theme_pool]
         else:
-            pool = daily_theme_pool or morning_theme_pool
+            # Offer every time-of-day source; the LLM uses the actual clock context.
+            pools = [daily_theme_pool, morning_theme_pool,
+                     night_theme_pool + getattr(qzone_themes, 'NIGHT_BEDROOM_THEMES', [])]
 
         # 防重窗口扩大到最近 15 次，确保长期运营不出现近期重复主题
         used_ids, _, _ = get_recent_history_constraints(task_name, limit=15)
-        available = [t for t in pool if t.get("id") not in used_ids]
-        if not available:
-            # 当主题池遍历或用尽，排除最近 5 次使用的主题重新选取
-            recent_last5 = list(used_ids)[-5:] if used_ids else []
-            available = [t for t in pool if t.get("id") not in recent_last5] or pool
-        return random.choice(available)
+        candidates = []
+        for pool in pools:
+            available = [t for t in pool if t.get("id") not in used_ids] or pool
+            count = min(4 if len(pools) > 1 else 12, len(available))
+            candidates.extend(random.sample(available, count))
+        candidates = list({item["id"]: item for item in candidates}.values())
+        _, _, recent_posts = get_recent_history_constraints(task_name, limit=5)
+        return await select_post_theme(mai_llm, candidates, task_name,
+                                       get_current_time_context(), recent_posts)
 
     # ---------------------------------------------------------
     # 定时早晚发空间任务
     # ---------------------------------------------------------
     async def sync_post_to_global_memory(content_text: str):
-        """提炼动态日常存入 mai_reply 的全局独立生活记忆层（严格限制在25字内）"""
-        if mai_context and mai_llm:
-            try:
+        """提炼已发布动态，并分别写入启用的 Bot Slots 与 RAG。"""
+        try:
+            rag_cfg = getattr(config.core_reply, "rag", {}) or {}
+            if not (mai_context and mai_context.enable_global_memory_slots) and not rag_cfg.get("enable", False):
+                return
+            if mai_llm:
                 mem_prompt = (
                     f"根据这条Bot动态内容，提炼成一句话极简日常事实（严格在25字以内，杜绝'今天也'等套话，客观记录少女日常行为，如'烤吐司涂果酱吃了美味早餐'或'下班路上偶遇可爱的胖橘猫'），若无实质日常则回复空：\n"
                     f"动态：{content_text}\n"
                     f"只输出提炼后的极简短句：\n"
                 )
-                refined_mem = await mai_llm.chat(
-                    messages=[{"role": "user", "content": mem_prompt}],
-                    system_prompt="你是一个极简日常信息提炼助手。",
-                )
-                if refined_mem and len(refined_mem.strip()) > 0:
-                    clean_mem = refined_mem.strip().replace("\n", " ")[:30]
-                    clean_mem = re.sub(r"^[\'\"\s\[\]]+|[\'\"\s\[\]]+$", "", clean_mem)
-                    now_str = datetime.datetime.now().strftime("%m-%d %H:%M")
-                    mai_context.update_global_memory(f"[{now_str}] {clean_mem}")
-                    logger.info(f"[Qzone 全局记忆] 成功录入Bot日常生活记忆: [{now_str}] {clean_mem}")
-            except Exception as e:
-                logger.error(f"[Qzone] 全局记忆更新异常: {e}")
+                try:
+                    refined_mem = await mai_llm.chat(
+                        messages=[{"role": "user", "content": mem_prompt}],
+                        system_prompt="你是一个极简日常信息提炼助手。",
+                    )
+                    clean_mem = (refined_mem or "").strip().replace("\n", " ")[:30]
+                except Exception as exc:
+                    logger.warning(f"[Qzone] 动态记忆提炼失败，使用原动态摘要: {exc}")
+                    clean_mem = " ".join(content_text.split())[:60]
+            else:
+                clean_mem = " ".join(content_text.split())[:60]
+            clean_mem = re.sub(r"^[\'\"\s\[\]]+|[\'\"\s\[\]]+$", "", clean_mem)
+            if not clean_mem or clean_mem in ("空", "无", "无实质日常"):
+                return
+            now_str = datetime.datetime.now().strftime("%m-%d %H:%M")
+            experience = f"[{now_str}] {clean_mem}"
+            if mai_context:
+                mai_context.update_global_memory(experience)
+            if rag_cfg.get("enable", False):
+                from run.core_reply.service.rag_memory import RAGMemory
+                RAGMemory(config).record_bot_experience(experience)
+            logger.info(f"[Qzone 全局记忆] 成功录入Bot日常生活记忆: {experience}")
+        except Exception as e:
+            logger.error(f"[Qzone] 全局记忆更新异常: {e}")
+
+    def post_succeeded(response) -> bool:
+        if isinstance(response, str):
+            try:
+                response = json.loads(response)
+            except ValueError:
+                match = re.search(r"\((\{.*\})\)\s*;?\s*$", response, re.DOTALL)
+                if not match:
+                    return False
+                try:
+                    response = json.loads(match.group(1))
+                except ValueError:
+                    return False
+        if not isinstance(response, dict):
+            return False
+        return response.get("code", response.get("ret")) == 0
 
     task_history_file = base_data_dir / "qzone_task_history.json"
 
@@ -1191,7 +1030,7 @@ def main(bot: ExtendBot, config: YAMLManager):
         current_global_mem = mai_context.get_global_memory() if mai_context else ""
 
         # 智能挑选基础主题种子（Seed）与去重约束
-        theme_obj = pick_next_theme(task_name)
+        theme_obj = await pick_next_theme(task_name)
         base_theme = theme_obj["theme"]
         sd_theme_hint = theme_obj["sd_hint"]
         selected_theme_id = theme_obj["id"]
@@ -1250,6 +1089,7 @@ def main(bot: ExtendBot, config: YAMLManager):
             f"你的人设信息如下：\n{chara_text}\n\n"
             f"你现在要在自己的社交空间发一条随手动态（{task_name}的说说）。\n"
             f"当前时间：{time_context}\n"
+            f"【本次动态场景规则】：{post_scene_instruction(task_name)}\n"
             f"当前季节与时令：{season_full}（气候特征：{season_desc}）\n"
             f"【整体基调与情绪自由】：像真实女孩子在小号随手记下的心情碎片（参考 @moonjelly0、@jellyhoshiumi）。情绪可以极丰富多变——可以超级无聊、emo阴郁、满心雀跃、平淡松弛、干劲满满，甚至带点小恶魔式的调皮戏耍！拒绝单一刻板的人设，展现最鲜活真实的活人感。\n"
             f"【小女友调皮心动感而非低俗】：如果触发调皮搞怪或微撩恶作剧主题，展现的是像古灵精怪、傲娇真实的小女友因为觉得好玩而跟水友开玩笑搞恶作剧；严禁福利姬/低俗卖肉/纯身体部位或露骨描写！\n\n"
@@ -1262,6 +1102,10 @@ def main(bot: ExtendBot, config: YAMLManager):
             f"6. 【字数与篇幅】：控制在 1 ~ 30 字左右（通常一两句话即可，绝不超过 35 字！）。\n"
             f"   - 遇到低能量、不想说话或发呆时，几个字到十几字足够（如“电量归零，谁也别跟我说话…”、“只想静静当一株植物”）；\n"
             f"   - 遇到生活随手碎念或小吐槽，一两句讲完自然收尾，绝不长篇大论，绝不画蛇添足。\n"
+            f"7. 【严禁机械搬运灵感与动词起手流水账】：\n"
+            f"   - 提供的灵感种子（Seed）仅作为发散信号，【严禁在正文直接粘贴Seed原句】，更严禁以'闭着眼睛...'、'大口嚼着...'、'小火慢煎...'等动词起手流水账格式开头！\n"
+            f"   - 必须像真实女孩子的社交平台动态一样开口：可以用象声词、内心独白/OS、倒叙悬疑、细节的情绪甩出直接开篇！\n"
+            f"   - 如果抽中了变异发散指令（Mutation），请大胆颠覆重构该灵感种子，写出有温度、有呼吸感的生活切片！\n"
             f"{negative_constraints}"
             f"【本次行文切入形态建议】：\n"
             f"{chosen_archetype['description']}\n"
@@ -1287,7 +1131,7 @@ def main(bot: ExtendBot, config: YAMLManager):
             logger.error(f"[Qzone] LLM 生成说说文案异常: {e}")
 
         if not post_content:
-            post_content = f"{task_name}！窗台上的阳光刚刚好，今天也要打起精神呀~" if task_name == "早安" else f"{task_name}！深夜的便利店热牛奶好治愈，大家也都早点休息做个好梦呀~"
+            post_content = f"{task_name}！窗台上的阳光刚刚好，今天也要打起精神呀~" if task_name == "早安" else "床头灯调暗了，今天先到这里。"
 
         logger.info(f"[Qzone] 生成说说内容: {post_content}")
 
@@ -1300,14 +1144,12 @@ def main(bot: ExtendBot, config: YAMLManager):
             "time": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         })
 
-        # 提炼极简日常存入全局记忆
-        await sync_post_to_global_memory(post_content)
-
         # 判断是否需要 SD 绘图
         pic_paths = []
+        outfit_selection = {}
         if task_info.get("绘制图片", True):
             theme_desc = sd_theme_hint
-            sd_prompt = await build_sd_prompt_for_post(post_content, theme_desc)
+            sd_prompt = await build_sd_prompt_for_post(post_content, theme_desc, outfit_selection, task_name=task_name)
             img_file = await call_sd_generate(sd_prompt)
             if img_file:
                 pic_paths.append(img_file)
@@ -1315,7 +1157,11 @@ def main(bot: ExtendBot, config: YAMLManager):
         # 发布至 QQ 空间
         try:
             res = await send_to_qzone(post_content, pic_paths)
+            commit_post_outfit(get_wardrobe_manager() if get_wardrobe_manager else None,
+                               outfit_selection, res, bool(pic_paths))
             logger.info(f"[Qzone] 发布动态完成: {res}")
+            if post_succeeded(res):
+                await sync_post_to_global_memory(post_content)
         except Exception as e:
             logger.error(f"[Qzone] 发布动态异常: {e}")
 
@@ -1390,7 +1236,7 @@ def main(bot: ExtendBot, config: YAMLManager):
                 logger.debug(f"[Qzone Vtuber日常] 提取群聊灵感异常: {e}")
 
         # 接入多样化日常灵感与少女心情日记库（避免近期重复），以种子(Seed)驱动发散
-        daily_theme_obj = pick_next_theme("日常")
+        daily_theme_obj = await pick_next_theme("日常")
         chosen_cat = daily_theme_obj.get("id", "daily_mood")
         chosen_style = daily_theme_obj.get("theme", "分享少女日常生活中的真实可爱碎片")
         chosen_sd_hint = daily_theme_obj.get("sd_hint", "casual daily, relaxed posture, cute expression, high quality")
@@ -1484,14 +1330,12 @@ def main(bot: ExtendBot, config: YAMLManager):
             "time": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         })
 
-        # 提炼日常存入 mai_reply 全局独立生活记忆层
-        await sync_post_to_global_memory(daily_content)
-
         # 概率配图
         pic_paths = []
+        outfit_selection = {}
         pic_prob = float(vcfg.get("绘制图片概率", 0.5))
         if random.random() < pic_prob:
-            sd_prompt = await build_sd_prompt_for_post(daily_content, chosen_sd_hint)
+            sd_prompt = await build_sd_prompt_for_post(daily_content, chosen_sd_hint, outfit_selection, task_name="日常")
             img_file = await call_sd_generate(sd_prompt)
             if img_file:
                 pic_paths.append(img_file)
@@ -1499,11 +1343,14 @@ def main(bot: ExtendBot, config: YAMLManager):
         # 发送说说
         try:
             res = await send_to_qzone(daily_content, pic_paths)
+            commit_post_outfit(get_wardrobe_manager() if get_wardrobe_manager else None,
+                               outfit_selection, res, bool(pic_paths))
             logger.info(f"[Qzone Vtuber日常] 发布动态完成: {res}")
+            if post_succeeded(res):
+                await sync_post_to_global_memory(daily_content)
             vtuber_post_count_today += 1
         except Exception as e:
             logger.error(f"[Qzone Vtuber日常] 发送异常: {e}")
-
 
     # [已重构接入 DynamicScheduler] 原 start_vtuber_daily_monitor 由调度器统一按间隔驱动，此处保留空定义兼容历史调用
     async def start_vtuber_daily_monitor():
@@ -1954,7 +1801,7 @@ def main(bot: ExtendBot, config: YAMLManager):
 
                     logger.info(f"[Qzone 评论互动] 发现新{'子评论' if is_sub else '根评论'} 来自: {comment_name}({comment_uid}) -> {comment_content}")
 
-                    # 获取用户在 mai_reply 的对话历史与用户印象
+                    # 获取用户在 core_reply 的对话历史与用户印象
                     user_impression = ""
                     recent_chat_snippet = ""
                     if mai_context:
@@ -1975,7 +1822,7 @@ def main(bot: ExtendBot, config: YAMLManager):
                                         recent_chat_snippet = "\n".join(recent_lines)
                                         break
                         except Exception as e:
-                            logger.warning(f"[Qzone] 读取 mai_reply 对话上下文失败: {e}")
+                            logger.warning(f"[Qzone] 读取 core_reply 对话上下文失败: {e}")
 
                     # 同动态防车轱辘复读判定
                     all_prior_replies = existing_bot_replies + recent_replies_for_this_post

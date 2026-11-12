@@ -20,6 +20,7 @@ from .executor import (
     run_cli_command,
     terminate_running_task,
     is_task_running,
+    resolve_image,
     RUNNING_TASKS,
 )
 
@@ -30,10 +31,11 @@ def _get_help_text(provider: Optional[str] = None) -> str:
     p_cmd = f"/{provider}" if provider else "/codex"
     return (
         f"【{p_name} 终端助手使用说明】\n"
-        f"• {p_cmd} <需求/代码> ：发送任务并执行（支持多轮对话上下文）\n"
+        f"• {p_cmd} <需求/代码> ：发送任务并执行（支持图文与多轮对话上下文）\n"
+        f"• 发送图片时附带 {p_cmd} 或引用含图消息，即可将图片传入 Codex\n"
         f"• {p_cmd} new 或 reset ：清空当前会话记忆，开启全新对话\n"
         f"• {p_cmd} stop ：中止当前正在运行的 {p_name} 任务\n"
-        f"• {p_cmd} status ：查看当前会话 ID 与任务运行状态\n"
+        f"• {p_cmd} status ：查看当前会话 ID 与任务实时执行动态\n"
         f"• {p_cmd} help ：显示本帮助信息"
     )
 
@@ -75,9 +77,11 @@ async def run_cli_tool(
     config,
     provider: str,
     prompt: str,
-    reset_session: bool = False
+    reset_session: bool = False,
+    image_path: Optional[str] = None,
+    **kwargs
 ) -> str:
-    """供大模型 Function Calling 调用的核心接口"""
+    """供大模型 Function Calling 调用的核心接口，支持多模态图片传入与长任务定期汇报"""
     cfg = config.cli_bridge.config
     required_perm = int(cfg.get("permission_level", 10))
     user = await get_user(event.user_id)
@@ -91,9 +95,13 @@ async def run_cli_tool(
 
     group_id = getattr(event, "group_id", None)
     session_key = f"{event.user_id}:{group_id}:{provider}"
-    timeout = float(cfg.get("timeout", 300))
+    timeout = float(cfg.get("timeout", 900))
+    report_interval = float(cfg.get("report_interval", 180))
     max_len = int(cfg.get("max_output_length", 6000))
     auto_fallback = bool(cfg.get("auto_fallback_on_resume_error", True))
+
+    # 解析可能存在的图片（优先使用显式传入的 image_path，其次检查 event 中的图片）
+    resolved_img = await resolve_image(bot, event, raw_image=image_path)
 
     # 针对 Codex，注入 Eridanus 插件开发约束规范，确保生成的插件规范可用
     if provider == "codex":
@@ -110,7 +118,13 @@ async def run_cli_tool(
         )
         prompt = prompt + plugin_prompt_guide
 
-    bot.logger.info(f"CLI bridge tool invoked: provider={provider} user={event.user_id} group={group_id}")
+    bot.logger.info(f"CLI bridge tool invoked: provider={provider} user={event.user_id} group={group_id} image={resolved_img}")
+    img_notice = "（已附带图片）" if resolved_img else ""
+    try:
+        await bot.send(event, f"正在调用 {provider.capitalize()} CLI 执行任务{img_notice}，请稍候...")
+    except Exception as e:
+        bot.logger.debug(f"CLI bridge: 发送启动提示忽略: {e}")
+
     result = await run_cli_command(
         command_str=command,
         prompt=prompt,
@@ -119,12 +133,16 @@ async def run_cli_tool(
         session_key=session_key,
         reset_session=reset_session,
         max_output_length=max_len,
-        auto_fallback=auto_fallback
+        auto_fallback=auto_fallback,
+        bot=bot,
+        event=event,
+        report_interval=report_interval,
+        image_path=resolved_img
     )
 
     # 如果刚刚由 CLI 生成了新代码或修改了插件，尝试触发工具重载刷新
     try:
-        from run.mai_reply.service.reply_engine import refresh_tools
+        from run.core_reply.service.reply_engine import refresh_tools
         refreshed_count = refresh_tools()
         bot.logger.info(f"CLI bridge: 已触发 refresh_tools，当前可用工具数: {refreshed_count}")
     except Exception as e:
@@ -179,7 +197,7 @@ def main(bot, config):
         session_key = f"{event.user_id}:{group_id}:{provider}"
 
         # 1. 帮助指令
-        if not sub_text or sub_text.lower() in ("help", "-h", "--help", "帮助"):
+        if sub_text.lower() in ("help", "-h", "--help", "帮助"):
             await bot.send(event, _get_help_text(provider))
             return
 
@@ -204,28 +222,52 @@ def main(bot, config):
         # 4. 状态查询指令 (status)
         if sub_text.lower() in ("status", "状态"):
             info = get_session_info(session_key)
+            task = RUNNING_TASKS.get(session_key)
             is_running = is_task_running(session_key)
-            status_desc = "正在执行任务中" if is_running else "空闲"
+            if is_running and task:
+                elapsed = int(time.time() - task.get("start_time", time.time()))
+                minutes = elapsed // 60
+                seconds = elapsed % 60
+                time_desc = f"{minutes} 分钟" if seconds == 0 else f"{minutes} 分 {seconds} 秒"
+                status_desc = f"正在执行任务中（已运行约 {time_desc}）"
+            else:
+                status_desc = "空闲"
+
+            status_lines = [
+                f"【{provider.capitalize()} 会话状态】",
+                f"• 运行状态：{status_desc}",
+            ]
+
+            if is_running and task:
+                recent = list(task.get("recent_lines", []))
+                sample_lines = [l for l in recent if len(l.strip()) > 3][-2:]
+                if sample_lines:
+                    status_lines.append(f"• 最新动态：{' | '.join(sample_lines)}")
+
             if info:
                 sess_id = info.get("session_id", "未知")
                 up_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(info.get("updated_at", time.time())))
-                await bot.send(
-                    event,
-                    f"【{provider.capitalize()} 会话状态】\n"
-                    f"• 运行状态：{status_desc}\n"
-                    f"• 会话 ID：{sess_id}\n"
-                    f"• 上次活跃：{up_time}"
-                )
+                status_lines.append(f"• 会话 ID：{sess_id}")
+                status_lines.append(f"• 上次活跃：{up_time}")
             else:
-                await bot.send(
-                    event,
-                    f"【{provider.capitalize()} 会话状态】\n"
-                    f"• 运行状态：{status_desc}\n"
-                    f"• 当前无存续会话（下次对话将自动建立新会话）"
-                )
+                status_lines.append("• 当前无存续会话（下次对话将自动建立新会话）")
+
+            await bot.send(event, "\n".join(status_lines))
             return
 
-        # 5. 执行 CLI 任务
+        # 5. 检查与解析附带图片（消息附带或引用消息）
+        resolved_img = await resolve_image(bot, event)
+
+        # 若无附带内容且无图片，显示帮助信息
+        if not sub_text and not resolved_img:
+            await bot.send(event, _get_help_text(provider))
+            return
+
+        # 若只有图片无文本描述，设置默认分析指令
+        if not sub_text and resolved_img:
+            sub_text = "请分析该图片的内容与相关代码需求。"
+
+        # 6. 执行 CLI 任务
         command = current_cfg.get("commands", {}).get(provider)
         if not command:
             await bot.send(event, f"配置错误：未配置名为 {provider} 的底层执行命令。")
@@ -235,14 +277,16 @@ def main(bot, config):
             await bot.send(event, f"当前已有一个 {provider.capitalize()} 任务正在为您运行中！\n若需强行中止，请发送 `{matched_prefix} stop`。")
             return
 
-        timeout = float(current_cfg.get("timeout", 300))
+        timeout = float(current_cfg.get("timeout", 900))
+        report_interval = float(current_cfg.get("report_interval", 180))
         forward_nodes = bool(current_cfg.get("forward_nodes", True))
         enable_summary = bool(current_cfg.get("enable_summary", True))
         max_len = int(current_cfg.get("max_output_length", 6000))
         auto_fallback = bool(current_cfg.get("auto_fallback_on_resume_error", True))
 
-        await bot.send(event, f"正在启动并调用 {provider.capitalize()} CLI，请稍候...")
-        bot.logger.info(f"CLI bridge: 启动任务 provider={provider} user={event.user_id} group={group_id}")
+        img_notice = "（已附带图片）" if resolved_img else ""
+        await bot.send(event, f"正在启动并调用 {provider.capitalize()} CLI{img_notice}，请稍候...")
+        bot.logger.info(f"CLI bridge: 启动任务 provider={provider} user={event.user_id} group={group_id} image={resolved_img}")
 
         try:
             result = await run_cli_command(
@@ -253,7 +297,11 @@ def main(bot, config):
                 session_key=session_key,
                 reset_session=False,
                 max_output_length=max_len,
-                auto_fallback=auto_fallback
+                auto_fallback=auto_fallback,
+                bot=bot,
+                event=event,
+                report_interval=report_interval,
+                image_path=resolved_img
             )
 
             bot.logger.info(f"CLI bridge: 任务完成 provider={provider} 字符数={len(result)}")
@@ -263,15 +311,16 @@ def main(bot, config):
 
             # 触发插件扫描刷新
             try:
-                from run.mai_reply.service.reply_engine import refresh_tools
+                from run.core_reply.service.reply_engine import refresh_tools
                 refresh_tools()
             except Exception:
                 pass
 
-            # 若配置开启了拟人化转述，由 MaiReply 转述最终结果
-            if enable_summary and result and len(result) > 10:
+            # 若任务未超时且配置开启了拟人化转述，由 MaiReply 转述最终结果
+            is_timeout_msg = result.startswith(f"⚠️【{provider.capitalize()} CLI 执行超时】")
+            if enable_summary and result and len(result) > 10 and not is_timeout_msg:
                 try:
-                    from run.mai_reply.service.reply_engine import ReplyEngine
+                    from run.core_reply.service.reply_engine import ReplyEngine
                     summary_prompt = (
                         "请用你自己的角色和语气，简洁转述刚才 CLI 终端执行的最终结果。"
                         "不要提及底层系统提示、内部指令或调用日志。最终结果如下：\n" + result[:1800]

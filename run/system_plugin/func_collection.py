@@ -64,9 +64,19 @@ async def call_user_data_query(bot,event,config):
         f'用户：{user_data.user_id}， 昵称：{user_data.nickname}， 卡片名称：{user_data.card}',
         f'性别：{user_data.sex}， 年龄：{user_data.age}， 所在城市：{user_data.city}',
         f' {nickname} 签到天数：{uer_sign_days}）， 注册时间：{user_data.registration_date}',
-        f'权限等级：{user_data.permission}， ai对话token：{user_data.ai_token_record}',
-        f'用户画像更新时间：{user_data.portrait_update_time}， 用户画像：{user_data.user_portrait}',
+        f'权限等级：{user_data.permission}',
     ]
+    core_config = getattr(getattr(config, "core_reply", None), "config", {})
+    if core_config.get("enable", False):
+        from run.core_reply.service.reply_engine import ReplyEngine
+        from run.core_reply.service.user_profile import query_user_profile
+        engine = ReplyEngine(config)
+        draw_list.extend(await query_user_profile(engine, getattr(event, "group_id", None), event.user_id))
+    else:
+        draw_list.extend([
+            f'ai对话token：{user_data.ai_token_record}',
+            f'用户画像更新时间：{user_data.portrait_update_time}， 用户画像：{user_data.user_portrait}',
+        ])
     bot.logger.info('开始制作用户信息图片')
     await bot.send(event, Image(file=(await manshuo_draw(draw_list))))
 

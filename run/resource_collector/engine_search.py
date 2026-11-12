@@ -1,3 +1,4 @@
+from framework_common.framework_util.reply_config import active_llm_config
 import asyncio
 from developTools.event.events import GroupMessageEvent
 from developTools.message.message_components import Node, Text
@@ -5,7 +6,7 @@ from run.resource_collector.service.engine_search import baidu_search, searx_sea
 
 async def read_html(bot,event,config,url):
     bot.logger.info(f"正在阅读网页:{url}")
-    if config.ai_llm.config["llm"]["联网搜索显示原始数据"]:
+    if active_llm_config(config).get("show_search_results", active_llm_config(config).get("联网搜索显示原始数据", False)):
         await bot.send(event, f"正在阅读网页:{url}")
     html_content = await html_read(url, config)
     return  {"result": html_content}
@@ -27,7 +28,7 @@ async def search_net(bot,event,config,query):
                 final += result + '\n'
         except Exception as e:
             bot.logger.error(f"{e}")
-    if config.ai_llm.config["llm"]["联网搜索显示原始数据"]:
+    if active_llm_config(config).get("show_search_results", active_llm_config(config).get("联网搜索显示原始数据", False)):
         await bot.send(event, sendMes)
     return  {"result": final}
 

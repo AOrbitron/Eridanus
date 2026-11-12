@@ -22,10 +22,41 @@ master:
   name: "管理员"
   id: 1840094972
 group: 879886836   #测试群号1，随便建个小群。bot会往里面发乱七八糟的东西，不要填用户群。
-adapter:
-  name: "any"   #兼容性选项，如果用Lagrange，则必须填Lagrange，用其他onebot实现则不用动
-  ws_client:   #机器人作为websocket客户端
-    ws_link: "ws://127.0.0.1:3001"  #bot的websocket请求地址
+# 协议配置：支持 onebot_v11 与 milky (可配置多个服务端/客户端地址与鉴权Token)
+protocol:
+  type: "onebot_v11"   # 协议类型：可选 "onebot_v11" 或 "milky"，默认使用 onebot_v11
+  
+  # OneBot V11 协议配置
+  onebot_v11:
+    adapter_name: "any"
+    access_token: ""   # OneBot 鉴权 token，默认为空
+    ws_client:         # Eridanus 作为 WebSocket 客户端主动连接
+      enable: true
+      url: "ws://127.0.0.1:3001"
+    http_client:       # Eridanus 作为 HTTP 客户端调用 OneBot API
+      enable: false
+      url: "http://127.0.0.1:3000"
+    ws_server:         # Eridanus 作为 WebSocket 服务端（反向WS），默认关闭
+      enable: false
+      host: "0.0.0.0"
+      port: 8080
+    http_server:       # Eridanus 作为 HTTP 服务端接收事件推送，默认关闭
+      enable: false
+      host: "0.0.0.0"
+      port: 8081
+
+  # Milky (1.3) 协议配置（适用于 Yogurt 等 Milky 协议实现）
+  milky:
+    access_token: ""   # Milky 鉴权 token，默认为空（Bearer Token）
+    client:            # Eridanus 主动连接 Milky 服务端
+      enable: true
+      api_url: "http://127.0.0.1:3001"        # Milky HTTP API 根地址
+      api_timeout: 60                         # 单次请求超时秒数；发送超时不自动重发，避免重复消息
+      event_ws_url: "ws://127.0.0.1:3001/event" # Milky 事件流 WebSocket 地址
+    webhook_server:    # Eridanus 作为 Webhook 服务端接收事件上报，默认关闭
+      enable: false
+      host: "0.0.0.0"
+      port: 8082
 
 PluginLoadConfig: #插件加载配置，根据配置情况调整。会影响插件加载速度。
   load_strategy: "batch_loading" #加载策略，可选batch_loading，all_at_once，memory_aware

@@ -918,7 +918,7 @@ function setupChatUI() {
       return;
     }
     // 与 webui 前端完全一致：首元素携带 msg_id，随后自动注入 @机器人 段（qq=1000000 命中
-    // mai_reply 的“被@必回”），再附文本段。
+    // core_reply 的“被@必回”），再附文本段。
     const payload = [
       { msg_id: Date.now() },
       { type: "at", data: { qq: "1000000", name: "Eridanus" } },

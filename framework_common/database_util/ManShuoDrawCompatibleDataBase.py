@@ -405,7 +405,7 @@ class AsyncSQLiteDatabase:
         finally:
             await self._release_connection(conn)
 
-    async def write_multiple_users(self, users: Dict[str, Dict[str, Any]]):
+    async def write_multiple_users(self, users: Dict[str, Dict[str, Any]], is_merged=True):
         """
         一次写入多个用户的数据（嵌套字典形式）。
         """
@@ -418,7 +418,8 @@ class AsyncSQLiteDatabase:
             user_info_list = await self.batch_read_users(user_list)
             for user_id, user_data in users.items():
                 existing_data = user_info_list[user_id]
-                merged_data = merge_dicts(existing_data, user_data)
+                if is_merged: merged_data = merge_dicts(existing_data, user_data)
+                else: merged_data = user_data
                 json_data = json.dumps(merged_data, ensure_ascii=False)
                 await conn.execute('''
                     INSERT OR REPLACE INTO users (user_id, user_data, updated_at)

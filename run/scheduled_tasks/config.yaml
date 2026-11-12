@@ -4,12 +4,14 @@ scheduledTasks:    #其他定时任务模块的内容会陆续转到这里
     time: 8/3      #推送时间
     trustThreshold: 9 #权限等级要求，低于此值的用户将不会被推送
     onlyTrustUser: True  #仅向信任用户推送
+    request_interval: 15 # 请求触发间隔（秒），避免瞬时并发触发上游RPM限制
   晚安问候: #私聊晚安提示
     enable: true
     text: 晚安！    #开启aiReplyCore后，此项将被ai替代
     time: 22/31
     trustThreshold: 9 #低于权限等级的用户将不会被推送
     onlyTrustUser: True  #仅向信任用户推送
+    request_interval: 15 # 请求触发间隔（秒），避免瞬时并发触发上游RPM限制
   bangumi:         #bangumi推送
     enable: True
     text: "晚上好，这里是今天的bangumi推送"

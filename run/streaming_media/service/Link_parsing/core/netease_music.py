@@ -1,4 +1,4 @@
-import httpx
+﻿import httpx
 import re
 from PIL import Image, ImageFilter
 from io import BytesIO
@@ -12,7 +12,7 @@ NETEASE_MUSIC_HEADERS = {
 }
 
 OFFICIAL_SONG_DETAIL_API = "https://music.163.com/api/song/detail?ids=[{}]"  #官方API
-DOWNLOAD_API = "https://www.byfuns.top/api/1/?id={}"  #下载API
+DOWNLOAD_API = "https://music.163.com/song/media/outer/url?id={}.mp3"  #外链播放器直链
 
 def format_duration(duration_ms):
     """将毫秒时长格式化为 MM:SS"""
@@ -23,9 +23,9 @@ def format_duration(duration_ms):
     else:
         return "未知"
 
-async def fetch_song_info(song_id, filepath):
+async def fetch_song_info(song_id, filepath=None):
     """
-    根据歌曲 ID 获取歌曲信息（使用官方 API），并获取下载链接保存到文件。
+    根据歌曲 ID 获取歌曲信息（使用官方 API）与外链播放器下载直链。
     """
     async with httpx.AsyncClient(headers=NETEASE_MUSIC_HEADERS) as client:
         try:
@@ -40,26 +40,21 @@ async def fetch_song_info(song_id, filepath):
             song_data = response_json["songs"][0]
             album_data = song_data.get("album", {})
 
-            #获取下载链接并保存到文件
+            #获取外链播放器下载直链
             download_url = await fetch_song_download_url(song_id)
-            if download_url:
-                url_file_path = os.path.join(filepath, "不允许进行传播、销售等商业活动!!.txt")
-                with open(url_file_path, "w", encoding="utf-8") as f:
-                    f.write(download_url)
-            else:
-                 url_file_path = None
 
             return {
                 "name": song_data.get("name", "未知歌曲"),
                 "artists": [artist.get("name", "未知歌手") for artist in song_data.get("artists", [])],
-                "album": album_data.get("name", "未知专辑"),  #其实这里可以不用返回
+                "album": album_data.get("name", "未知专辑"),
                 "cover_url": album_data.get("picUrl", ""),
                 "song_type": get_song_type(song_data),
-                "bpm": get_bpm(song_data), #这里也可以不用
-                "publish_time":  album_data.get("publishTime"), #这里也可以不用
-                "duration":  song_data.get("duration"), #这里也可以不用
-                "subType": album_data.get("subType", "未知类型"),#这里也可以不用
-                "url_file_path": url_file_path,  #返回文件路径
+                "bpm": get_bpm(song_data),
+                "publish_time": album_data.get("publishTime"),
+                "duration": song_data.get("duration"),
+                "subType": album_data.get("subType", "未知类型"),
+                "download_url": download_url,
+                "url_file_path": None,
             }
         except (httpx.RequestError, httpx.HTTPStatusError, ValueError) as e:
             print(f"官方 API 请求失败: {e}")
@@ -67,16 +62,9 @@ async def fetch_song_info(song_id, filepath):
 
 async def fetch_song_download_url(song_id):
     """
-    根据歌曲 ID 获取下载链接。
+    根据歌曲 ID 获取外链播放器下载直链。
     """
-    async with httpx.AsyncClient(headers=NETEASE_MUSIC_HEADERS) as client:
-        try:
-            response = await client.get(DOWNLOAD_API.format(song_id))
-            response.raise_for_status()
-            return response.text.strip()
-        except (httpx.RequestError, httpx.HTTPStatusError) as e:
-            print(f"下载链接 API 请求失败: {e}")
-            return None
+    return DOWNLOAD_API.format(song_id)
 
 async def download_image(url: str, path: str = "") -> str:
     def crop_center_square(image):

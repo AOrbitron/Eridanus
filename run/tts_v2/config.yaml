@@ -1,11 +1,41 @@
-tts: #全局通用配置
-  default_speaker: "natuki"   # 默认发音人（未指定角色时使用）
+﻿tts: #全局通用配置
+  default_speaker: "natuki"   # 默认发音人（未指定角色时使用，支持达妮娅/natuki等）
   length_limit: 150           # 最大单次合成字符长度上限（超长自动截断）
   lang_type: "JP"             # 目标发音语言（JP / ZH 等），JP 会将中文自动翻译为自然日文
-  api_key: ""                 # 翻译/在线接口 API Key，留空则自动继承 mai_reply 中的 trigger_llm/openai key
+  api_key: ""                 # 翻译/在线接口 API Key，留空则自动继承 core_reply 中的 trigger_llm/openai key
 
+breeze_tts:
+  connection_mode: "gateway"  # 连接模式: "gateway" (走网关需 api_key) 或 "direct" (直连自建服务端无需 api_key)
+  gateway_url: "http://api.apollodorus.xyz"
+  direct_url: ""
+  api_key: ""
+  mode: "breeze_tts"  # 接口模式: "breeze_tts" 或 "openai_speech"  /breeze/tts或/v1/audio/speech
+  auto_generate_instruction: true # 自动生成 instruction 开关: 由 trigger_llm 结合文本与情绪自动生成语气指导语
+  auto_add_audio_tags: true # 自动添加音频表现力标签开关: 由 trigger_llm 自动在台词中适度添加 [叹气]、[轻笑] 等表现力标签
+  default_instruction: "轻柔，温和，慵懒，俏皮"   # 默认配音语气指导语 (当未显式指定且自动生成关闭或失败时使用)
+  base_tone: "轻柔，温和，慵懒，俏皮" # 角色固有性格与声音基调: 自动生成 instruction 时以此基调为底色演变，保持人设一致
+
+  cfg_scale: 4.0      # 带指导语/声音设计时推荐 4.0，无指导语时自动 1.0
+  speed: 1.0          # 语速调节 (默认 1.0，支持 0.5 ~ 2.0，对应 voice_settings.speed)
+  volume: 1.0         # 音量调节 (默认 1.0，支持 0.1 ~ 2.0，对应 voice_settings.volume)
+  model: "breeze-tts-2" # 模型名称
+  format: "wav"       # 音频格式: wav / pcm
+  speakers:  # 可用发音人别名列表
+    - 达妮娅
+    - dania
+    - breeze
+    - breeze-tts
+    - breeze-tts-2
+    - 珂莱塔
+    - 西格莉卡
+    - 莫宁
+    - 仇远
+    - 爱弥斯
+    - 洛可可
+    - 弗洛洛
+    - 东雪莲
 gpt_sovits:
-  api_base: ""  # 填写自建或代理服务地址。http://api.apollodorus.xyz/提供接口
+  api_base: ""  # 填写自建或代理服务地址。例如 http://127.0.0.1:9880
   api_key: ""   # 留空=直连服务端；非空=经过API鉴权
   ref_audio_path: output/slicer_opt/output.wav_0009342720_0009558400.wav
   ref_text: 怎么啊？如果有你在也不放心，那就干脆给我也装个限制器或者炸弹呗。
@@ -20,6 +50,7 @@ gpt_sovits:
   seed: -1
   repetition_penalty: 1.35
   streaming_mode: False
+
 # 可用发音人（共 9 位角色，支持中文名/全名/缩写别名）：
 # - natuki                     (夏木 / 默认声线)
 # - 米浴                        (别名: rice_shower, rice_shower_米浴_ライスシャワー)
@@ -28,7 +59,7 @@ gpt_sovits:
 # - 待兼福来                    (别名: matikane_fukukitaru, matikane_fukukitaru_待兼福来_マチカネフクキタル)
 # - 待兼诗歌剧                  (别名: matikane_tannhauser, matikane_tannhauser_待兼诗歌剧_マチカネタンホイサ)
 # - 爱丽数码                    (别名: agnes_digital, agnes_digital_爱丽数码_アグネスデジタル)
-# - 优秀素质                    (别名: nice_nature, nice_nature_优秀素质_ナイスネイチャ)
+# - 优秀素质                    (别名: nice_nature, nice_nature_优秀素质_ナイスネイ查)
 # - 里见光钻                    (别名: satono_diamond, satono_diamond_里见光钻_サトノダイヤモンド)
 pretty_derby: # PrettyDerby 赛马娘 Bert-VITS2 直连引擎（本地直连 HuggingFace，不依赖第三方中转网关）
   speaker: "natuki"
@@ -67,22 +98,11 @@ holive:
 #       JP_Saori / Saori (锭前纱织), JP_Wakamo / Wakamo (狐坂若藻), JP_Miyako / Miyako (月雪宫子),
 #       JP_Miyu / Miyu (霞泽美游), JP_Serika / Serika (黑见芹香), JP_Serina / Serina (鹫见芹奈),
 #       JP_Neru / Neru (美甘宁瑠), JP_Izuna / Izuna (久田泉奈), JP_Azusa / Azusa (白洲梓) ...
-# 完整清单包含: Airi, Akane, Akari, Ako, Aris, Arona, Aru, Asuna, Atsuko, Ayane, Azusa,
-#   Cherino, Chihiro, Chinatsu, Chise, Eimi, Erica, Fubuki, Fuuka, Hanae, Hanako, Hare,
-#   Haruka, Haruna, Hasumi, Hibiki, Hihumi, Himari, Hina, Hinata, Hiyori, Hoshino, Iori,
-#   Iroha, Izumi, Izuna, Juri, Kaede, Karin, Kayoko, Kazusa, Kirino, Koharu, Kokona,
-#   Kotama, Kotori, Main, Maki, Mari, Marina, Mashiro, Michiru, Midori, Miku, Mimori,
-#   Misaki, Miyako, Miyu, Moe, Momoi, Momoka, Mutsuki, NP0013, Natsu, Neru, Noa,
-#   Nodoka, Nonomi, Pina, Rin, Saki, Saori, Saya, Sena, Serika, Serina, Shigure, Shimiko,
-#   Shiroko, Shizuko, Shun, ShunBaby, Sora, Sumire, Suzumi, Tomoe, Tsubaki, Tsurugi, Ui,
-#   Utaha, Wakamo, Yoshimi, Yuuka, Yuzu, Zunko 等 95 位。
 blue_archive:
   speaker: "JP_Mari"
 
 otto:  #otto, OTTO, 电棍, 吉吉国王。基于活字印刷音源拼接，生动还原电棍鬼畜语调，适合搞笑、整活回复。
   endpoint: "https://ottohzys.wzq02.top"
-
-
 
 vits:  #VITS 本地服务（兼容性保留） 适合本地独立部署了 VITS-simple-api 等经典服务的用户使用。
   speaker: "綾地寧々"

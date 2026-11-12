@@ -111,33 +111,9 @@ def setup_git_proxy_if_interactive():
 
 
 def merge_dicts(old, new, path=""):
-    for k, v in list(old.items()):
-        key_path = f"{path}.{k}" if path else str(k)
-        if k not in new:
-            # 新模板中已不存在该配置项（官方已废弃、删除或更名），不再合入新配置，保持新配置文件结构干净规范
-            logger.info(f"清理已废弃或新版本中不存在的旧配置项: {key_path}")
-            continue
-
-        if isinstance(v, dict) and isinstance(new[k], dict):
-            merge_dicts(v, new[k], key_path)
-        elif isinstance(v, list) and isinstance(new[k], list):
-            if k in ["api_keys", "sdUrl", "其他默认绘图参数", "card_index", "steam_api_key", "nano_banana_key", "固定入群欢迎", "apikey"]:
-                new[k] = v
-            elif k.startswith("page"):
-                logger.warning(f"当前任务为菜单 [{key_path}]，使用最新配置覆盖旧配置。")
-            else:
-                try:
-                    new[k] = list(dict.fromkeys(new[k] + v))
-                except Exception:
-                    logger.error(f"列表合并出错 [{key_path}]，默认用最新配置")
-        elif new[k] is None:
-            # 新模板预留的空值项，沿用旧配置的具体值
-            new[k] = v
-        elif not isinstance(v, type(new[k])) and not isinstance(new[k], type(v)):
-            logger.warning(f"配置项 [{key_path}] 数据类型不一致 (旧: {type(v).__name__}, 新: {type(new[k]).__name__})，使用新模板默认值")
-            continue
-        else:
-            new[k] = v
+    """Keep the new schema; matching YAML types use the user's old value."""
+    from framework_common.framework_util.config_migrations import merge_config_values
+    return merge_config_values(new, old)
 
 
 def conflict_file_dealter(file_old, file_new):
@@ -145,10 +121,12 @@ def conflict_file_dealter(file_old, file_new):
         old_data = yaml.load(file)
     with open(file_new, 'r', encoding="utf-8") as file:
         new_data = yaml.load(file)
-    if old_data is not None and new_data is not None:
-        merge_dicts(old_data, new_data)
-        with open(file_new, 'w', encoding="utf-8") as file:
-            yaml.dump(new_data, file)
+    if not isinstance(old_data, dict) or not isinstance(new_data, dict):
+        raise ValueError("Config merge requires YAML mappings in both files")
+    merge_dicts(old_data, new_data)
+    from pathlib import Path
+    from framework_common.framework_util.config_migrations import _atomic_save
+    _atomic_save(Path(file_new), new_data)
 
 
 def print_result_banner(status: str, detail: str = ""):
@@ -321,11 +299,7 @@ def restore_or_merge_yamls(backed_up_yamls: dict, pull_succeeded: bool):
                     conflict_file_dealter(backup_path, orig_rel_path)
                     logger.info(f"配置文件合并成功: {orig_rel_path}")
                 except Exception as e:
-                    logger.error(f"合并配置文件失败 {orig_rel_path}: {e}，将保留原配置")
-                    try:
-                        shutil.copy2(backup_path, orig_rel_path)
-                    except Exception:
-                        pass
+                    logger.error(f"合并配置文件失败 {orig_rel_path}: {e}，保留新模板和备份 {backup_path}，请检查后重试；不会用旧配置覆盖新结构")
             else:
                 try:
                     os.makedirs(os.path.dirname(os.path.abspath(orig_rel_path)), exist_ok=True)
@@ -374,9 +348,9 @@ def is_ai_configured() -> bool:
     try:
         from framework_common.framework_util.yamlLoader import YAMLManager
         ym = YAMLManager.get_instance()
-        if not hasattr(ym, "mai_reply"):
+        if not hasattr(ym, "core_reply"):
             return False
-        cfg = ym.mai_reply.config
+        cfg = ym.core_reply.config
         if not cfg or not cfg.get("enable", True):
             return False
         llm = cfg.get("llm", {})
@@ -546,7 +520,7 @@ def ai_solve_git_update(source_url: str, initial_stdout: str, initial_stderr: st
 
     async def _run_ai():
         from framework_common.framework_util.yamlLoader import YAMLManager
-        from run.mai_reply.service.llm_client import LLMClient
+        from run.core_reply.service.llm_client import LLMClient
         ym = YAMLManager.get_instance()
         client = LLMClient(ym)
         try:

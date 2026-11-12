@@ -23,8 +23,8 @@ expression:                # 表情/动作控制：对话后用一个快速模�
   enable: true
   reset_delay_ms: 6000     # 变脸后过这么久(ms)恢复默认待机表情；<=0 表示不自动恢复
   model: gpt-4o-mini       # 响应迅速的小模型
-  base_url: ""             # 留空则复用 mai_reply 的 trigger_llm 端点
-  api_key: ""              # 留空则复用 mai_reply 的 trigger_llm api_key
+  base_url: ""             # 留空则复用 core_reply 的 trigger_llm 端点
+  api_key: ""              # 留空则复用 core_reply 的 trigger_llm api_key
 
   emotions: # ↓↓↓ 情绪/场景 → 表情·动作 索引（已绑定到当前模型 data/yumi 的真实可用项；换模型后需按新模型的表情/动作名重写）↓↓↓规则：对话后先判定情绪（emotions 里的 key 之一）；情绪较上一次发生变化才“变脸”，未变化不动。expression=持续表情（脸），空字符串表示恢复默认待机；motion=一次性动作动画。
     neutral:   { expression: "",     motion: "" }    # 平静/无明显情绪 → 恢复待机

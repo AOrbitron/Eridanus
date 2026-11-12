@@ -8,6 +8,10 @@ import traceback
 from developTools.utils.logger import get_logger
 import pprint
 from run.streaming_media.service.Link_parsing.core import *
+from run.streaming_media.service.Link_parsing.core.manshuo_api import (
+    manshuo_api_link_prising,
+    should_use_manshuo_api,
+)
 import os
 
 try:
@@ -25,7 +29,10 @@ from framework_common.database_util.ManShuoDrawCompatibleDataBase import AsyncSQ
 db=asyncio.run(AsyncSQLiteDatabase.get_instance())
 credential_bili_global = None
 
-async def link_prising(url,filepath=None,proxy=None,type=None,credential_bili=None,re_prising=False,absorb_color=False,up_info_get=False):
+
+
+async def link_prising(url,filepath=None,proxy=None,type=None,credential_bili=None,re_prising=False,absorb_color=False,up_info_get=False,
+                       master_id=None):
     json_check = copy.deepcopy(json_init)
     link_prising_json=None
     try:
@@ -98,7 +105,15 @@ async def link_prising(url,filepath=None,proxy=None,type=None,credential_bili=No
             case url if 'www.mysqil.com' in url:
                 #link_prising_json = await youxi_pil(url, filepath=filepath)
                 pass
-            case _:
+            case url if should_use_manshuo_api(url):
+                if master_id in [1270858640]:
+                    link_prising_json = await manshuo_api_link_prising(
+                        url,
+                        filepath=filepath,
+                        proxy=True,
+                        type=type,
+                    )
+            case _:#https://asmr.one/work/RJ01603537
                 pass
         if link_prising_json is not None and link_prising_json['status'] is True and 'pic_path' in link_prising_json:
             linking_cache[url] = {'info':copy.deepcopy(link_prising_json), 'time':time.time(), 'path':link_prising_json['pic_path']}
@@ -161,7 +176,7 @@ async def link_prising(url,filepath=None,proxy=None,type=None,credential_bili=No
 
 async def test(url_check):
     from run.streaming_media.service.Link_parsing.core.bili import download_b
-    link_info = await link_prising(url_check,absorb_color=True,up_info_get=True,credential_bili=True)
+    link_info = await link_prising(url_check,absorb_color=True,up_info_get=True,credential_bili=True,master_id=1270858640)
     pprint.pprint(link_info)
 
     # video_path = await download_b(link_info['video_url'], link_info['audio_url'], int(time.time()), filepath='data/pictures/cache/')
@@ -190,7 +205,7 @@ if __name__ == "__main__":#测试用，不用管
     # url = 'https://t.bilibili.com/1217329482778542083?spm_id_from=333.1387.0.0'
     # url = 'https://t.bilibili.com/1217764206464466978'
     # url = 'https://www.bilibili.com/video/BV1vvjR6REyP'
-    # url = '【那你的梦呢 仪玄？-哔哩哔哩】 https://b23.tv/SFkYzoC'
+    url = '【那你的梦呢 仪玄？-哔哩哔哩】 https://b23.tv/SFkYzoC'
     # url = 'https://b23.tv/RHtz2mO'
     #url = 'https://live.bilibili.com/9576151'
     #url = 'http://xhslink.cn/o/4DZvlOLnu8q'
@@ -201,6 +216,7 @@ if __name__ == "__main__":#测试用，不用管
     # data_info = await data_init()
     # credential = Credential(sessdata=data_info['cookies']['sessdata'], bili_jct=data_info['cookies']['bili_jct'],
     #                         buvid3=data_info['cookies']['buvid3'], dedeuserid=data_info['cookies']['dedeuserid'])
+    url = 'https://asmr.one/work/RJ01603537'
     info = asyncio.run(test(url))
     # pprint.pprint(info)
     # if info['status'] and info['content']['type'] == 'dynamic':

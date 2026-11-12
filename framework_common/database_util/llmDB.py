@@ -13,8 +13,9 @@ from ruamel.yaml import YAML
 from framework_common.framework_util.yamlLoader import YAMLManager
 
 same_manager = YAMLManager.get_instance()
-local_config = same_manager.ai_llm.config
-if local_config["llm"]["model"] == "gemini":
+from framework_common.framework_util.reply_config import active_llm_config
+local_config = active_llm_config(same_manager)
+if local_config.get("provider", local_config.get("model")) == "gemini":
     DATABASE_FILE = "data/dataBase/conversation.db"
 else:
     DATABASE_FILE = "data/dataBase/openai_conversation.db"

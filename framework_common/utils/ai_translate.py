@@ -3,11 +3,7 @@ import traceback
 
 from developTools.utils.logger import get_logger
 from framework_common.framework_util.yamlLoader import YAMLManager
-from run.ai_llm.service.aiReplyHandler.default import defaultModelRequest
-from run.ai_llm.service.aiReplyHandler.tecentYuanQi import YuanQiTencent
-from run.ai_llm.clients.gemini_client import GeminiAPI
-from run.ai_llm.clients.openai_client import OpenAIAPI
-from framework_common.utils.GeminiKeyManager import GeminiKeyManager
+from framework_common.framework_util.reply_config import core_reply_enabled, auxiliary_reply
 
 
 class Translator:
@@ -18,6 +14,19 @@ class Translator:
     async def translate(self, text):
         return await self.aiReplyCore(text, self.config, self.system_instruction)
     async def aiReplyCore(self,text,config,system_instruction=None,recursion_times=0):  # 后面几个函数都是供函数调用的场景使用的
+        if core_reply_enabled(config):
+            try:
+                return await auxiliary_reply((system_instruction or "") + text, config) or text
+            except Exception as exc:
+                self.logger.warning(f"Translation failed: {exc}")
+                return text
+
+        from run.ai_llm.service.aiReplyHandler.default import defaultModelRequest
+        from run.ai_llm.service.aiReplyHandler.tecentYuanQi import YuanQiTencent
+        from run.ai_llm.clients.gemini_client import GeminiAPI
+        from run.ai_llm.clients.openai_client import OpenAIAPI
+        from framework_common.utils.GeminiKeyManager import GeminiKeyManager
+
         logger = self.logger
         logger.info(f"translator called with message: {text}")
         """

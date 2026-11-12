@@ -18,7 +18,7 @@ class AsyncGPTSoVITSClient:
         :param base_url: api_v2.py 服务端地址 (例如: http://123.45.67.89:9880)
 
         注意：不在此快照 speakers / api_key —— 改为 property 每次实时读取配置。
-        这样 tts_v2 配置热重载后，即便本实例被 mai_reply 等其它插件长期持有，
+        这样 tts_v2 配置热重载后，即便本实例被 core_reply 等其它插件长期持有，
         也会立即用上新配置，而不是停留在实例创建时的旧值（历史上的“热重载后仍用旧变量”）。
         """
         pass
@@ -26,7 +26,7 @@ class AsyncGPTSoVITSClient:
     @property
     def _gpt_sovits_cfg(self):
         # 每次实时取当前配置：YAMLManager 是单例，热重载时原地更新其数据，故实时读取即为最新。
-        return YAMLManager.get_instance().tts_v2.config["gpt_sovits"]
+        return YAMLManager.get_instance().tts_v2.config.get("gpt_sovits", {}) or {}
 
     @property
     def speakers(self):
@@ -64,10 +64,11 @@ class AsyncGPTSoVITSClient:
         调用 api_v2.py 的 /tts 接口生成语音
         :param ref_audio_path: 参考音频本地路径（服务端能访问到的绝对路径，或远程服务器上的路径）
         """
+        cfg = self._gpt_sovits_cfg
         if ref_audio_path is None:
-            ref_audio_path = config.tts_v2.config["gpt_sovits"]["ref_audio_path"]
+            ref_audio_path = cfg.get("ref_audio_path", "")
         if ref_text is None:
-            ref_text = config.tts_v2.config["gpt_sovits"]["ref_text"]
+            ref_text = cfg.get("ref_text", "")
         if output_save_path is None:
             output_save_path = "data/voice/cache/" + uuid.uuid4().hex + ".wav"
 
@@ -80,20 +81,20 @@ class AsyncGPTSoVITSClient:
             "ref_audio_path": ref_audio_path,   # api_v2 直接接受服务端路径，无需上传
             "prompt_text": ref_text,
             "prompt_lang": ref_lang,
-            "top_k": top_k or config.tts_v2.config["gpt_sovits"]["top_k"],
-            "top_p": top_p or config.tts_v2.config["gpt_sovits"]["top_p"],
-            "temperature": temperature or config.tts_v2.config["gpt_sovits"]["temperature"],
-            "text_split_method": text_split_method or config.tts_v2.config["gpt_sovits"]["text_split_method"],
-            "batch_size": batch_size or config.tts_v2.config["gpt_sovits"]["batch_size"],
-            "speed_factor": speed_factor or config.tts_v2.config["gpt_sovits"]["speed_factor"],
-            "streaming_mode": streaming_mode or config.tts_v2.config["gpt_sovits"]["streaming_mode"],
-            "seed": seed or config.tts_v2.config["gpt_sovits"]["seed"],
+            "top_k": top_k or cfg.get("top_k", 15),
+            "top_p": top_p or cfg.get("top_p", 1.0),
+            "temperature": temperature or cfg.get("temperature", 1.0),
+            "text_split_method": text_split_method or cfg.get("text_split_method", "cut1"),
+            "batch_size": batch_size or cfg.get("batch_size", 1),
+            "speed_factor": speed_factor or cfg.get("speed_factor", 1.0),
+            "streaming_mode": streaming_mode if streaming_mode is not None else cfg.get("streaming_mode", False),
+            "seed": seed or cfg.get("seed", -1),
             "fragment_interval": 0.32,
             "media_type": media_type,
-            "repetition_penalty": 1.35 or config.tts_v2.config["gpt_sovits"]["repetition_penalty"],
+            "repetition_penalty": cfg.get("repetition_penalty", 1.35),
         }
 
-        base_url = config.tts_v2.config["gpt_sovits"]["api_base"]
+        base_url = cfg.get("api_base", "")
         if self.use_gateway:
             url = f"{base_url}/gptsovits/tts"
             headers = {"Authorization": f"Bearer {self.api_key}"}
@@ -125,7 +126,7 @@ class AsyncGPTSoVITSClient:
     async def set_gpt_weights(self, weights_path: str):
         if self.use_gateway:
             raise Exception("当前为api网关模式，网关未提供 set_gpt_weights 接口，无法切换GPT模型")
-        base_url=config.tts_v2.config["gpt_sovits"]["api_base"]
+        base_url=self._gpt_sovits_cfg.get("api_base", "")
         async with aiohttp.ClientSession() as session:
             async with session.get(
                 f"{base_url}/set_gpt_weights",
@@ -139,7 +140,7 @@ class AsyncGPTSoVITSClient:
     async def set_sovits_weights(self, weights_path: str):
         if self.use_gateway:
             raise Exception("当前为api网关模式，网关未提供 set_sovits_weights 接口，无法切换SoVITS模型")
-        base_url = config.tts_v2.config["gpt_sovits"]["api_base"]
+        base_url = self._gpt_sovits_cfg.get("api_base", "")
         async with aiohttp.ClientSession() as session:
             async with session.get(
                 f"{base_url}/set_sovits_weights",

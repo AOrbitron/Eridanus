@@ -13,6 +13,7 @@ import time
 from framework_common.manshuo_draw import *
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
+import pprint
 
 def main(bot, config):
 
@@ -275,3 +276,66 @@ def main(bot, config):
         ]
         await bot.send(event, Image(file=(await manshuo_draw(number_speeches_check_draw_list))))
         await bot.recall(recall_id['data']['message_id'])
+
+async def test():
+    db = await AsyncSQLiteDatabase.get_instance()
+    all_users =await db.read_all_users()
+    user_id = 1270858640
+    group_id = 674822468
+    # pprint.pprint(all_users[f'{user_id}'])
+    # return
+    # all_users_cache = {f'{user_id}':{'number_speeches':{f'{group_id}': all_users[f'{user_id}']['number_speeches'][f'{group_id}']}}}
+    # all_users = all_users_cache
+    times_count = 0
+    user_cache_multiple = {}
+    for user_id in all_users:
+        if 'number_speeches' not in all_users[user_id]:continue
+        #if user_id != '1270858640':continue
+        times_count += 1
+        print(user_id, times_count, len(all_users))
+        user_cache = all_users[f'{user_id}']
+        for group_id in all_users[f'{user_id}']['number_speeches']:
+            #await db.delete_user_field(user_id, f'number_speeches.{group_id}')
+
+            today = datetime.now()
+            yestoday = datetime.now() - timedelta(days=1)
+            last_month = datetime.now() - relativedelta(months=1)
+            cache = {}
+            #首先将今天和昨天的发言次数保存
+            today_str, yestoday_str = f'{today.year}_{today.month}_{today.day}', f'{yestoday.year}_{yestoday.month}_{yestoday.day}'
+            cache[today_str] = all_users[f'{user_id}']['number_speeches'][f'{group_id}'].get(today_str,0)
+            cache[yestoday_str] = all_users[f'{user_id}']['number_speeches'][f'{group_id}'].get(yestoday_str,0)
+            #然后保存本月和上个月的
+            month_count, last_month_count = 0, 0
+            for item in all_users[f'{user_id}']['number_speeches'][f'{group_id}']:
+                if item in [today_str,yestoday_str]:continue
+                if f'{today.year}_{today.month}_' in item: month_count += int(all_users[f'{user_id}']['number_speeches'][f'{group_id}'][item])
+                if f'{last_month.year}_{last_month.month}_' in item: last_month_count += int(all_users[f'{user_id}']['number_speeches'][f'{group_id}'][item])
+            cache[f'{today.year}_{today.month}'], cache[f'{last_month.year}_{last_month.month}'] = month_count, last_month_count
+            #然后保存本年度和以往所有年度的
+            for i in range(today.year):
+                # if i == 0: continue
+                # if f'{int(today.year) - i}' not in all_users[f'{user_id}']['number_speeches'][f'{group_id}']:break
+                if not any(f'{int(today.year) - i}' in f'{key}' for key in all_users[f'{user_id}']['number_speeches'][f'{group_id}']):break
+                year_count = 0
+                for item in all_users[f'{user_id}']['number_speeches'][f'{group_id}']:
+                    if f'{today.year - i}' == item:
+                        year_count = int(all_users[f'{user_id}']['number_speeches'][f'{group_id}'][item])
+                        if i != 0: break
+                    if f'{today.year - i}_' in item:
+                        if i == 0 and (f'{today.year}_{today.month}' in item or f'{today.year}_{today.month - 1}' in item): continue
+                        year_count += int(all_users[f'{user_id}']['number_speeches'][f'{group_id}'][item])
+                cache[f'{today.year - i}'] = year_count
+            user_cache['number_speeches'][group_id] = cache
+        user_cache_multiple[f'{user_id}'] = user_cache
+        #pprint.pprint(user_cache)
+        #return
+    await db.write_multiple_users(user_cache_multiple, False)
+
+    #await db.delete_user_field('1270858640','number_speeches.892088020')
+
+
+
+if __name__ == '__main__':
+    print('yes')
+    asyncio.run(test())

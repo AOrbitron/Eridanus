@@ -1,4 +1,4 @@
-心知天气:
+﻿心知天气:
   api_key: ""     #https://www.seniverse.com/ 申请后，填私钥
 image_search:
   sauceno_api_key: ""          #sauceno搜图api，你可以从https://saucenao.com/user.php注册并获取
@@ -32,7 +32,9 @@ tarot:
       - data/pictures/tarot/hidden_tarot/vlt.jpg: ""
 搜图:
   search_image_resource_operate_level: 0  #图片搜索功能所需等级
+  nsfw_search_operate_level: 1 #av搜索所需权限
   聚合搜图: true          #搜单图
   soutu_bot: true       #搜本子
+  avscan: true          #AVScan 截图搜番号
 self_condition:         #bot自身状态检测
   enable: False         #目前该模块打开会导致内存增加，请依据自身情况打开

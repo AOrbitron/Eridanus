@@ -7,7 +7,7 @@ scheduler_engine.py
 - 结合 TimezoneHelper，原生支持多用户时区差异化换算
 - 支持预输入 Function Calling 嵌套工具执行（到点执行任意已注册 Function，如 call_asmr 等）
 - 支持自然语言 Prompt 驱动生成个性化问候/提醒消息
-- 支持与 mai_reply 深度联动的主动私聊排期 (proactive_chat)
+- 支持与 core_reply 深度联动的主动私聊排期 (proactive_chat)
 - 提供统一的增删改查及全局单例调度器
 """
 
@@ -27,7 +27,9 @@ from typing import Optional, Dict, Any, List, Union, Tuple
 import aiosqlite
 
 from developTools.message.message_components import Text
-from framework_common.framework_util.any_event import AnyEvent
+from developTools.message.message_components import MessageComponent
+from developTools.event.events import GroupMessageEvent, PrivateMessageEvent
+from framework_common.database_util.User import get_user
 from framework_common.schedule_service.timezone_helper import TimezoneHelper
 
 logger = get_logger("DynamicScheduler")
@@ -55,6 +57,11 @@ class ScheduledTask:
     next_run_timestamp: float
     created_at: str
     last_run_at: str = ""
+
+    @classmethod
+    def from_row(cls, row):
+        # SELECT * must tolerate extra columns installed by future plugins.
+        return cls(**{key: value for key, value in dict(row).items() if key in cls.__dataclass_fields__})
 
     def get_payload_dict(self) -> Dict[str, Any]:
         if isinstance(self.action_payload, dict):
@@ -499,6 +506,21 @@ class DynamicScheduler:
         logger.info(f"[DynamicScheduler] 成功创建任务: {task.task_id} ({task.description}), 下次触发: {datetime.datetime.fromtimestamp(next_ts)}")
         return task
 
+    async def remove_task(self, task_id: str) -> bool:
+        """根据 task_id 直接将任务状态置为 cancelled 并取消调度"""
+        await self.init_db()
+        async with aiosqlite.connect(getattr(self, 'db_path', DB_PATH)) as db:
+            cursor = await db.execute(
+                "UPDATE dynamic_tasks SET status = 'cancelled' WHERE task_id = ? AND status = 'active'",
+                (task_id,)
+            )
+            await db.commit()
+            affected = cursor.rowcount
+        if affected > 0:
+            logger.info(f"[DynamicScheduler] 成功取消/移除任务: {task_id}")
+            return True
+        return False
+
     async def cancel_tasks(
         self,
         task_id_or_keyword: str,
@@ -529,7 +551,7 @@ class DynamicScheduler:
             async with db.execute(query, tuple(params)) as cursor:
                 rows = await cursor.fetchall()
                 for row in rows:
-                    t = ScheduledTask(**dict(row))
+                    t = ScheduledTask.from_row(row)
                     if is_all:
                         # 保护机制：批量取消全部时，自动豁免系统后台常驻守护任务（如 QQ 空间巡检、保活等）
                         if not self.is_system_task(t):
@@ -582,7 +604,7 @@ class DynamicScheduler:
             async with db.execute(query, tuple(params)) as cursor:
                 rows = await cursor.fetchall()
                 for row in rows:
-                    tasks.append(ScheduledTask(**dict(row)))
+                    tasks.append(ScheduledTask.from_row(row))
         return tasks
 
     async def list_all_tasks(
@@ -616,7 +638,7 @@ class DynamicScheduler:
             async with db.execute(query, tuple(params)) as cursor:
                 rows = await cursor.fetchall()
                 for row in rows:
-                    tasks.append(ScheduledTask(**dict(row)))
+                    tasks.append(ScheduledTask.from_row(row))
         return tasks
 
     def _find_callable_tool(cls, tool_name: str) -> Optional[Any]:
@@ -678,7 +700,7 @@ class DynamicScheduler:
             "random_asmr": "run.resource_collector.service.asmr.asmr100.random_asmr_100",
             "bing": "run.basic_plugin.service.life_service.bingEveryDay",
             "danxiangli": "run.basic_plugin.service.life_service.danxianglii",
-            "weather": "run.basic_plugin.service.weather_query.free_weather_query",
+            "weather": "run.basic_plugin.basic_plugin.call_weather_query",
             "free_weather_query": "run.basic_plugin.service.weather_query.free_weather_query",
             "epic": "run.anime_game_service.service.epicfree.epic_free_game_get",
             "nasa": "run.basic_plugin.service.nasa_api.get_nasa_apod",
@@ -700,6 +722,94 @@ class DynamicScheduler:
     # -------------------------------------------------------------------------
     # 执行逻辑：支持嵌套 Function Calling、LLM 智能消息生成与主动对话
     # -------------------------------------------------------------------------
+    @staticmethod
+    def _tool_call_from_payload(payload):
+        """Read both persisted protocol generations without rewriting stored tasks."""
+        name = payload.get("tool_name") or payload.get("func_name") or ""
+        params = next((payload[key] for key in ("tool_params", "tool_args", "parameters")
+                       if key in payload and payload[key] is not None), {})
+        if isinstance(params, str):
+            params = json.loads(params)
+        if not isinstance(params, dict):
+            raise ValueError("工具参数必须是 JSON 对象")
+        if not isinstance(name, str):
+            raise ValueError("工具名称必须是字符串")
+        return name.strip(), dict(params)
+
+    async def _build_task_event(self, task):
+        """Give registered tools the same typed event interface as live FC calls."""
+        uid = task.target_id if task.target_type == "private" else task.creator_id
+        sender = {"user_id": uid, "nickname": f"用户{uid}", "role": "member"}
+        try:
+            user = await get_user(uid)
+            if user:
+                sender.update(nickname=user.nickname or sender["nickname"], card=user.card or "")
+        except Exception as exc:
+            logger.warning(f"[DynamicScheduler] 读取任务用户信息失败: {exc}")
+        fields = dict(post_type="message", sub_type="normal" if task.target_type == "group" else "friend",
+                      user_id=uid, message_type=task.target_type, message_id=0, font=0,
+                      message=[{"type": "text", "data": {"text": task.description}}],
+                      sender=sender, self_id=getattr(self.bot, "id", 0), time=int(time.time()),
+                      scheduled_task_id=task.task_id)
+        if task.target_type == "group":
+            return GroupMessageEvent(group_id=task.target_id, **fields)
+        return PrivateMessageEvent(**fields)
+
+    async def _invoke_tool(self, func, params, event):
+        sig = inspect.signature(func)
+        kwargs = dict(params)
+        has_var_kw = any(p.kind == inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values())
+        # Context belongs to the scheduler, never to serialized model arguments.
+        for key, value in (("bot", self.bot), ("event", event), ("config", self.config)):
+            if key in sig.parameters or has_var_kw:
+                kwargs[key] = value
+        for key in ("user_id", "group_id"):
+            if key in sig.parameters and key not in kwargs and hasattr(event, key):
+                kwargs[key] = getattr(event, key)
+        if not has_var_kw:
+            kwargs = {key: value for key, value in kwargs.items() if key in sig.parameters}
+        args = []
+        for parameter in sig.parameters.values():
+            if parameter.kind == inspect.Parameter.POSITIONAL_ONLY:
+                if parameter.name in kwargs:
+                    args.append(kwargs.pop(parameter.name))
+                elif parameter.default is not inspect.Parameter.empty:
+                    args.append(parameter.default)
+                else:
+                    raise TypeError(f"缺少工具参数: {parameter.name}")
+        bound = sig.bind(*args, **kwargs)
+        if asyncio.iscoroutinefunction(func):
+            result = await func(*bound.args, **bound.kwargs)
+        else:
+            result = await asyncio.to_thread(func, *bound.args, **bound.kwargs)
+        return await result if inspect.isawaitable(result) else result
+
+    async def _send_tool_result(self, task, result):
+        """Deliver FC envelopes, structured data and native message components."""
+        if result is None or self.bot is None:
+            return  # A self-sending tool need not return anything.
+        if isinstance(result, dict) and "result" in result:
+            result = result["result"]
+        if result is None:
+            return
+        if isinstance(result, MessageComponent):
+            message = [result]
+        elif isinstance(result, (list, tuple)) and all(
+                isinstance(item, (MessageComponent, str)) or
+                (isinstance(item, dict) and "type" in item and "data" in item) for item in result):
+            message = [Text(item) if isinstance(item, str) else item for item in result]
+        elif isinstance(result, dict) and "type" in result and "data" in result:
+            message = [result]
+        else:
+            text = result if isinstance(result, str) else json.dumps(result, ensure_ascii=False, default=str)
+            message = [Text(text)] if text.strip() else []
+        if not message:
+            return
+        if task.target_type == "private":
+            await self.bot.send_friend_message(task.target_id, message)
+        else:
+            await self.bot.send_group_message(task.target_id, message)
+
     async def execute_task(self, task: ScheduledTask):
         """执行单个任务的具体动作"""
         if task.task_id in self._running_tasks:
@@ -713,17 +823,11 @@ class DynamicScheduler:
 
         logger.info(f"[DynamicScheduler] 开始执行任务 {task.task_id}: {task.description} (action={task.action_type})")
 
-        # 构造虚拟事件
-        event = AnyEvent()
-        event.user_id = task.target_id if task.target_type == "private" else task.creator_id
-        if task.target_type == "group":
-            event.group_id = task.target_id
-
         try:
+            event = await self._build_task_event(task)
             # 1. 嵌套工具调用（执行任意已注册 Function，如 call_asmr 或其他 tool）
             if task.action_type in ("tool", "function_call"):
-                tool_name = payload.get("tool_name", "")
-                tool_params = payload.get("tool_params") or payload.get("tool_args") or {}
+                tool_name, tool_params = self._tool_call_from_payload(payload)
                 # 若因历史数据或解析问题缺少 tool_name，根据 task_type/task_id/description 智能回退识别
                 if not tool_name:
                     if task.task_type == "qzone_post":
@@ -741,56 +845,38 @@ class DynamicScheduler:
                 if func and callable(func):
                     logger.info(f"[DynamicScheduler] 触发嵌套工具 {tool_name} (参数: {tool_params})")
 
-                    sig = inspect.signature(func)
-                    kwargs_to_pass = dict(tool_params)
-                    if "bot" in sig.parameters and "bot" not in kwargs_to_pass:
-                        kwargs_to_pass["bot"] = bot
-                    if "event" in sig.parameters and "event" not in kwargs_to_pass:
-                        kwargs_to_pass["event"] = event
-                    if "config" in sig.parameters and "config" not in kwargs_to_pass:
-                        kwargs_to_pass["config"] = config
-
-                    # 参数过滤：如果函数不接收 **kwargs，过滤掉未声明的参数
-                    has_var_kw = any(p.kind == inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values())
-                    if not has_var_kw:
-                        kwargs_to_pass = {k: v for k, v in kwargs_to_pass.items() if k in sig.parameters}
-
-                    if asyncio.iscoroutinefunction(func):
-                        res = await func(**kwargs_to_pass)
-                    else:
-                        res = func(**kwargs_to_pass)
-                        if inspect.isawaitable(res):
-                            res = await res
-
-                    # 若工具返回了字符串或消息结果，协助发送
-                    if res is not None and bot:
-                        if isinstance(res, str) and res.strip():
-                            if task.target_type == "private":
-                                await bot.send_friend_message(task.target_id, [Text(res)])
-                            else:
-                                await bot.send_group_message(task.target_id, [Text(res)])
-                        elif isinstance(res, (list, tuple)) and len(res) > 0:
-                            if task.target_type == "private":
-                                await bot.send_friend_message(task.target_id, list(res))
-                            else:
-                                await bot.send_group_message(task.target_id, list(res))
+                    res = await self._invoke_tool(func, tool_params, event)
+                    await self._send_tool_result(task, res)
                 else:
-                    logger.error(f"[DynamicScheduler] 工具 {tool_name} 未找到或不可调用")
+                    raise LookupError(f"工具 {tool_name} 未找到或不可调用")
 
             # 2. 自然语言 / 提示词触发生成个性化消息（早安、叫起床、喝水提醒等）或需要由LLM生成的任务
             elif task.action_type in ("message", "prompt", "reminder", "morning_greeting", "night_greeting"):
+                # 检查早晚安等特定任务的全局开关
+                if task.action_type == "morning_greeting" or task.task_type == "morning_greeting":
+                    st_cfg = getattr(config, "scheduled_tasks", None)
+                    m_enable = st_cfg.config.get("scheduledTasks", {}).get("早安问候", {}).get("enable", False) if st_cfg and hasattr(st_cfg, "config") else False
+                    if not m_enable:
+                        logger.info(f"[DynamicScheduler] scheduledTasks.早安问候 未启动，跳过执行 {task.task_id}")
+                        return
+                elif task.action_type == "night_greeting" or task.task_type == "night_greeting":
+                    st_cfg = getattr(config, "scheduled_tasks", None)
+                    n_enable = st_cfg.config.get("scheduledTasks", {}).get("晚安问候", {}).get("enable", False) if st_cfg and hasattr(st_cfg, "config") else False
+                    if not n_enable:
+                        logger.info(f"[DynamicScheduler] scheduledTasks.晚安问候 未启动，跳过执行 {task.task_id}")
+                        return
                 prompt = payload.get("prompt") or payload.get("message") or task.description
                 sent = False
 
-                # 优先走 mai_reply 的 ReplyEngine.handle 核心流程：
+                # 优先走 core_reply 的 ReplyEngine.handle 核心流程：
                 # 保持上下文记忆追踪、人设印象、TTS语音及情绪管理；
                 # 关键优化：
                 # 1. include_tools=False：纯提醒/消息生成不注入庞大的工具列表，节约大量 token 并彻底杜绝幻觉乱调用工具；
                 # 2. 若任务在 payload 中特别指定了 target_tools / tools_override，则通过 tools_override 针对性开放工具；
                 # 3. system_prompt_prefix 强指令：明确告知这是系统定时触发，严禁误判为对方发言（彻底根除“你怎么抢我台词”的误解）。
-                if config and hasattr(config, "mai_reply") and config.mai_reply.config.get("enable", False):
+                if config and hasattr(config, "core_reply") and config.core_reply.config.get("enable", False):
                     try:
-                        from run.mai_reply.service.reply_engine import ReplyEngine
+                        from run.core_reply.service.reply_engine import ReplyEngine
                         engine = ReplyEngine(config)
 
                         # 构造系统提示前缀，防误判
@@ -836,8 +922,8 @@ class DynamicScheduler:
                 if not sent:
                     # 降级备用：调用 aiReplyCore 进行拟人回复生成
                     try:
-                        from run.ai_llm.service.aiReplyCore import aiReplyCore
-                        text = await aiReplyCore([{"text": prompt}], task.target_id, config, bot=bot)
+                        from framework_common.framework_util.reply_config import auxiliary_reply
+                        text = await auxiliary_reply(prompt, config, user_id=task.target_id, bot=bot)
                     except Exception as fallback_err:
                         logger.warning(f"[DynamicScheduler] 降级调用 aiReplyCore 异常: {fallback_err}，直接发送原始提示词")
                         text = prompt
@@ -849,9 +935,21 @@ class DynamicScheduler:
                             await bot.send_group_message(task.target_id, [Text(text)] if isinstance(text, str) else text)
             # 3. 主动私聊决策联动 (proactive_chat)
             elif task.action_type == "proactive_chat":
-                if config and hasattr(config, "mai_reply") and config.mai_reply.config.get("enable", False):
-                    from run.mai_reply.service.proactive_service import ProactiveService
-                    from run.mai_reply.service.reply_engine import ReplyEngine
+                proactive_enabled = False
+                if config and hasattr(config, "core_reply") and config.core_reply.config.get("enable", False):
+                    p_cfg = getattr(config.core_reply, "proactive", {})
+                    if not isinstance(p_cfg, dict):
+                        p_cfg = config.core_reply.config.get("proactive", {})
+                    if isinstance(p_cfg, dict) and p_cfg.get("enable", False):
+                        proactive_enabled = True
+
+                if not proactive_enabled:
+                    logger.info(f"[DynamicScheduler] core_reply 或 proactive 开关未启动，跳过执行主动关怀任务 {task.task_id}")
+                    return
+
+                if True:
+                    from run.core_reply.service.proactive_service import ProactiveService
+                    from run.core_reply.service.reply_engine import ReplyEngine
                     engine = ReplyEngine(config)
                     proactive_svc = ProactiveService(engine)
 
@@ -885,6 +983,10 @@ class DynamicScheduler:
 
         except Exception as e:
             logger.error(f"[DynamicScheduler] 执行任务 {task.task_id} 出错: {e}", exc_info=True)
+            try:
+                await self._send_tool_result(task, f"定时任务「{task.description}」执行失败，请检查工具名称、参数和日志。")
+            except Exception:
+                logger.exception(f"[DynamicScheduler] 任务 {task.task_id} 失败通知发送失败")
         finally:
             self._running_tasks.discard(task.task_id)
 
@@ -914,11 +1016,29 @@ class DynamicScheduler:
         morning_cfg = scheduled_tasks_cfg.get("早安问候", {})
         night_cfg = scheduled_tasks_cfg.get("晚安问候", {})
 
-        morning_enable = morning_cfg.get("enable", False)
-        night_enable = night_cfg.get("enable", False)
+        morning_enable = bool(morning_cfg.get("enable", False))
+        night_enable = bool(night_cfg.get("enable", False))
+
+        # 若早安问候未启用，取消数据库中遗留的 active 早安任务
+        if not morning_enable:
+            async with aiosqlite.connect(getattr(self, 'db_path', DB_PATH)) as db:
+                await db.execute(
+                    "UPDATE dynamic_tasks SET status = 'cancelled' WHERE (task_type = 'morning_greeting' OR task_id LIKE 'daily_morning_%') AND status = 'active'"
+                )
+                await db.commit()
+            logger.info("[DynamicScheduler] 早安问候未启用，已清理/取消所有旧的早安任务")
+
+        # 若晚安问候未启用，取消数据库中遗留的 active 晚安任务
+        if not night_enable:
+            async with aiosqlite.connect(getattr(self, 'db_path', DB_PATH)) as db:
+                await db.execute(
+                    "UPDATE dynamic_tasks SET status = 'cancelled' WHERE (task_type = 'night_greeting' OR task_id LIKE 'daily_night_%') AND status = 'active'"
+                )
+                await db.commit()
+            logger.info("[DynamicScheduler] 晚安问候未启用，已清理/取消所有旧的晚安任务")
 
         if not morning_enable and not night_enable:
-            logger.info("[DynamicScheduler] 早安问候与晚安问候均未启用")
+            logger.info("[DynamicScheduler] 早安问候与晚安问候均未启用，同步结束")
             return
 
         from framework_common.database_util.User import get_users_with_permission_above, get_user
@@ -958,6 +1078,20 @@ class DynamicScheduler:
                 except Exception:
                     trusted_set = set()
 
+            # 清理不再满足权限条件或不再在好友列表中的旧早安任务
+            async with aiosqlite.connect(getattr(self, 'db_path', DB_PATH)) as db:
+                db.row_factory = aiosqlite.Row
+                async with db.execute(
+                    "SELECT task_id, target_id FROM dynamic_tasks WHERE (task_type = 'morning_greeting' OR task_id LIKE 'daily_morning_%') AND status = 'active'"
+                ) as cursor:
+                    rows = await cursor.fetchall()
+                    for row in rows:
+                        tid = row["task_id"]
+                        t_uid = row["target_id"]
+                        if (t_uid not in friend_ids) or (m_only_trust and t_uid not in trusted_set):
+                            await db.execute("UPDATE dynamic_tasks SET status = 'cancelled' WHERE task_id = ?", (tid,))
+                await db.commit()
+
             for uid in friend_ids:
                 if m_only_trust and uid not in trusted_set:
                     continue
@@ -995,6 +1129,20 @@ class DynamicScheduler:
                     trusted_set = set(await get_users_with_permission_above(n_threshold))
                 except Exception:
                     trusted_set = set()
+
+            # 清理不再满足权限条件或不再在好友列表中的旧晚安任务
+            async with aiosqlite.connect(getattr(self, 'db_path', DB_PATH)) as db:
+                db.row_factory = aiosqlite.Row
+                async with db.execute(
+                    "SELECT task_id, target_id FROM dynamic_tasks WHERE (task_type = 'night_greeting' OR task_id LIKE 'daily_night_%') AND status = 'active'"
+                ) as cursor:
+                    rows = await cursor.fetchall()
+                    for row in rows:
+                        tid = row["task_id"]
+                        t_uid = row["target_id"]
+                        if (t_uid not in friend_ids) or (n_only_trust and t_uid not in trusted_set):
+                            await db.execute("UPDATE dynamic_tasks SET status = 'cancelled' WHERE task_id = ?", (tid,))
+                await db.commit()
 
             for uid in friend_ids:
                 if n_only_trust and uid not in trusted_set:
@@ -1159,7 +1307,7 @@ class DynamicScheduler:
                 ) as cursor:
                     rows = await cursor.fetchall()
                     for row in rows:
-                        t = ScheduledTask(**dict(row))
+                        t = ScheduledTask.from_row(row)
                         if t.task_id not in self._running_tasks:
                             tasks_to_run.append(t)
 

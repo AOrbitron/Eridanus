@@ -1,0 +1,26 @@
+{
+  "disabled": [
+    "anime_game_service_func_collection",
+    "call_aiArtModerate",
+    "call_bangumi_search",
+    "call_character_identify",
+    "call_clear_all_history",
+    "call_delete_user_history",
+    "call_fortune",
+    "call_user_data_query",
+    "garbage_collection",
+    "get_all_speakers",
+    "operate_group_censor",
+    "parse_cloud_music",
+    "search_with_official_api",
+    "search_book_info",
+    "iwara_tendency",
+    "list_cloned_voices",
+    "get_breeze_tags",
+    "clone_voice"
+
+  ],
+  "disabled_skills": [
+    "reply-live-test"
+  ]
+}

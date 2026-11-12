@@ -1,24 +1,21 @@
 import traceback
-
 import httpx
 
-
-async def search_(img:str):
+async def search_(img: str):
     """
     Eridanus项目提供的搜图服务端，需要额外部署。
     """
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(timeout=10.0) as client:
         try:
-            files = {
-                "file": (img, open(img, "rb"), "image/jpeg")
-            }
-
-            headers = {
-                "accept": "application/json"
-            }
-            response = await client.post("http://127.0.0.1:5008/search",headers=headers,files=files,timeout=None)
-            #print(response.text)
+            with open(img, "rb") as f:
+                files = {
+                    "file": (img, f.read(), "image/jpeg")
+                }
+                headers = {
+                    "accept": "application/json"
+                }
+                response = await client.post("http://127.0.0.1:5008/search", headers=headers, files=files)
+                return response.json().get("results", [])
         except Exception as e:
-            traceback.print_exc()
-            print(e)
-        return response.json()["results"]
+            # 服务端未部署或连接失败时不阻塞
+            return []

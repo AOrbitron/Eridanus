@@ -38,15 +38,75 @@ if proxy != "":
     }
 else:
     proxies = None
-if module_config.resource_collector.config["z_library"]["email"] != "" and module_config.resource_collector.config["z_library"][
-    "password"] != "":
-    global Z
+global Z
+Z = None
+_z_login_lock = None
+
+
+def _get_proxies(config=None):
+    cfg = config or YAMLManager.get_instance()
     try:
-        Z = Zlibrary(email=module_config.resource_collector.config["z_library"]["email"],
-                     password=module_config.resource_collector.config["z_library"]["password"], proxies=proxies)
-        logger.info("✅ z_library 登陆成功")
+        proxy = cfg.common_config.basic_config["proxy"]["http_proxy"]
+        if proxy != "":
+            return {"http": proxy, "https": proxy}
+    except Exception:
+        pass
+    return None
+
+
+def _login_zlibrary_sync(email, password, proxies):
+    try:
+        client = Zlibrary(email=email, password=password, proxies=proxies)
+        if client.isLoggedIn():
+            logger.info("✔ z_library 登陆成功")
+            return client
+        else:
+            logger.warning("❌ z_library 登录未成功（请检查账号密码或网络）")
     except Exception as e:
-        logger.error(f"❌ z_library login error:{e}")
+        logger.error(f"❌ z_library login error: {e}")
+    return None
+
+
+async def get_zlibrary(config=None):
+    global Z, _z_login_lock
+    if Z is not None and Z.isLoggedIn():
+        return Z
+
+    if _z_login_lock is None:
+        _z_login_lock = asyncio.Lock()
+
+    async with _z_login_lock:
+        if Z is not None and Z.isLoggedIn():
+            return Z
+
+        cfg = config or YAMLManager.get_instance()
+        try:
+            z_conf = cfg.resource_collector.config.get("z_library", {})
+            email = str(z_conf.get("email", "")).strip()
+            password = str(z_conf.get("password", "")).strip()
+        except Exception:
+            email, password = "", ""
+
+        if not email or not password:
+            logger.warning("z_library 未配置账号或密码")
+            return None
+
+        proxies = _get_proxies(cfg)
+        loop = asyncio.get_running_loop()
+        client = await loop.run_in_executor(None, _login_zlibrary_sync, email, password, proxies)
+        if client and client.isLoggedIn():
+            Z = client
+            return Z
+        return None
+
+
+def start_zlibrary_background_init(config=None):
+    """后台异步启动登录，绝不阻塞启动流程"""
+    try:
+        loop = asyncio.get_running_loop()
+        return loop.create_task(get_zlibrary(config))
+    except RuntimeError:
+        return None
 
 global operating
 operating = {}  #jm文件共享的维护列表
@@ -55,16 +115,27 @@ async def search_book_info(bot,event,config,info):
     global Z
     user_info = await get_user(event.user_id)
     if user_info.permission >= config.resource_collector.config["z_library"]["search_operate_level"]:
-
         await bot.send(event, "正在搜索中，请稍候...")
-        result =await search_book(Z, info, config.resource_collector.config["z_library"]["search_num"])
-        forward_list = []
-        for r in result:
-            forward_list.append(Node(content=[Text(r[0]), Image(file=r[1])]))
-        #print(forward_list)
-        await bot.send(event, forward_list)
-        # await bot.send(event,Image(file=p)])
-        # print(r)
+        client = await get_zlibrary(config)
+        if not client or not client.isLoggedIn():
+            await bot.send(event, "z_library 尚未登录成功，正在尝试登录或请检查配置与网络状态", True)
+            return
+
+        try:
+            result = await search_book(client, info, config.resource_collector.config["z_library"]["search_num"])
+            if not result:
+                await bot.send(event, "未搜索到相关书籍", True)
+                return
+            forward_list = []
+            for r in result:
+                if len(r) > 1 and r[1]:
+                    forward_list.append(Node(content=[Text(r[0]), Image(file=r[1])]))
+                else:
+                    forward_list.append(Node(content=[Text(r[0])]))
+            await bot.send(event, forward_list)
+        except Exception as e:
+            bot.logger.error(f"search_book error: {e}")
+            await bot.send(event, f"搜索书籍出错：{e}", True)
     else:
         await bot.send(event, "你没有权限使用该功能")
 async def call_download_book(bot,event,config,book_id: str,hash:str):
@@ -72,15 +143,20 @@ async def call_download_book(bot,event,config,book_id: str,hash:str):
     user_info = await get_user(event.user_id)
     if user_info.permission >= config.resource_collector.config["z_library"]["download_operate_level"]:
         await bot.send(event, "正在下载中，请稍候...")
+        client = await get_zlibrary(config)
+        if not client or not client.isLoggedIn():
+            await bot.send(event, "z_library 尚未登录成功，正在尝试登录或请检查配置与网络状态", True)
+            return
+
         loop = asyncio.get_running_loop()
         try:
             with ThreadPoolExecutor() as executor:
-                path = await loop.run_in_executor(executor,download_book,Z,book_id.strip(),hash.strip())
+                path = await loop.run_in_executor(executor,download_book,client,book_id.strip(),hash.strip())
             await bot.send(event, File(file=path))
             await bot.send(event, "下载成功，请查看文件",True)
         except Exception as e:
             bot.logger.error(f"download_book error:{e}")
-            await bot.send(event, "下载失败，请稍后再试",True)
+            await bot.send(event, f"下载失败：{e}",True)
     else:
         await bot.send(event, "你没有权限使用该功能")
 
@@ -679,6 +755,9 @@ async def jm_preview(bot, event, config, comic_id=607279,mode_check='preview'):
 def main(bot, config):
 
     logger = bot.logger
+
+    # 启动时后台异步初始化 zlibrary，绝不阻塞启动流程
+    start_zlibrary_background_init(config)
 
     asmr_task_activated = False
 

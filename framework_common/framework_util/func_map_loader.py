@@ -2,6 +2,7 @@ import os
 import sys
 import importlib
 import traceback
+from framework_common.framework_util.reply_config import active_llm_config
 
 
 from developTools.utils.logger import get_logger
@@ -139,8 +140,8 @@ def get_tool_declarations(config=None):
     # 如果开启了官方搜索功能，过滤掉自定义联网函数
     if config is not None:
         try:
-            google_search_enabled = config.ai_llm.config["llm"].get("google_search", False)
-            url_context_enabled = config.ai_llm.config["llm"].get("url_context", False)
+            google_search_enabled = active_llm_config(config).get("google_search", False)
+            url_context_enabled = active_llm_config(config).get("url_context", False)
             
             if google_search_enabled or url_context_enabled:
                 declarations = [
@@ -164,8 +165,8 @@ def filter_tools_by_config(tools, config=None):
         return tools
     
     try:
-        google_search_enabled = config.ai_llm.config["llm"].get("google_search", False)
-        url_context_enabled = config.ai_llm.config["llm"].get("url_context", False)
+        google_search_enabled = active_llm_config(config).get("google_search", False)
+        url_context_enabled = active_llm_config(config).get("url_context", False)
         
         if google_search_enabled or url_context_enabled:
             filtered_tools = {

@@ -1,3 +1,4 @@
+from run.ai_generated_art.service.audit_policy import requires_nsfw_audit
 from developTools.event.events import GroupMessageEvent
 from framework_common.framework_util.websocket_fix import ExtendBot
 from framework_common.framework_util.yamlLoader import YAMLManager        
@@ -70,7 +71,7 @@ async def call_simple_draw(bot, event, config, prompt): # 主调用逻辑和@bot
     path = results.get("9", {}).get("DEFAULT_DOWNLOAD", "")
     with open(path, "rb") as image_file:
         image_data = image_file.read()
-    if event.group_id not in config.ai_generated_art.config['ai绘画']['allow_nsfw_groups']: # 审核逻辑开始
+    if requires_nsfw_audit(config.ai_generated_art.config['ai绘画'], event.group_id): # 审核逻辑开始
         try:
             check = await pic_audit_standalone(
                 base64.b64encode(image_data).decode('utf-8'),

@@ -173,7 +173,8 @@ class ExtendBot(WebSocketBot):
         if hasattr(event, "message_id"):
             if event.message_id==114514:   #自己构建的假事件没有真正的message_id，这里直接跳过
                 Quote=False
-        if self.config.common_config.basic_config["adapter"]["name"] == "Lagrange":
+
+        if self.config.common_config.basic_config["protocol"]["onebot_v11"]["adapter_name"] == "Lagrange":
             if Quote:
                 components.insert(0, Reply(id=str(event.message_id)))
             for index, item in enumerate(components):

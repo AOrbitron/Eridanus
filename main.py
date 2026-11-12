@@ -30,8 +30,43 @@ dual_manager = None
 config = YAMLManager("run")  # 这玩意用来动态加载和修改配置文件
 enable_monitoring = config.common_config.basic_config["HandlerMonitor"]["enable"]
 handler_timeout_warning=float(config.common_config.basic_config["HandlerMonitor"]["handler_timeout_warning"])
-bot1 = ExtendBot(config.common_config.basic_config["adapter"]["ws_client"]["ws_link"], config,
-                 blocked_loggers=["DEBUG", "INFO_MSG"],handler_timeout_warning=handler_timeout_warning, enable_monitoring=enable_monitoring)
+
+# 读取 protocol 配置，分流 OneBot v11 与 Milky
+protocol_cfg = config.common_config.basic_config.get("protocol", {})
+protocol_type = protocol_cfg.get("type", "onebot_v11").lower()
+
+if protocol_type == "milky":
+    from developTools.adapters.milky_adapter import MilkyAdapter
+    milky_cfg = protocol_cfg.get("milky", {})
+    client_cfg = milky_cfg.get("client", {})
+    api_url = client_cfg.get("api_url", "http://127.0.0.1:3001")
+    event_ws_url = client_cfg.get("event_ws_url", "ws://127.0.0.1:3001/event")
+    access_token = milky_cfg.get("access_token", "")
+    bot1 = MilkyAdapter(
+        api_url=api_url,
+        event_ws_url=event_ws_url,
+        access_token=access_token,
+        api_timeout=client_cfg.get("api_timeout", 60),
+        config=config,
+        blocked_loggers=["DEBUG", "INFO_MSG"],
+        handler_timeout_warning=handler_timeout_warning,
+        enable_monitoring=enable_monitoring
+    )
+    bot1.logger.info(f"🚀 已加载 Milky (1.3) 协议适配器，API地址: {api_url}，事件流: {event_ws_url}")
+else:
+    # 默认 OneBot v11
+    onebot_cfg = protocol_cfg.get("onebot_v11", {})
+    ws_url = onebot_cfg.get("ws_client", {}).get("url")
+    if not ws_url:
+        ws_url = config.common_config.basic_config.get("adapter", {}).get("ws_client", {}).get("ws_link", "ws://127.0.0.1:3001")
+    bot1 = ExtendBot(
+        ws_url,
+        config,
+        blocked_loggers=["DEBUG", "INFO_MSG"],
+        handler_timeout_warning=handler_timeout_warning,
+        enable_monitoring=enable_monitoring
+    )
+    bot1.logger.info(f"🚀 已加载 OneBot v11 协议适配器，WS地址: {ws_url}")
 
 bot1.logger.info("正在初始化....")
 
@@ -54,7 +89,7 @@ if config.common_config.basic_config["webui"]["enable"]:
             # 确保 WebUI 模块可以从 webui_dir 加载
             bot1.logger.info(f"WebUI 线程：启动 WebUI，模块路径 {webui_dir}")
             from web.server_new import start_webui
-            start_webui()
+            start_webui(bot2, config)
         except Exception as e:
             bot1.logger.error(f"WebUI 线程：启动 WebUI 失败：{e}")
             traceback.print_exc()

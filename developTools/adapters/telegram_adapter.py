@@ -920,7 +920,7 @@ class TelegramAdapter:
                 is_mentioned = True
                 clean_text = text.replace(at_tag, "").strip()
 
-        # 针对常见问候/起始指令去除前缀 '/'，避免被 mai_reply 的 ignore_prefixes: ['/', '#'] 过滤
+        # 针对常见问候/起始指令去除前缀 '/'，避免被 core_reply 的 ignore_prefixes: ['/', '#'] 过滤
         if clean_text.lower() == "/start":
             clean_text = "你好"
         elif clean_text.lower() in ("/hi", "/hello", "/hey"):

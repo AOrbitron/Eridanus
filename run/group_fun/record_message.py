@@ -8,7 +8,17 @@ from framework_common.manshuo_draw import *
 from datetime import datetime, timedelta
 # 构建分隔符正则表达式 
 separators_pattern = '|'.join(re.escape(sep) for sep in ["|", "｜"])
-message_list_global = {}
+message_list_global = {}        #用于删除怪话使用
+message_group_global = {}       #用于避免短期内多次发送同一个怪话
+_MAX_RECORD_CACHE = 1000
+
+def _record_cache_set(msg_id, img_path):
+    global message_list_global
+    if len(message_list_global) >= _MAX_RECORD_CACHE:
+        drop_keys = list(message_list_global.keys())[:200]
+        for k in drop_keys:
+            message_list_global.pop(k, None)
+    message_list_global[msg_id] = img_path
 
 
 
@@ -39,12 +49,13 @@ def main(bot, config):
 
     @bot.on(GroupMessageEvent)
     async def today_message(event: GroupMessageEvent):
-        global message_list_global
         context, userid, nickname, group_id, is_at = event.pure_text, str(event.sender.user_id), event.sender.nickname, int(event.group_id),False
         if event.message_chain.has(At) and event.message_chain.has(Text):
             is_at = True
             userid, context = event.message_chain.get(At)[0].qq, event.message_chain.get(Text)[0].text
         if context.strip() not in ['今日怪话','今日语录','群友怪话','群友语录']:  return
+        global message_group_global
+        message_group_global.setdefault(group_id,[])
         img_path_save = f'data/pictures/record_message/{group_id}'
         files = [f for f in os.listdir(img_path_save) if os.path.isfile(os.path.join(img_path_save, f))]
         if not files:
@@ -54,14 +65,26 @@ def main(bot, config):
             files_check = []
             for file in files:
                 if file.startswith(f'{userid}_'):files_check.append(file)
-            if files_check:files = files_check
+            if files_check: files = files_check
             else:
                 await bot.send(event, '这位群友还没有说过怪话呢\n发送“消息记录”来引用记录群友的怪话吧 ！')
                 return
+        #设定缓存机制以免短时间多次抽到同一个人
+        files_check = files.copy()
+        for item in message_group_global[group_id]:
+            if item in files: files.remove(item)
+        if files == []:
+            if is_at:
+                for item_check in files_check:
+                    if item_check in message_group_global[group_id]: message_group_global[group_id].remove(item_check)
+            else: message_group_global[group_id] = []
+            files = files_check
+
         random_file = random.choice(files)
+        message_group_global[group_id].append(random_file)
         message_id_info = await bot.send(event, Image(file=f'{img_path_save}/{random_file}'))
         if message_id_info is not None:
-            message_list_global[message_id_info['data']['message_id']] = f'{img_path_save}/{random_file}'
+            _record_cache_set(message_id_info['data']['message_id'], f'{img_path_save}/{random_file}')
 
     @bot.on(GroupMessageEvent)
     async def record_message_delete(event: GroupMessageEvent):
@@ -81,11 +104,54 @@ def main(bot, config):
         await bot.recall(message_id)
         await bot.send(event, '该消息记录已被清理喵')
 
+    @bot.on(GroupMessageEvent)
+    async def record_message_rank(event: GroupMessageEvent):
+        context, userid, nickname, group_id, is_at = event.pure_text, str(event.sender.user_id), event.sender.nickname, int(event.group_id), False
+        if context.strip() not in ['语录排行','怪话排行']: return
+        bot.logger.info("开始怪话排行查询")
+        img_path_save = f'data/pictures/record_message/{group_id}'
+        files = [f for f in os.listdir(img_path_save) if os.path.isfile(os.path.join(img_path_save, f))]
+        if not files:
+            await bot.send(event, '本群好像还没有群友的怪话呢\n发送“消息记录”来引用记录群友的怪话吧 ！')
+            return
+        info = {}
+        for item in files:
+            if '_' in item:
+                user_id = item.split("_", 1)[0]
+                info.setdefault(user_id,0)
+                info[user_id] += 1
+        if info == {}:
+            await bot.send(event, '本群好像还没有群友的怪话呢\n发送“消息记录”来引用记录群友的怪话吧 ！')
+            return
+        total_msg = 0
+        for item in info: total_msg += info[item]
+        info = dict(sorted(info.items(), key=lambda item: item[1], reverse=True)[:10])
+        if event:
+            self_id = event.self_id
+            self_name = (await bot.get_group_member_info(event.group_id, self_id))['data']['nickname']
+        else:
+            self_id, self_name = '2319804644', '枫与岚'
+
+        draw_list = [
+            {'type': 'avatar', 'img': [f"https://q1.qlogo.cn/g?b=qq&nk={self_id}&s=640"],
+             'upshift_extra': 15,
+             'content': [f"[name]{self_name} 一直在看着你哦～[/name]\n[time]入典。入典？入典！[/time]"]},
+            f"[title]本群怪话一共 {total_msg} 条喵[/title]",
+            {'type': 'math', 'subtype': 'bar_chart',
+             'img': [f"https://q1.qlogo.cn/g?b=qq&nk={user_id}&s=640" for user_id in info],
+             'number_per_row': 1, 'chart_height': 75, 'upshift_label': -5,
+             'is_stroke_label': True, 'font_label_size': 29, 'font_label_color': (255, 255, 255),
+             'label_color': (80, 150, 240, 255),
+             'content': list(info.values()), 'label': [f"{count}句" for count in info.values()]},
+        ]
+        bot.logger.info("开始绘图")
+        img_path = await manshuo_draw(draw_list)
+        if bot and event:
+            recall_id = await bot.send(event, [f"{self_name} 一直在看着你哦～", Image(file=img_path)])
 
 
     @bot.on(GroupMessageEvent)
     async def record_message_reply(event: GroupMessageEvent):
-        global message_list_global
         if event.get("reply") and event.get("text"):
             context = event.get("text")[0].strip().replace(' ','')
             if context not in ['记录消息','消息记录','入典']: return
@@ -150,7 +216,7 @@ def main(bot, config):
         img_path = await manshuo_draw(draw_list)
         message_id_info = await bot.send(event, Image(file=img_path))
         if message_id_info is not None:
-            message_list_global[message_id_info['data']['message_id']] = f'{img_path}'
+            _record_cache_set(message_id_info['data']['message_id'], f'{img_path}')
 
 
 
@@ -161,7 +227,6 @@ def main(bot, config):
             if context not in ['记录消息','消息记录','入典']: return
         else:
             return
-        global message_list_global
         event_obj = await bot.get_msg(int(event.get("reply")[0]["id"]))
         if event_obj is None or event_obj.message is None: return
         if event_obj.message[0]['type'] != 'forward': return
@@ -235,7 +300,7 @@ def main(bot, config):
         img_path = await manshuo_draw(draw_list)
         message_id_info = await bot.send(event, Image(file=img_path))
         if message_id_info is not None:
-            message_list_global[message_id_info['data']['message_id']] = f'{img_path}'
+            _record_cache_set(message_id_info['data']['message_id'], f'{img_path}')
 
 
 

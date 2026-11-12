@@ -100,6 +100,8 @@ class YAMLManager:
             raise FileNotFoundError(f"Run directory {self.run_dir} not found.")
 
         # 初始加载所有文件
+        from framework_common.framework_util.config_migrations import migrate_plugin_configs
+        migrate_plugin_configs(self.run_dir, logger)
         self._load_all_files()
 
         # 启动文件监控
@@ -121,6 +123,9 @@ class YAMLManager:
         # 收集所有YAML文件
         for item in os.listdir(self.run_dir):
             item_path = os.path.join(self.run_dir, item)
+            # Ignore legacy YAML restored by older updaters after a rename.
+            if item == "mai_reply" and os.path.isdir(os.path.join(self.run_dir, "core_reply")):
+                continue
 
             if os.path.isdir(item_path):
                 # 插件文件夹

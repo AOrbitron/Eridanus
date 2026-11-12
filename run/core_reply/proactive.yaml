@@ -1,0 +1,23 @@
+enable: false
+permission_level: 1             # 主动关怀所需最低用户权限（0: 允许所有已互动普通用户; 1: 仅限授权用户及以上）
+
+ignore_inactive_users: true              # 是否忽略不活跃/少互动的用户（默认开启。即使权限设为0，也不会骚扰路人和不聊天用户）
+min_user_messages: 4                    # 用户私聊历史中真实发言至少达到多少条才纳入关怀（过滤只发过'1'、测试指令或几乎不聊天的路人）
+max_inactive_days: 3                    # 用户最近真实互动的最大天数，超过此时长未主动说话视为冷用户直接跳过
+require_user_reply_after_proactive: false # 如果上次Bot主动关怀后用户从未回复，是否坚决停止再次关怀（防止单方面死循环骚扰和浪费Token）
+
+max_idle_days: 7                        # 用户上次聊天后超过多少天不再主动找（通用休眠沉睡阈值）
+min_silence_hours: 3                    # 用户上次聊天后至少静默多少小时才主动找，避免刚聊完就打扰
+cooldown_hours: 12                      # 对同一个用户两次主动发消息之间的冷却间隔（小时）
+base_probability: 5                     # 基础触发概率（%）
+preferred_period_probability: 45        # 在用户常聊时段/设定时段的概率（%）
+adaptive_probability: 70                # 契合度极高时的概率（%）
+scan_interval_minutes: 30               # 巡检循环间隔（分钟）
+interval_minutes: 30
+enable_search: true                     # 是否在关怀时支持联网搜索（如天气、资讯）
+enable_tts: true                        # 是否允许主动消息发送语音
+request_interval: 15                    # 主动问候单轮巡检中，不同用户之间的请求触发间隔（秒），防止触发上游RPM限制
+periods:
+  morning: [7, 10]
+  after_work: [17, 20]
+  late_night: [22, 2]

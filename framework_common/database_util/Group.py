@@ -19,8 +19,6 @@ from collections import defaultdict, deque
 from threading import RLock
 import aiosqlite
 from developTools.utils.logger import get_logger
-from run.ai_llm.service.aiReplyHandler.gemini import gemini_prompt_elements_construct
-from run.ai_llm.service.aiReplyHandler.openai import prompt_elements_construct, prompt_elements_construct_old_version
 
 logger = get_logger()
 
@@ -340,10 +338,13 @@ class GroupMessageManager:
         message_copy["message"].insert(0, {"text": f"{context_prompt}。"})
 
         if standard == "gemini":
+            from run.ai_llm.service.aiReplyHandler.gemini import gemini_prompt_elements_construct
             return await gemini_prompt_elements_construct(message_copy["message"], bot=bot, event=event)
         elif standard == "new_openai":
+            from run.ai_llm.service.aiReplyHandler.openai import prompt_elements_construct, prompt_elements_construct_old_version
             return await prompt_elements_construct(message_copy["message"], bot=bot, event=event)
         else:
+            from run.ai_llm.service.aiReplyHandler.openai import prompt_elements_construct, prompt_elements_construct_old_version
             return await prompt_elements_construct_old_version(message_copy["message"], bot=bot, event=event)
 
     def _format_final_result(self, processed_list, context_info, standard):

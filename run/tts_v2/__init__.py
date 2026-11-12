@@ -1,35 +1,29 @@
-plugin_description = "tts_v2"
+﻿plugin_description = "tts_v2"
 
 dynamic_imports = {
     "run.tts_v2.service.tts": [
         "call_tts",
         "get_all_speakers",
+        "get_breeze_tags",
+        "clone_voice",
+        "list_cloned_voices",
     ]
 }
 
 function_declarations = [
     {
         "name": "call_tts",
-        "description": "使用指定角色声线进行语音合成并发送。当你想用特定声线说话、用某位角色的口吻回复或用户要求发语音时调用此工具。",
+        "description": "语音合成并发送语音消息。",
         "parameters": {
             "type": "object",
             "properties": {
                 "text": {
                     "type": "string",
-                    "description": "要合成并播放的语音文本。"
+                    "description": "待合成文本。"
                 },
                 "speaker": {
                     "type": "string",
-                    "description": "说话人角色名称，例如：'natuki'(赛马娘默认), '米浴'(赛马娘), 'MoriCalliope'或'gura'(Hololive), 'JP_Mari'或'Mari'(蔚蓝档案), 'otto'或'电棍'(电棍活字印刷), '达妮娅'(GPT-SoVITS), '綾地寧々'(本地VITS)等。留空或未指定则自动采用默认声线。"
-                },
-                "lang_type": {
-                    "type": "string",
-                    "description": "目标语言类型，如 'JP'(日语，自动翻译中文)、'ZH'(中文) 等。默认为配置中的 'JP'。"
-                },
-                "mood": {
-                    "type": "string",
-                    "enum": ["生气_angry", "开心_happy", "中立_neutral", "难过_sad"],
-                    "description": "语音情绪，根据语境判断，默认为中立_neutral。"
+                    "description": "发音人名称（如'达妮娅'、'natuki'、'JP_Mari'或克隆角色），留空为默认声线。"
                 }
             },
             "required": [
@@ -39,6 +33,40 @@ function_declarations = [
     },
     {
         "name": "get_all_speakers",
-        "description": "获取所有可用的语音合成角色列表及对应音源引擎。"
+        "description": "获取所有可用的TTS角色列表。"
+    },
+    {
+        "name": "get_breeze_tags",
+        "description": "获取Breeze-TTS官方音频表现力标签及使用指南。"
+    },
+    {
+        "name": "clone_voice",
+        "description": "临时克隆音频为自定义角色（1小时有效）。",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "speaker_name": {
+                    "type": "string",
+                    "description": "克隆角色名。"
+                },
+                "audio_url_or_path": {
+                    "type": "string",
+                    "description": "参考音频文件路径或URL。"
+                },
+                "ref_text": {
+                    "type": "string",
+                    "description": "参考音频原台词文本。"
+                }
+            },
+            "required": [
+                "speaker_name",
+                "audio_url_or_path",
+                "ref_text"
+            ]
+        }
+    },
+    {
+        "name": "list_cloned_voices",
+        "description": "查询当前1小时有效期内已生效的克隆角色列表。"
     }
 ]

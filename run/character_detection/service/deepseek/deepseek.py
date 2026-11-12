@@ -55,23 +55,31 @@ def predict_frame(frame, model, transform, device):
 
 def predict_image_or_gif(image_bytes, model, transform, device):
     image_stream = io.BytesIO(image_bytes)
-    image = Image.open(image_stream)
-
-    if image.format == 'GIF':
-        frame_idx = 0
-        for frame in ImageSequence.Iterator(image):
-            # 每隔最多3帧抽检一次，减轻CPU负荷
-            if frame_idx % 2 == 0:
-                rgb_frame = frame.convert('RGB')
-                if predict_frame(rgb_frame, model, transform, device):
-                    return True
-            frame_idx += 1
-            if frame_idx >= 15:  # 最多检查前15帧
-                break
-        return False
-    else:
-        rgb_image = image.convert('RGB')
-        return predict_frame(rgb_image, model, transform, device)
+    try:
+        with Image.open(image_stream) as image:
+            if image.format == 'GIF':
+                frame_idx = 0
+                for frame in ImageSequence.Iterator(image):
+                    # 每隔最多3帧抽检一次，减轻CPU负荷
+                    if frame_idx % 2 == 0:
+                        rgb_frame = frame.convert('RGB')
+                        try:
+                            if predict_frame(rgb_frame, model, transform, device):
+                                return True
+                        finally:
+                            rgb_frame.close()
+                    frame_idx += 1
+                    if frame_idx >= 15:  # 最多检查前15帧
+                        break
+                return False
+            else:
+                rgb_image = image.convert('RGB')
+                try:
+                    return predict_frame(rgb_image, model, transform, device)
+                finally:
+                    rgb_image.close()
+    finally:
+        image_stream.close()
 
 def detect_deepseek_from_base64(base64_string):
     image_bytes = base64.b64decode(base64_string)

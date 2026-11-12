@@ -17,3 +17,6 @@ run/live2d/desktop/node_modules/
 run/live2d/desktop/runtime_config.json
 # 自动生成的增强 model3.json（补充表情/动作引用）
 *.eridanus.model3.json
+
+# 用户知识库文档
+/data/knowledge/

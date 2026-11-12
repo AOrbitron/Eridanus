@@ -55,7 +55,7 @@ function_declarations=[
     },
     {
         "name": "call_change_city",
-        "description": "调整所在城市信息。eg：修改城市为新乡。当用户告知所在地区后，必须调用此函数以保存。",
+        "description": "调整所在城市信息。eg：修改城市为新乡。当用户告知所在地区后，主动调用此函数以保存。",
         "parameters": {
             "type": "object",
             "properties": {
@@ -81,7 +81,7 @@ function_declarations=[
                 },
                 "level": {
                     "type": "integer",
-                    "description": "授权等级。1为最低，数字越大权限越高"
+                    "description": "授权等级。1为最低"
                 },
                 "type": {
                     "type": "string", "enum": ["user", "group"], "description": "授权对象类型。user为qq号码，group为群号"
@@ -96,7 +96,7 @@ function_declarations=[
     },
     {
         "name": "call_send_mface",
-        "description": "根据当前聊天内容选择一张表情包，只可从给定列表选取，只可选择一张。不要通过send函数发送表情包。即使用户没有要求，也要时不时调用此函数，能增强角色扮演效果和趣味性。可以将此函数视为概率触发的'被动技能'",
+        "description": "根据当前聊天内容选择一张表情包，只可从给定列表选取，只可选择一张。不要通过send函数发送表情包，不要总是用一张表情包。用户未要求时，也要时不时调用此函数，能增强角色扮演效果和趣味性。可以将此函数视为概率触发的'被动技能'",
         "parameters": {
             "type": "object",
             "properties": {

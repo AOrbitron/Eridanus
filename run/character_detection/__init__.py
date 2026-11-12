@@ -1,4 +1,4 @@
-﻿plugin_description = "图片抽象角色审核"
+﻿plugin_description = "图片表情包审核"
 
 dynamic_imports = {
     "run.character_detection.func_collection": ["operate_group_censor"],
@@ -7,7 +7,7 @@ dynamic_imports = {
 function_declarations = [
     {
         "name": "operate_group_censor",
-        "description": "开启或关闭群聊图片审核（支持奶龙、doro、男娘、deepseek鲸鱼娘）",
+        "description": "开启或关闭群聊图片审核",
         "parameters": {
             "type": "object",
             "properties": {

@@ -3,11 +3,11 @@ import asyncio
 from developTools.event.events import GroupDecreaseNoticeEvent, GroupIncreaseNoticeEvent, GroupMessageEvent, \
     PrivateMessageEvent
 from framework_common.framework_util.websocket_fix import ExtendBot
-from run.ai_llm.service.aiReplyCore import aiReplyCore
+from framework_common.framework_util.reply_config import legacy_reply as aiReplyCore
 from framework_common.database_util.User import get_user
 from run.groupManager.func_collection import quit_group
 from developTools.message.message_components import Text, Image, At
-from run.mai_reply.service.reply_engine import ReplyEngine
+from run.core_reply.service.reply_engine import ReplyEngine
 
 
 def main(bot: ExtendBot, config):
@@ -53,7 +53,7 @@ def main(bot: ExtendBot, config):
                     name = data["data"]["nickname"]
                 except:
                     name = "有新人"
-                if not config.mai_reply.config["enable"]:
+                if not config.core_reply.config["enable"]:
                     r = await aiReplyCore([{"text": f"{name}加入了群聊，为他发送入群欢迎"}], event.group_id, config,
                                           bot=bot,
                                           tools=None)

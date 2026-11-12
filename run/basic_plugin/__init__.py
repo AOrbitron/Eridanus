@@ -12,36 +12,34 @@ dynamic_imports = {
 function_declarations=[
     {
         "name": "call_weather_query",
-        "description": "Get the current weather in a given location.",
+        "description": "查询天气。",
         "parameters": {
             "type": "object",
             "properties": {
                 "location": {
                     "type": "string",
-                    "description": "The city and state, e.g. 上海"
+                    "description": "可选，指定要查询的城市，未指定 location 时，自动读取当前用户数据库中城市数据"
                 }
             },
-            "required": [
-                "location"
-            ]
+            "required": []
         }
     },
     {
         "name": "call_setu",
-        "description": "根据关键词搜索相关图片并返回图片。",
+        "description": "根据关键字发送一张图片（涩图图片）",
         "parameters": {
             "type": "object",
             "properties": {
                 "tags": {
                     "type": "array",
-                    "description": "所要求的关键词。eg.白丝 黑丝",
+                    "description": "想要的关键字。eg.黑丝 白丝",
                     "items": {
                         "type": "string"
                     }
                 },
                 "num": {
                     "type": "integer",
-                    "description": "返回的图片数量。默认为1"
+                    "description": "返回的图片数量，默认为1"
                 }
             },
             "required": [
@@ -51,13 +49,13 @@ function_declarations=[
     },
     {
         "name": "call_image_search",
-        "description": "按照用户要求搜索给定图片的来源，如果用户没有要求，不要主动搜索",
+        "description": "按照用户要求搜索给定图片的来源、作者、出处或番号。支持动漫插画、二次元、本子以及视频截图番号识别(AVScan)。如果用户没有要求，不要主动搜索。",
         "parameters": {
             "type": "object",
             "properties": {
                 "image_url": {
                     "type": "string",
-                    "description": "图片的url"
+                    "description": "待搜索图片的url或本地文件路径"
                 }
             },
             "required": [
@@ -67,13 +65,13 @@ function_declarations=[
     },
     {
         "name": "call_pick_music",
-        "description": "触发音乐选取功能。根据歌曲名或歌手名搜索点歌。",
+        "description": "点歌或选取音乐。根据歌曲名或歌手查找音乐。",
         "parameters": {
             "type": "object",
             "properties": {
                 "aim": {
                     "type": "string",
-                    "description": "歌曲名、歌手名或者二者混合。eg.周杰伦 eg.屋顶 eg.周杰伦 屋顶"
+                    "description": "歌曲名或歌手名。eg.周杰伦 eg.晴天"
                 }
             },
             "required": [
@@ -87,12 +85,12 @@ function_declarations=[
     },
     {
         "name": "call_fortune",
-        "description": "运势占卜，返回图片。"
+        "description": "今日占卜（运势卡片）。"
     },
 
     {
         "name": "call_menu",
-        "description": "发送功能列表/菜单/帮助指令表"
+        "description": "发送功能列表/菜单/帮助指令。"
     },
 
 ]
