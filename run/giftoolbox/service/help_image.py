@@ -1,9 +1,11 @@
+import asyncio
 import glob
+import importlib
 import hashlib
 import json
 import os
+from .settings import command_items, enabled
 
-from framework_common.manshuo_draw.manshuo_draw import manshuo_draw
 
 HELP_DIR = os.path.join("data", "pictures", "cache")
 HELP_PREFIX = "giftoolbox_help_"
@@ -14,8 +16,7 @@ def escape(text):
 
 
 def help_items(cfg):
-    values = (cfg.get("commands") or {}).values()
-    return [item for item in values if isinstance(item, dict) and item.get("enable", True) is not False]
+    return [item for item in command_items(cfg) if enabled(item)]
 
 
 def help_fingerprint(cfg):
@@ -64,18 +65,28 @@ def remove_old_help(keep_name):
                 pass
 
 
+_help_lock = asyncio.Lock()
+
+
 async def ensure_help_image(cfg):
+    async with _help_lock:
+        return await _ensure_help_image(cfg)
+
+
+async def _ensure_help_image(cfg):
     name = HELP_PREFIX + help_fingerprint(cfg) + ".png"
     path = os.path.join(HELP_DIR, name)
-    if os.path.isfile(path):
-        remove_old_help(name)
+    if await asyncio.to_thread(os.path.isfile, path):
+        await asyncio.to_thread(remove_old_help, name)
         return path
+    renderer = await asyncio.to_thread(importlib.import_module, "framework_common.manshuo_draw.manshuo_draw")
+    manshuo_draw = renderer.manshuo_draw
     result = await manshuo_draw([
         {"type": "basic_set", "img_name_save": name, "debug": False},
         {"type": "backdrop", "subtype": "one_color"},
         {"type": "text", "content": [help_body(cfg)]},
     ])
-    if not result or not os.path.isfile(result):
+    if not result or not await asyncio.to_thread(os.path.isfile, result):
         raise RuntimeError("绘图框架没有生成文件")
-    remove_old_help(os.path.basename(result))
+    await asyncio.to_thread(remove_old_help, os.path.basename(result))
     return result

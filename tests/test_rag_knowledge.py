@@ -4,7 +4,9 @@ import asyncio
 import json
 import sqlite3
 import tempfile
+import threading
 import unittest
+from contextlib import closing
 from functools import partial
 from pathlib import Path
 from types import SimpleNamespace
@@ -20,6 +22,25 @@ from run.core_reply.service.rag_memory import RAGMemory
 
 
 class KnowledgeTests(unittest.IsolatedAsyncioTestCase):
+    def test_shipped_schema_preserves_knowledge_settings_on_update(self):
+        from framework_common.framework_util.config_migrations import merge_config_values
+        template = YAML().load((Path(__file__).resolve().parents[1] / 'run/core_reply/rag.yaml').read_text(encoding='utf-8'))
+        previous = {'knowledge_base': {
+            'enable': True, 'root_dir': 'data/custom_knowledge',
+            'libraries': [self.alpha], 'sync': {'interval_seconds': 42},
+            'chunk': {'max_chars': 200, 'overlap_chars': 20},
+            'retrieval': {'max_prompt_chars': 800},
+            'reranker': {'enable': True, 'api_key': 'fixture-key', 'base_url': 'https://rerank.example/v1'},
+        }}
+        merged = merge_config_values(template, previous)['knowledge_base']
+        self.assertEqual(merged['root_dir'], 'data/custom_knowledge')
+        self.assertEqual(merged['libraries'], [self.alpha])
+        self.assertEqual(merged['sync']['interval_seconds'], 42)
+        self.assertEqual(merged['chunk']['max_chars'], 200)
+        self.assertEqual(merged['retrieval']['max_prompt_chars'], 800)
+        self.assertEqual(merged['reranker']['api_key'], 'fixture-key')
+        self.assertEqual(merged['reranker']['base_url'], 'https://rerank.example/v1')
+
     def setUp(self):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
@@ -96,7 +117,7 @@ class KnowledgeTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_existing_database_is_migrated_and_memory_scopes_still_recall(self):
         self.db_path.parent.mkdir(parents=True)
-        with sqlite3.connect(self.db_path) as db:
+        with closing(sqlite3.connect(self.db_path)) as db, db:
             db.execute("""
                 CREATE TABLE memories (id INTEGER PRIMARY KEY, scope TEXT NOT NULL, text TEXT NOT NULL,
                     vector BLOB, created REAL NOT NULL, namespace TEXT NOT NULL)
@@ -434,8 +455,24 @@ class KnowledgeTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(rows, [("管理员原始文档",)])
         await asyncio.wait_for(memory.aclose(), timeout=1)
         self.assertTrue(kb._task.cancelled())
-        with sqlite3.connect(self.db_path) as db:
+        with closing(sqlite3.connect(self.db_path)) as db, db:
             self.assertEqual(db.execute("SELECT text FROM kb_chunks").fetchall(), rows)
+
+    async def test_async_shutdown_closes_database_off_event_loop(self):
+        memory = self.offline()
+        main_thread = threading.get_ident()
+        thread_ids = []
+        close = memory.close
+
+        def observed_close():
+            thread_ids.append(threading.get_ident())
+            close()
+
+        with patch.object(memory, "close", side_effect=observed_close):
+            await memory.aclose()
+        self.assertTrue(thread_ids)
+        self.assertNotIn(main_thread, thread_ids)
+        self.assertIsNone(memory._db)
 
 
 if __name__ == "__main__":

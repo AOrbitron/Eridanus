@@ -10,6 +10,7 @@ schedule_tool.py
 - 自动根据用户城市及所在时区与 Bot 默认时区（东八区）进行差异化换算
 """
 
+import asyncio
 import json
 from developTools.utils.logger import get_logger
 import datetime
@@ -92,7 +93,9 @@ async def call_create_schedule_task(
         # not make two different tools (or two users' group tasks) duplicates.
         async with scheduler._lock:
             active_tasks = await scheduler.list_active_tasks(target_id=target_id, target_type=target_type)
-            candidate_next_ts = scheduler.calculate_initial_next_run(time_str, recur_type, None, user_city)
+            candidate_next_ts = await asyncio.to_thread(
+                scheduler.calculate_initial_next_run, time_str, recur_type, None, user_city
+            )
             for existing_task in active_tasks:
                 ext_payload = existing_task.get_payload_dict()
                 existing_action = existing_task.action_type
@@ -128,7 +131,9 @@ async def call_create_schedule_task(
                 )
 
         task_city = (task.target_city or "").strip()
-        task_tz, tz_name, _ = TimezoneHelper.resolve_timezone(task_city or task.target_timezone)
+        task_tz, tz_name, _ = await asyncio.to_thread(
+            TimezoneHelper.resolve_timezone, task_city or task.target_timezone
+        )
         next_dt = datetime.datetime.fromtimestamp(task.next_run_timestamp, tz=task_tz)
 
         recur_map = {
@@ -290,8 +295,10 @@ async def call_list_schedule_tasks(
             "interval": "固定间隔",
         }
 
-        def _format_task_entry(idx: int, t) -> str:
-            task_tz, tz_name, _ = TimezoneHelper.resolve_timezone(t.target_city or t.target_timezone)
+        async def _format_task_entry(idx: int, t) -> str:
+            task_tz, tz_name, _ = await asyncio.to_thread(
+                TimezoneHelper.resolve_timezone, t.target_city or t.target_timezone
+            )
             next_dt = datetime.datetime.fromtimestamp(t.next_run_timestamp, tz=task_tz)
             payload_info = ""
             if t.action_type in ("tool", "function_call"):
@@ -323,14 +330,14 @@ async def call_list_schedule_tasks(
             if user_tasks:
                 sections.append(f"\n📌 【个人日程与提醒任务】（共 {len(user_tasks)} 项）：")
                 for idx, t in enumerate(user_tasks, start=1):
-                    sections.append(_format_task_entry(idx, t))
+                    sections.append(await _format_task_entry(idx, t))
             else:
                 sections.append("\n📌 【个人日程与提醒任务】：暂无（您可以随时吩咐我‘提醒我喝水’、‘每年生日祝我快乐’等）")
 
             if sys_tasks:
                 sections.append(f"\n🛡️ 【系统后台守护任务】（仅 Master 可见，共 {len(sys_tasks)} 项）：")
                 for idx, t in enumerate(sys_tasks, start=1):
-                    sections.append(_format_task_entry(idx, t))
+                    sections.append(await _format_task_entry(idx, t))
                 sections.append("   ※ 提示：系统后台守护任务已受安全保护，执行“全部取消”时不会被误删。")
 
             sections.append("\n提示：您可以说“取消第1个”或“取消叫起床”来关闭对应的个人任务。")
@@ -343,7 +350,7 @@ async def call_list_schedule_tasks(
 
         lines = [f"{scope_title}（共 {len(visible_tasks)} 项）："]
         for idx, t in enumerate(visible_tasks, start=1):
-            lines.append(_format_task_entry(idx, t))
+            lines.append(await _format_task_entry(idx, t))
         lines.append("\n提示：您可以说“取消第1个”或“取消叫起床”来关闭对应的任务。")
         return "\n".join(lines)
     except Exception as e:

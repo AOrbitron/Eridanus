@@ -340,6 +340,7 @@ class ReplyEngine:
                     finally:
                         if not knowledge_recall.done():
                             knowledge_recall.cancel()
+                        await asyncio.gather(knowledge_recall, return_exceptions=True)
 
             # 内存模式感知：按配置动态读取用户记忆（slots / impression / both）
             user_mem_mode = self.context.get_effective_user_memory_mode() if hasattr(self.context, "get_effective_user_memory_mode") else "slots"

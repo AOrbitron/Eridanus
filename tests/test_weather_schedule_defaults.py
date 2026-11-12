@@ -152,11 +152,37 @@ class ScheduleTests(unittest.IsolatedAsyncioTestCase):
         self.registry['call_weather_query'] = self.weather['call_weather_query']
         from framework_common.schedule_service.timezone_helper import TimezoneHelper
         self.create_scope = definitions('run/scheduled_tasks/schedule_tool.py', {'call_create_schedule_task'},
-                                        dict(json=json, datetime=datetime, Optional=__import__('typing').Optional,
+                                        dict(asyncio=asyncio, json=json, datetime=datetime, Optional=__import__('typing').Optional,
                                              Union=__import__('typing').Union, Dict=dict, Any=object, List=list,
                                              get_user=AsyncMock(return_value=NS(city='上海')), logger=Mock(),
                                              get_scheduler=lambda **kw: self.scheduler, TimezoneHelper=TimezoneHelper))
         self.create = self.create_scope['call_create_schedule_task']
+
+    async def test_creation_calculates_time_and_resolves_timezone_off_loop(self):
+        from framework_common.schedule_service.timezone_helper import TimezoneHelper
+        main_thread = threading.get_ident()
+        calculate_threads = []
+        resolve_threads = []
+        calculate = self.scheduler.calculate_initial_next_run
+        resolve = TimezoneHelper.resolve_timezone
+
+        def observed_calculate(*args, **kwargs):
+            calculate_threads.append(threading.get_ident())
+            return calculate(*args, **kwargs)
+
+        def observed_resolve(*args, **kwargs):
+            resolve_threads.append(threading.get_ident())
+            return resolve(*args, **kwargs)
+
+        with patch.object(self.scheduler, 'calculate_initial_next_run', side_effect=observed_calculate), patch.object(
+            TimezoneHelper, 'resolve_timezone', side_effect=observed_resolve
+        ):
+            result = await self.create(description='线程验证', time_str='09:00', recur_type='daily',
+                                       bot=None, event=NS(user_id=7), config=config())
+        self.assertIn('已成功', result)
+        self.assertTrue(calculate_threads)
+        self.assertTrue(resolve_threads)
+        self.assertNotIn(main_thread, calculate_threads + resolve_threads)
 
     async def asyncTearDown(self):
         self.temp.cleanup()

@@ -13,6 +13,9 @@ import os
 import re
 import tempfile
 import time
+import threading
+from functools import wraps
+from pathlib import Path
 
 import httpx
 
@@ -26,6 +29,7 @@ from framework_common.utils.random_str import random_str
 
 from .service import core
 from .service.help_image import ensure_help_image
+from .service.settings import command_items, enabled as _enabled
 
 CACHE_DIR = "data/pictures/giftoolbox"
 CACHE_MAX_AGE = 30 * 60        # 缓存文件保留 30 分钟
@@ -33,6 +37,67 @@ CLEANUP_INTERVAL = 10 * 60     # 至少间隔 10 分钟才做一次清理
 INDEX_FILE = os.path.join(CACHE_DIR, ".sent_index.json")
 
 _last_cleanup = 0.0
+MAX_MEDIA_BYTES = 32 * 1024 * 1024
+MAX_MEDIA_ITEMS = 100
+_cache_lock = threading.RLock()
+
+
+def _cache_operation(func):
+    @wraps(func)
+    def locked(*args, **kwargs):
+        with _cache_lock:
+            return func(*args, **kwargs)
+    return locked
+
+
+def _check_size(data):
+    if len(data) > MAX_MEDIA_BYTES:
+        raise core.ToolError("媒体文件过大，单个文件最多 32 MiB")
+    return data
+
+
+def _read_local(path):
+    with open(path, "rb") as file:
+        return _check_size(file.read(MAX_MEDIA_BYTES + 1))
+
+
+def _temporary_video(data):
+    fd, path = tempfile.mkstemp(suffix=".mp4")
+    try:
+        with os.fdopen(fd, "wb") as file:
+            file.write(data)
+    except BaseException:
+        Path(path).unlink(missing_ok=True)
+        raise
+    return path
+
+
+def _convert_video(source, data, *args):
+    """Create, consume and remove the temporary file within one worker lifetime."""
+    temporary = _temporary_video(data) if data is not None else None
+    try:
+        path = temporary or _local_path(source)
+        if not os.path.isfile(path):
+            raise core.ToolError("视频文件不可读")
+        return core.video_to_gif(path, *args)
+    finally:
+        if temporary:
+            Path(temporary).unlink(missing_ok=True)
+
+
+async def _run_in_worker(func, *args, **kwargs):
+    """Cancellation must not free a job slot or remove files while its thread is using them."""
+    task = asyncio.create_task(asyncio.to_thread(func, *args, **kwargs))
+    try:
+        return await asyncio.shield(task)
+    except asyncio.CancelledError:
+        await asyncio.gather(task, return_exceptions=True)
+        raise
+
+
+def _save_many(datas, ext):
+    return [_save_bytes(data, ext) for data in datas]
+
 
 
 # --------------------------------------------------------------------------
@@ -49,16 +114,7 @@ def _cfg(config: YAMLManager) -> dict:
 
 
 def _commands(cfg: dict) -> dict:
-    cmds = cfg.get("commands") or {}
-    return cmds if isinstance(cmds, dict) else {}
-
-
-def _enabled(item: dict) -> bool:
-    """单条指令开关，默认开启。支持 true/false、开/关、on/off、yes/no。"""
-    v = item.get("enable", True)
-    if isinstance(v, str):
-        return v.strip().lower() not in ("false", "0", "off", "no", "关", "关闭", "禁用")
-    return bool(v)
+    return dict(enumerate(command_items(cfg)))
 
 
 def _reply_text(item: dict) -> str:
@@ -98,6 +154,7 @@ _SENT_INDEX = {}          # message_id(str) -> {"ts": float, "paths": [str]}
 _SENT_INDEX_MAX = 500
 
 
+@_cache_operation
 def _load_sent_index() -> None:
     """启动时读回上次记录的 message_id → 本地文件，重启后也能引用旧结果。"""
     try:
@@ -118,6 +175,7 @@ def _load_sent_index() -> None:
                 _SENT_INDEX[str(mid)] = {"ts": ts, "paths": [str(p) for p in rec["paths"]]}
 
 
+@_cache_operation
 def _flush_sent_index() -> None:
     try:
         os.makedirs(CACHE_DIR, exist_ok=True)
@@ -129,6 +187,7 @@ def _flush_sent_index() -> None:
         pass
 
 
+@_cache_operation
 def _remember_sent(result, paths) -> None:
     """把刚发送消息返回的 message_id 和对应的本地文件记下来（并落盘）。"""
     if not paths:
@@ -166,6 +225,7 @@ def _message_ids(result) -> list:
     return list(dict.fromkeys(str(i) for i in ids))
 
 
+@_cache_operation
 def _paths_for_sent(mid) -> list:
     rec = _SENT_INDEX.get(str(mid))
     if not rec:
@@ -173,6 +233,7 @@ def _paths_for_sent(mid) -> list:
     return [p for p in rec["paths"] if p and os.path.isfile(_local_path(p))]
 
 
+@_cache_operation
 def _cleanup_cache() -> None:
     global _last_cleanup
     now = time.time()
@@ -399,6 +460,8 @@ async def _resolve_media(bot, chain, allow_avatar: bool, depth: int = 0,
 
     for item in chain:
         u = _media_of_item(item)
+        if len(urls) >= MAX_MEDIA_ITEMS:
+            break
         if u and u not in urls:
             urls.append(u)
             continue
@@ -419,7 +482,7 @@ async def _resolve_media(bot, chain, allow_avatar: bool, depth: int = 0,
 
         if kind == "reply":
             # 1) 优先：引用的是插件自己发出的消息，直接拿本地文件
-            cached = _paths_for_sent(key)
+            cached = await _run_in_worker(_paths_for_sent, key)
             if cached:
                 for p in cached:
                     if p not in urls:
@@ -430,7 +493,7 @@ async def _resolve_media(bot, chain, allow_avatar: bool, depth: int = 0,
             if inner:
                 await _resolve_media(bot, inner, allow_avatar, depth + 1, visited, urls)
         elif kind == "forward":
-            cached = _paths_for_sent(key)
+            cached = await _run_in_worker(_paths_for_sent, key)
             if cached:
                 for p in cached:
                     if p not in urls:
@@ -506,15 +569,18 @@ async def _download(src: str) -> bytes:
 
     if s.startswith("base64://"):
         try:
-            return base64.b64decode(s[len("base64://"):])
+            if len(s) > (MAX_MEDIA_BYTES + 2) // 3 * 4 + 9:
+                raise core.ToolError("媒体文件过大")
+            return await _run_in_worker(lambda: _check_size(base64.b64decode(s[9:], validate=True)))
+        except core.ToolError:
+            raise
         except Exception:
             raise core.ToolError("base64 图片解析失败")
 
     if not s.lower().startswith(("http://", "https://")):
         path = _local_path(s)
         try:
-            with open(path, "rb") as f:
-                return f.read()
+            return await _run_in_worker(_read_local, path)
         except FileNotFoundError:
             raise core.ToolError("本地文件不存在")
         except OSError as e:
@@ -523,14 +589,21 @@ async def _download(src: str) -> bytes:
     try:
         async with httpx.AsyncClient(headers={"User-Agent": "Mozilla/5.0"},
                                      timeout=60, follow_redirects=True) as client:
-            resp = await client.get(s)
+            async with client.stream("GET", s) as resp:
+                if resp.status_code != 200:
+                    raise core.ToolError(f"下载失败（HTTP {resp.status_code}）")
+                data = bytearray()
+                async for chunk in resp.aiter_bytes():
+                    if len(data) + len(chunk) > MAX_MEDIA_BYTES:
+                        raise core.ToolError("媒体文件过大，单个文件最多 32 MiB")
+                    data.extend(chunk)
+                if not data:
+                    raise core.ToolError("下载到的是空内容")
+                return bytes(data)
+    except core.ToolError:
+        raise
     except Exception as e:
         raise core.ToolError(f"下载失败（{type(e).__name__}）")
-    if resp.status_code != 200:
-        raise core.ToolError(f"下载失败（HTTP {resp.status_code}）")
-    if not resp.content:
-        raise core.ToolError("下载到的是空内容")
-    return resp.content
 
 
 # --------------------------------------------------------------------------
@@ -668,6 +741,9 @@ def _compose(reply: str, suffix: str) -> str:
 # --------------------------------------------------------------------------
 
 def main(bot: ExtendBot, config: YAMLManager):
+    active_jobs = 0
+    initialized = False
+    init_lock = asyncio.Lock()
 
     def _match(text: str, cfg: dict):
         """返回 (item, 参数字符串)；未命中返回 (None, "")。最长触发词优先。"""
@@ -724,7 +800,7 @@ def main(bot: ExtendBot, config: YAMLManager):
 
         发出的图片消息会记进发送索引，用户之后再引用它就能直接命中本地文件。
         """
-        path = _save_bytes(data, _ext_of(data))
+        path = await _run_in_worker(_save_bytes, data, _ext_of(data))
         size_mb = len(data) / 1024.0 / 1024.0
         try:
             limit = float(split_mb if split_mb is not None else cfg.get("split_mb", 1.0))
@@ -740,7 +816,7 @@ def main(bot: ExtendBot, config: YAMLManager):
         else:
             sent.append(await bot.send(event, [Text(text), Image(file=path)]))
         for r in sent:
-            _remember_sent(r, [path])
+            await _run_in_worker(_remember_sent, r, [path])
 
     async def _first_media(event, cfg: dict, kind: str):
         srcs = await _collect_media(bot, event, allow_avatar=(kind == "图片"))
@@ -756,7 +832,7 @@ def main(bot: ExtendBot, config: YAMLManager):
         per = max(1, size - 1) if (multi and label) else size
         batches = list(_chunks(nodes, per))
         for idx, batch in enumerate(batches, 1):
-            if len(batches) > 1 and label:
+            if len(batches) > 1 and label and size > 1:
                 batch = [Node(content=[Text(f"{label}（{idx}/{len(batches)}）")])] + batch
             res = await bot.send(event, batch)
             paths = []
@@ -765,7 +841,7 @@ def main(bot: ExtendBot, config: YAMLManager):
                     f = getattr(c, "file", None)
                     if isinstance(f, str) and f:
                         paths.append(f)
-            _remember_sent(res, paths)
+            await _run_in_worker(_remember_sent, res, paths)
         return len(batches)
 
     async def _handle(event, item: dict, args: str, cfg: dict):
@@ -780,14 +856,14 @@ def main(bot: ExtendBot, config: YAMLManager):
             data = await _download(srcs[0])
             if reply:
                 await bot.send(event, [Text(reply)])
-            out, _ = await asyncio.to_thread(core.reverse, data, fmt)
+            out, _ = await _run_in_worker(core.reverse, data, fmt)
             await _send_image(event, out, cfg)
             return
 
         if action == "speed":
             mode, value = _parse_speed(args, item)
             data = await _first_media(event, cfg, "动图")
-            out, info = await asyncio.to_thread(core.speed_change, data, mode, value, fmt)
+            out, info = await _run_in_worker(core.speed_change, data, mode, value, fmt)
             text = _compose(reply, _speed_suffix(mode, info))
             if info.get("dropped"):
                 text += f"\n💡 帧太多装不下，抽出 {info['kept']}/{info['total_frames']} 帧"
@@ -800,15 +876,15 @@ def main(bot: ExtendBot, config: YAMLManager):
                 max_frames = int(item.get("max_frames") or cfg.get("decompose_max_frames") or 500)
             except (TypeError, ValueError):
                 max_frames = 500
-            frames = await asyncio.to_thread(core.decompose, data, max(1, max_frames))
+            frames = await _run_in_worker(core.decompose, data, max(1, min(500, max_frames)))
             label = str(item.get("frame_label") or "第{n}帧")
             total = len(frames)
             if reply:
                 await bot.send(event, [Text(f"{reply}（共 {total} 帧）")])
+            paths = await _run_in_worker(_save_many, frames, "png")
             nodes = [
-                Node(content=[Text(label.replace("{n}", str(i))),
-                              Image(file=_save_bytes(b, "png"))])
-                for i, b in enumerate(frames, 1)
+                Node(content=[Text(label.replace("{n}", str(i))), Image(file=path)])
+                for i, path in enumerate(paths, 1)
             ]
             batches = await _send_nodes_in_batches(event, nodes, cfg, label="分解")
             if batches > 1:
@@ -821,17 +897,18 @@ def main(bot: ExtendBot, config: YAMLManager):
             if rows > 20 or cols > 20:
                 raise core.ToolError("格子太密了，最多 20x20")
             data = await _first_media(event, cfg, "图片")
-            crops = await asyncio.to_thread(core.crop_grid, data, rows, cols, margins)
+            crops = await _run_in_worker(core.crop_grid, data, rows, cols, margins)
             if reply:
                 await bot.send(event, [Text(f"{reply}（{rows}x{cols}，共 {len(crops)} 张）")])
-            nodes = [Node(content=[Image(file=_save_bytes(b, "png"))]) for b in crops]
+            paths = await _run_in_worker(_save_many, crops, "png")
+            nodes = [Node(content=[Image(file=path)]) for path in paths]
             await _send_nodes_in_batches(event, nodes, cfg, label="裁剪")
             return
 
         if action == "age":
             times = _parse_age(args, item)
             data = await _first_media(event, cfg, "图片")
-            out, info = await asyncio.to_thread(core.age, data, times, fmt)
+            out, info = await _run_in_worker(core.age, data, times, fmt)
             suffix = f"{times}次做旧"
             if info["frames"] > 1:
                 suffix += f" · {info['frames']}帧"
@@ -840,7 +917,7 @@ def main(bot: ExtendBot, config: YAMLManager):
 
         if action == "lineart":
             data = await _first_media(event, cfg, "图片")
-            out = await asyncio.to_thread(core.lineart, data)
+            out = await _run_in_worker(core.lineart, data)
             await _send_image(event, out, cfg, reply)
             return
 
@@ -852,12 +929,15 @@ def main(bot: ExtendBot, config: YAMLManager):
             datas = []
             for s in srcs:
                 try:
-                    datas.append(await _download(s))
+                    data = await _download(s)
                 except core.ToolError:
                     continue
+                if sum(map(len, datas)) + len(data) > MAX_MEDIA_BYTES:
+                    raise core.ToolError("合成输入总计最多 32 MiB")
+                datas.append(data)
             if not datas:
                 raise core.ToolError("图片全都下载失败了")
-            out, info = await asyncio.to_thread(core.concat, datas, frame_sec, fmt)
+            out, info = await _run_in_worker(core.concat, datas, frame_sec, fmt)
             text = _compose(reply, f"{info['n']}张 · {info['frames']}帧 · {info['t']:.1f}s")
             if info["frames"] < 2:
                 text += "\n💡 只有一帧，动不起来哦～多给几张图试试"
@@ -871,29 +951,12 @@ def main(bot: ExtendBot, config: YAMLManager):
             if not srcs:
                 raise core.ToolError(f"没有找到视频，{_no_media_reason(event)}")
             source = str(srcs[0])
-            tmp_path = ""
-            try:
-                if source.lower().startswith(("http://", "https://")):
-                    vbytes = await _download(source)
-                    fd, tmp_path = tempfile.mkstemp(suffix=".mp4")
-                    with os.fdopen(fd, "wb") as f:
-                        f.write(vbytes)
-                    path = tmp_path
-                else:
-                    path = _local_path(source)
-                    if not os.path.isfile(path):
-                        raise core.ToolError("视频文件不可读")
-                if reply:
-                    await bot.send(event, [Text(reply)])
-                out, info = await asyncio.to_thread(
-                    core.video_to_gif, path, start, end, fps, scale, fmt, max_dur
-                )
-            finally:
-                if tmp_path and os.path.exists(tmp_path):
-                    try:
-                        os.remove(tmp_path)
-                    except OSError:
-                        pass
+            data = await _download(source) if source.lower().startswith(("http://", "https://", "base64://")) else None
+            if reply:
+                await bot.send(event, [Text(reply)])
+            out, info = await _run_in_worker(
+                _convert_video, source, data, start, end, fps, scale, fmt, max_dur
+            )
             suffix = f"{info['frames']}帧 · {info['fps']:.1f}fps"
             if info.get("truncated"):
                 suffix += " · 已截断"
@@ -903,6 +966,7 @@ def main(bot: ExtendBot, config: YAMLManager):
         raise core.ToolError(f"未知的指令类型：{action}")
 
     async def _on_message(event):
+        nonlocal active_jobs, initialized
         cfg = _cfg(config)
         if not cfg.get("enable", True):
             return
@@ -935,8 +999,16 @@ def main(bot: ExtendBot, config: YAMLManager):
 
         fail_prefix = str(cfg.get("fail_reply", "表情包处理失败") or "表情包处理失败")
         name = item.get("name") or item.get("action") or "指令"
+        if active_jobs >= 2:
+            await bot.send(event, [Text("表情包工具正在处理其他任务，请稍后重试")])
+            return
+        active_jobs += 1
         try:
-            _cleanup_cache()
+            async with init_lock:
+                if not initialized:
+                    await _run_in_worker(_load_sent_index)
+                    initialized = True
+            await _run_in_worker(_cleanup_cache)
             hint = _processing_text(cfg, item)
             if hint:
                 await bot.send(event, [Text(hint)])
@@ -950,6 +1022,8 @@ def main(bot: ExtendBot, config: YAMLManager):
             bot.logger.error(f"[giftoolbox] {name} 异常: {type(e).__name__}: {e}")
             reason = f"{type(e).__name__}: {e}" if str(e) else type(e).__name__
             await bot.send(event, [Text(f"{fail_prefix}（{reason}）")])
+        finally:
+            active_jobs -= 1
 
     @bot.on(GroupMessageEvent)
     async def _(event: GroupMessageEvent):
@@ -959,5 +1033,4 @@ def main(bot: ExtendBot, config: YAMLManager):
     async def _(event: PrivateMessageEvent):
         await _on_message(event)
 
-    _load_sent_index()
     bot.logger.info("[giftoolbox] 表情包工具箱已加载")

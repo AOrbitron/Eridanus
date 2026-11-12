@@ -449,13 +449,14 @@ class DynamicScheduler:
                 weekdays_str = ",".join(map(str, weekdays_list))
 
         # 时区信息解析
-        _, tz_name, _ = TimezoneHelper.resolve_timezone(city)
+        _, tz_name, _ = await asyncio.to_thread(TimezoneHelper.resolve_timezone, city)
         target_city = (city or "").strip()
 
         if next_run_ts is not None:
             next_ts = float(next_run_ts)
         else:
-            next_ts = self.calculate_initial_next_run(
+            next_ts = await asyncio.to_thread(
+                self.calculate_initial_next_run,
                 time_str=time_str,
                 recur_type=recur_type,
                 weekdays=weekdays_list,
@@ -1318,7 +1319,7 @@ class DynamicScheduler:
 
             for task in tasks_to_run:
                 # 立即计算并更新下一次触发状态，防止重复扫描
-                next_ts = self.calculate_next_recur_run(task)
+                next_ts = await asyncio.to_thread(self.calculate_next_recur_run, task)
                 async with aiosqlite.connect(getattr(self, 'db_path', DB_PATH)) as db:
                     if next_ts is not None:
                         await db.execute(

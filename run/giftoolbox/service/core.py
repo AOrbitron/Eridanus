@@ -6,11 +6,18 @@
 """
 import io
 import random
+import math
+import subprocess
+import tempfile
+from pathlib import Path
 
 from PIL import Image as PILImage, ImageSequence, ImageFilter, ImageOps, ImageEnhance
 
 MIN_FRAME_MS = 20          # GIF 最小帧间隔，等效 50fps 上限
 MAX_FPS = 50
+MAX_PIXELS = 4_000_000
+MAX_DECODED_PIXELS = 64_000_000
+MAX_FRAMES = 500
 MAX_FRAME_MS = 1000        # 单帧最长 1s，等效 1fps 下限
 
 
@@ -26,15 +33,27 @@ def _open(data: bytes) -> PILImage.Image:
     if not data:
         raise ToolError("图片内容为空")
     try:
-        return PILImage.open(io.BytesIO(data))
+        img = PILImage.open(io.BytesIO(data))
+        _validate_image(img)
+        return img
+    except ToolError:
+        raise
     except Exception:
         raise ToolError("无法识别图片格式")
+
+
+def _validate_image(img):
+    pixels = img.width * img.height
+    frames = getattr(img, "n_frames", 1)
+    if pixels > MAX_PIXELS or frames > MAX_FRAMES or pixels * frames > MAX_DECODED_PIXELS:
+        raise ToolError("图片尺寸或帧数过大，请缩小后重试")
 
 
 def _frames(img):
     """返回 (逐帧图像, 逐帧时长)；不是动图时返回 (None, None)。"""
     if not getattr(img, "is_animated", False):
         return None, None
+    _validate_image(img)
     frames, durations = [], []
     for frame in ImageSequence.Iterator(img):
         try:
@@ -93,7 +112,7 @@ def _save_anim(frames, durations, fmt="GIF", loop=0) -> bytes:
         elif fmt == "APNG":
             frames[0].convert("RGBA").save(
                 out, format="PNG", save_all=True, append_images=frames[1:],
-                duration=durations, loop=loop, default_image=True,
+                duration=durations, loop=loop, default_image=False,
             )
         else:
             raise ToolError(f"不支持的输出格式：{fmt}")
@@ -207,6 +226,8 @@ def decompose(data: bytes, max_frames: int = 100):
 # --------------------------------------------------------------------------
 
 def crop_grid(data: bytes, rows: int, cols: int, margins: dict = None):
+    if not 1 <= rows <= 20 or not 1 <= cols <= 20 or rows * cols > 100:
+        raise ToolError("网格尺寸必须为 1 到 20，且最多 100 格")
     img = _open(data).convert("RGBA")
     margins = margins or {}
     left = int(margins.get("left", 0))
@@ -214,6 +235,8 @@ def crop_grid(data: bytes, rows: int, cols: int, margins: dict = None):
     right = int(margins.get("right", 0))
     bottom = int(margins.get("bottom", 0))
     w, h = img.size
+    if min(left, top, right, bottom) < 0:
+        raise ToolError("边距不能为负数")
     if left + right >= w or top + bottom >= h:
         raise ToolError(f"切边超出图片尺寸（{w}x{h}）")
     img = img.crop((left, top, w - right, h - bottom))
@@ -353,6 +376,7 @@ def concat(datas, frame_sec: float = 0.5, fmt="GIF", max_frames: int = 500):
     for data in datas:
         try:
             with PILImage.open(io.BytesIO(data)) as im:
+                _validate_image(im)
                 cw = max(cw, im.width)
                 ch = max(ch, im.height)
                 if getattr(im, "is_animated", False):
@@ -363,6 +387,8 @@ def concat(datas, frame_sec: float = 0.5, fmt="GIF", max_frames: int = 500):
                 else:
                     durs = [default_ms]
                 probes.append((data, durs))
+        except ToolError:
+            raise
         except Exception:
             continue
     if not probes:
@@ -371,6 +397,8 @@ def concat(datas, frame_sec: float = 0.5, fmt="GIF", max_frames: int = 500):
         raise ToolError("图片尺寸异常")
 
     total = sum(len(d) for _, d in probes)
+    if cw * ch * min(total, max_frames) > MAX_DECODED_PIXELS:
+        raise ToolError("合成结果尺寸或帧数过大，请缩小后重试")
     frames, durations = [], []
     for data, durs in probes:
         if total > max_frames:
@@ -394,88 +422,46 @@ def concat(datas, frame_sec: float = 0.5, fmt="GIF", max_frames: int = 500):
 
 
 # --------------------------------------------------------------------------
-# 视频转 gif（需要 imageio[ffmpeg]，缺依赖时给出明确原因）
+# 视频转 gif：复用项目现有 FFmpeg，不安装额外 Python 包。
 # --------------------------------------------------------------------------
-
-def _py_env_hint() -> str:
-    """缺依赖时附上运行环境信息，便于判断装到了哪个 Python 里。"""
-    import sys
-    try:
-        import imageio_ffmpeg
-        ff = f"imageio_ffmpeg 可导入（{imageio_ffmpeg.__file__}）"
-    except Exception as e:
-        ff = f"imageio_ffmpeg 导入失败（{type(e).__name__}: {e}）"
-    return f"[运行解释器: {sys.executable}；{ff}]"
-
 
 def video_to_gif(path: str, start: float = 0.0, end: float = None, fps: float = 10,
                  scale: float = 0.3, fmt="GIF", max_duration: float = 10.0,
                  max_frames: int = 400):
-    try:
-        import imageio.v2 as imageio
-    except ImportError as e:
-        raise ToolError(f"缺少 imageio，请在 bot 的 Python 环境执行 pip install imageio imageio-ffmpeg（{e}）")
-
-    try:
-        reader = imageio.get_reader(path, format="FFMPEG")
-    except ImportError as e:
-        raise ToolError(f"缺少 imageio-ffmpeg，请在 bot 的 Python 环境执行 pip install imageio-ffmpeg（{e}）\n{_py_env_hint()}")
-    except Exception as e:
-        raise ToolError(f"视频打不开（{type(e).__name__}: {e}）")
-
-    try:
-        meta = reader.get_meta_data()
-        duration = float(meta.get("duration", 0) or 0)
-        src_fps = float(meta.get("fps", 30) or 30)
-        if duration <= 0:
-            duration = None
-        if end is None or (duration and end > duration):
-            end = duration
-        if start < 0:
-            start = 0.0
-        if end is not None and end <= start:
-            raise ToolError("结束时间必须晚于开始时间")
-        if end is not None and duration and start >= duration:
-            raise ToolError("开始时间超出了视频长度")
-
-        truncated = False
-        if end is not None and end - start > max_duration:
-            end = start + max_duration
-            truncated = True
-
-        if not fps or fps <= 0:
-            fps = 10
-        if fps > src_fps:
-            fps = src_fps
-        step = max(1, int(round(src_fps / fps)))
-        target_fps = src_fps / step
-        frame_ms = max(MIN_FRAME_MS, int(1000 / target_fps))
-
-        frames = []
-        for i, raw in enumerate(reader):
-            t = i / src_fps
-            if t < start:
-                continue
-            if end is not None and t > end:
-                break
-            if i % step:
-                continue
-            img = PILImage.fromarray(raw)
-            w, h = img.size
-            img = img.resize((max(1, int(w * scale)), max(1, int(h * scale))),
-                             PILImage.Resampling.BILINEAR)
-            frames.append(img)
-            if len(frames) >= max_frames:
-                truncated = True
-                break
-    finally:
+    values = (start, fps, scale, max_duration) + (() if end is None else (end,))
+    if not all(math.isfinite(float(value)) for value in values):
+        raise ToolError("视频参数必须是有限数字")
+    if start < 0 or fps <= 0 or scale <= 0 or max_duration <= 0 or max_frames <= 0:
+        raise ToolError("视频参数超出范围")
+    if end is not None and end <= start:
+        raise ToolError("结束时间必须晚于开始时间")
+    duration = min(max_duration, 10.0, end - start if end is not None else 10.0)
+    fps = min(float(fps), MAX_FPS)
+    scale = min(float(scale), 1.0)
+    max_frames = min(int(max_frames), 400, max(1, MAX_DECODED_PIXELS // (512 * 512)))
+    # Decode at most one extra frame to determine whether output was truncated.
+    with tempfile.TemporaryDirectory(prefix="eridanus-gif-") as directory:
+        output = str(Path(directory) / "%04d.png")
+        vf = (f"fps={fps},scale=w='min(512,iw*{scale})':"
+              f"h='min(512,ih*{scale})':force_original_aspect_ratio=decrease")
+        args = ["ffmpeg", "-nostdin", "-hide_banner", "-loglevel", "error",
+                "-ss", str(start), "-i", str(Path(path).resolve()), "-t", str(duration),
+                "-an", "-vf", vf, "-threads", "1", "-frames:v", str(max_frames + 1), output]
         try:
-            reader.close()
-        except Exception:
-            pass
-
-    if not frames:
-        raise ToolError("这段时间里没有抽到任何帧")
-
-    out = _save_anim(frames, [frame_ms] * len(frames), fmt)
-    return out, {"frames": len(frames), "fps": target_fps, "truncated": truncated}
+            result = subprocess.run(args, capture_output=True, timeout=45, check=False)
+        except FileNotFoundError as exc:
+            raise ToolError("视频转换需要项目已有的 FFmpeg，请确认 ffmpeg 在 PATH 中") from exc
+        except subprocess.TimeoutExpired as exc:
+            raise ToolError("视频转换超时，请缩短视频后重试") from exc
+        if result.returncode:
+            raise ToolError("FFmpeg 无法解码此视频，请检查文件格式")
+        paths = sorted(Path(directory).glob("*.png"))
+        if not paths:
+            raise ToolError("这段时间里没有抽到任何帧")
+        frames = []
+        for frame in paths[:max_frames]:
+            with PILImage.open(frame) as image:
+                frames.append(image.convert("RGBA"))
+        truncated = len(paths) > max_frames or (end is not None and end - start > duration)
+        out = _save_anim(frames, [max(MIN_FRAME_MS, round(1000 / fps))] * len(frames), fmt)
+        return out, {"frames": len(frames), "fps": fps, "truncated": truncated}

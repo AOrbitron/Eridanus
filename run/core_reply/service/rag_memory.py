@@ -526,9 +526,11 @@ class RAGMemory(EpisodeArchive, EpisodeRetrieval):
                 self._db = None
             self._worker = None
     async def aclose(self):
-        self.close()
         if self.knowledge is not None:
+            self.knowledge.stop()
             await self.knowledge.wait_stopped()
+        # SQLite shares a threading lock with workers: never wait for it on the Bot loop.
+        await asyncio.to_thread(self.close)
 
     async def wait_indexing(self, timeout: float = 30.0) -> bool:
         """等待所有待索引的记忆完成向量化入库"""
