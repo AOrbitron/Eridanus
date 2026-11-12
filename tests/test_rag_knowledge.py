@@ -315,7 +315,7 @@ class KnowledgeTests(unittest.IsolatedAsyncioTestCase):
         kb.min_similarity = 0.9
         self.assertEqual(await kb.recall(None, "管理员"), "")
 
-    async def test_reranker_wire_formats_and_validated_fallback(self):
+    async def test_reranker_request_and_validated_fallback(self):
         self.write("alpha", "a.txt", "管理员手册")
         self.write("alpha", "b.txt", "launch client")
         self.write("beta", "c.txt", "launch game")
@@ -365,11 +365,6 @@ class KnowledgeTests(unittest.IsolatedAsyncioTestCase):
             context = await kb.recall(None, "管理员")
             self.assertLess(context.index("a.txt"), context.index("b.txt"))
 
-            kb.top_k = 1
-            response = {"data": [{"index": 1, "relevance_score": 0.98}]}
-            kb.reranker["format"] = "voyage"
-            self.assertIn("文件：b.txt", await kb.recall(None, "管理员"))
-            self.assertEqual(requests[-1][1]["top_k"], 1)
             kb.reranker["enable"] = False
             count = len(requests)
             self.assertIn("文件：a.txt", await kb.recall(None, "管理员"))

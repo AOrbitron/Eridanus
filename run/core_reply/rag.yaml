@@ -91,4 +91,3 @@ knowledge_base:
     api_key: ''
     model: BAAI/bge-reranker-v2-m3
     timeout_seconds: 10
-    # format: voyage  # 默认 standard（top_n / results）；Voyage 接口使用 top_k / data

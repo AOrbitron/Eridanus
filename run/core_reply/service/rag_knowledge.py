@@ -562,23 +562,18 @@ class RAGKnowledge:
             key = (cfg.get("api_key") or "").strip()
             if key:
                 headers["Authorization"] = f"Bearer {key}"
-            api_format = cfg.get("format", "standard")
-            if api_format not in ("standard", "voyage"):
-                raise ValueError("未知的 Rerank 接口格式")
-            # Voyage uses top_k and data for the otherwise identical text request.
-            limit_field, result_field = ("top_k", "data") if api_format == "voyage" else ("top_n", "results")
             payload = {
                 "model": cfg.get("model", "BAAI/bge-reranker-v2-m3"),
                 "query": query,
                 "documents": [candidate.text for candidate in candidates],
-                limit_field: top_n,
+                "top_n": top_n,
                 "return_documents": False,
             }
             async with asyncio.timeout(timeout):
                 async with httpx.AsyncClient(timeout=timeout, trust_env=False) as client:
                     response = await client.post(f"{base}/{endpoint}", headers=headers, json=payload)
                     response.raise_for_status()
-                    results = response.json()[result_field]
+                    results = response.json()["results"]
             if not isinstance(results, list) or len(results) != top_n:
                 raise ValueError("Rerank 返回数量不匹配")
             scores = {}
