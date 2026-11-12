@@ -64,14 +64,10 @@ retrieval:  # 固定背景事实、动态语义召回与段落打包设置
 knowledge_base:
   enable: false  # 需要同时开启 RAG 总开关，修改配置后重启 Bot
   root_dir: data/knowledge  # 路径相对于项目根目录；自定义目录请加入本地 Git 忽略规则
-  libraries: []  # 手动注册，启用的库在 RAG 允许的私聊和群聊中共享
+  libraries: []  # 知识库开启后，每项填一个目录（如 data/knowledge/bot_manual）；留空停用
   # libraries:
-  #   - name: bot_manual
-  #     path: data/knowledge/bot_manual
-  #     enable: true
-  #   - name: worldview
-  #     path: data/knowledge/worldview
-  #     enable: true
+  #   - data/knowledge/bot_manual
+  #   - data/knowledge/worldview
   sync:
     on_startup: true
     interval_seconds: 300  # 0 关闭定时同步
