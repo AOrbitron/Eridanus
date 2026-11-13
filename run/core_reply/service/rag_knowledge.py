@@ -91,36 +91,59 @@ def _libraries(cfg, project: Path, warn):
     if not isinstance(entries, list):
         raise ValueError("libraries 必须是列表")
 
-    names = Counter()
+    legacy_names = Counter()
     libraries = []
+    path_entries = set()
     for entry in entries:
-        entry = _mapping(entry)
-        name = entry.get("name")
-        if not isinstance(name, str) or not name.strip() or not name.isprintable():
-            warn("[MaiReply 知识库] 跳过缺少有效 name 的配置")
-            continue
-        name = name.strip()
-        names[name.casefold()] += 1
+        legacy = isinstance(entry, Mapping)
+        if legacy:
+            # 旧条目继续遵守原来的单库开关。
+            if entry.get("enable") is not True:
+                continue
+            name = entry.get("name")
+            if not isinstance(name, str) or not name.strip() or not name.isprintable():
+                warn("[MaiReply 知识库] 跳过缺少有效 name 的旧配置")
+                continue
+            name = name.strip()
+            legacy_names[name.casefold()] += 1
+            value = entry.get("path")
+        else:
+            if entry is None or (isinstance(entry, str) and not entry.strip()):
+                continue  # WebUI 可以清空最后一个列表项来停用知识库。
+            name = None
+            value = entry.strip() if isinstance(entry, str) else entry
+
         try:
-            path = _project_path(project, entry.get("path"))
+            path = _project_path(project, value)
             if path == root or not path.is_relative_to(root):
                 raise ValueError("知识库路径必须位于 root_dir 的子目录")
+            name = name or path.relative_to(root).as_posix()
+            if not name.isprintable():
+                raise ValueError("知识库目录名必须是可显示的文本")
         except (OSError, RuntimeError, ValueError) as exc:
-            warn("[MaiReply 知识库] 跳过 %r 的目录配置: %s", name, exc)
+            warn("[MaiReply 知识库] 跳过目录配置 %r: %s", value, exc)
             continue
-        libraries.append((Library(name, path, path.relative_to(project).as_posix()), entry.get("enable") is True))
+        relative_path = path.relative_to(project).as_posix()
+        if not legacy:
+            path_entries.add(relative_path.casefold())
+        libraries.append((Library(name, path, relative_path), legacy))
 
     enabled = []
-    for library, active in libraries:
-        directory = library.relative_path.casefold() + "/"
-        if names[library.name.casefold()] > 1 or any(
-            other is not library and (directory.startswith(other.relative_path.casefold() + "/")
-                                      or (other.relative_path.casefold() + "/").startswith(directory))
-            for other, _ in libraries
+    seen = set()
+    directories = {library.relative_path.casefold() + "/" for library, _ in libraries}
+    for library, legacy in libraries:
+        key = library.relative_path.casefold()
+        if key in seen or (legacy and key in path_entries):
+            continue
+        directory = key + "/"
+        if (legacy and legacy_names[library.name.casefold()] > 1) or any(
+            other != directory and (directory.startswith(other) or other.startswith(directory))
+            for other in directories
         ):
-            warn("[MaiReply 知识库] 跳过名称重复或目录重叠的知识库 %r", library.name)
-        elif active:
-            enabled.append(library)
+            warn("[MaiReply 知识库] 跳过名称重复或目录重叠的知识库 %r", library.relative_path)
+            continue
+        enabled.append(library)
+        seen.add(key)
     return enabled
 
 
