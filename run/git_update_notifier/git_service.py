@@ -1,5 +1,6 @@
 import asyncio
 import json
+import re
 from developTools.utils.logger import get_logger
 import os
 import shutil
@@ -122,38 +123,67 @@ class GitService:
         return ""
 
     async def fetch_remote(self, remote: str = "origin", branch: str = "master", timeout: int = 45) -> Tuple[bool, str]:
+        """仅查询远端分支 SHA，保留接口名；不下载 Git 对象，不扩大范围重试。"""
         if branch == "auto":
             branch = await self.get_current_branch()
+        ref = f"refs/heads/{branch}"
+        code, out, err = await self.run_git(
+            ["ls-remote", "--exit-code", "--refs", "--", remote, ref], timeout=timeout
+        )
+        if code != 0:
+            return False, err or f"远端不存在分支 {branch}"
+        for line in out.splitlines():
+            fields = line.split()
+            if len(fields) == 2 and fields[1] == ref:
+                if re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}", fields[0]):
+                    return True, fields[0]
+        return False, f"无法读取远端分支 {branch} 的 commit"
 
-        code, out, err = await self.run_git(["fetch", remote, branch], timeout=timeout)
-        if code == 0:
-            return True, out
-        else:
-            logger.warning(f"git fetch {remote} {branch} 失败: {err}，尝试直接 git fetch {remote}")
-            c2, o2, e2 = await self.run_git(["fetch", remote], timeout=timeout)
-            if c2 == 0:
-                return True, o2
+    async def _compare_github(self, remote, base, head, max_commits, timeout):
+        """只读取 GitHub 提交差异元数据，不获取 blob 或 pack。"""
+        import httpx
+        from urllib.parse import urlparse, quote
 
-            # 如果使用 origin 且失败，尝试读取配置中的 git_update_source 备选源拉取
-            fallback_err = (err + "\n" + e2).strip()
-            if remote == "origin":
-                try:
-                    from framework_common.framework_util.yamlLoader import YAMLManager
-                    from tool import SOURCES
-                    ym = YAMLManager.get_instance()
-                    source_idx = int(ym.common_config.basic_config.get("git_update_source", 0))
-                    if 0 <= source_idx < len(SOURCES):
-                        fallback_url = SOURCES[source_idx]
-                        if fallback_url != "origin":
-                            logger.info(f"[GitService] 尝试使用配置的备选更新源进行拉取检查: {fallback_url}")
-                            c3, o3, e3 = await self.run_git(["fetch", fallback_url, branch], timeout=timeout)
-                            if c3 == 0:
-                                return True, o3
-                            fallback_err += f"\n备选源拉取失败: {e3}"
-                except Exception as ex:
-                    logger.debug(f"[GitService] 尝试备选更新源失败: {ex}")
-
-            return False, fallback_err
+        code, url, _ = await self.run_git(["remote", "get-url", remote])
+        if code != 0:
+            url = remote
+        if url.startswith("git@github.com:"):
+            url = "https://github.com/" + url.split(":", 1)[1]
+        parsed = urlparse(url)
+        if parsed.hostname != "github.com":
+            raise ValueError("远端 commit 不同，但该源不支持 GitHub 提交差异接口；已跳过对象下载")
+        parts = parsed.path.strip("/").removesuffix(".git").split("/")
+        if len(parts) != 2 or not all(parts):
+            raise ValueError("无法解析 GitHub 仓库地址")
+        owner, repo = (quote(part, safe="") for part in parts)
+        endpoint = f"https://api.github.com/repos/{owner}/{repo}/compare/{base}...{head}"
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            response = await client.get(
+                endpoint, params={"per_page": max(1, min(max_commits, 100))},
+                headers={"Accept": "application/vnd.github+json"},
+            )
+            response.raise_for_status()
+            data = response.json()
+        count = int(data["ahead_by"])
+        commits = data.get("commits", [])[:max(0, max_commits)]
+        summaries, details = [], []
+        for item in commits:
+            sha = item["sha"][:8]
+            commit = item["commit"]
+            message = commit["message"]
+            author = commit.get("author") or {}
+            summaries.append(f"* [{sha}] {message.splitlines()[0]} ({author.get('name', '')})")
+            details.append(f"[Commit {sha}]\n{message}\nAuthor: {author.get('name', '')} ({author.get('date', '')})")
+        files = data.get("files", [])
+        stats = "\n".join(
+            f"{item['filename']} | +{item.get('additions', 0)} -{item.get('deletions', 0)} ({item.get('status', '')})"
+            for item in files
+        )
+        if len(files) >= 300:
+            stats += "\n（文件列表可能受 GitHub 300 项上限截断）"
+        if count > len(commits):
+            details.append(f"（共 {count} 个新提交，仅展示其中 {len(commits)} 个）")
+        return count, "\n".join(summaries), "\n\n".join(details), stats
 
     async def check_updates(
         self,
@@ -189,7 +219,7 @@ class GitService:
         if not fetch_ok:
             return {
                 "success": False,
-                "error": f"拉取远程分支失败: {fetch_msg}",
+                "error": f"查询远程分支失败: {fetch_msg}",
                 "is_ahead": False,
                 "ahead_count": 0,
                 "local_commit": local_commit,
@@ -198,24 +228,27 @@ class GitService:
                 "remote": remote,
             }
 
-        remote_ref = f"{remote}/{target_branch}"
-        code, remote_commit, _ = await self.run_git(["rev-parse", remote_ref])
-        if code != 0 or not remote_commit:
-            code_fetch, fetch_head, _ = await self.run_git(["rev-parse", "FETCH_HEAD"])
-            if code_fetch == 0 and fetch_head:
-                remote_ref = "FETCH_HEAD"
-                remote_commit = fetch_head
-            else:
+        remote_commit = fetch_msg
+        remote_ref = remote_commit
+        # 固定本次查询的 SHA，不能读取过期的 origin/* 或 FETCH_HEAD。
+        code_object, _, _ = await self.run_git(["cat-file", "-e", f"{remote_commit}^{{commit}}"])
+        if code_object != 0:
+            try:
+                ahead_count, commit_list, commit_details, diff_stat = await self._compare_github(
+                    remote, local_commit, remote_commit, max_commits, fetch_timeout
+                )
+            except Exception as exc:
                 return {
-                    "success": False,
-                    "error": f"无法解析远程引用 {remote_ref} 或 FETCH_HEAD",
-                    "is_ahead": False,
-                    "ahead_count": 0,
-                    "local_commit": local_commit,
-                    "remote_commit": "",
-                    "branch": target_branch,
-                    "remote": remote,
+                    "success": False, "error": f"提交差异查询失败（未下载仓库对象）: {exc}",
+                    "is_ahead": False, "ahead_count": 0, "local_commit": local_commit,
+                    "remote_commit": remote_commit, "branch": target_branch, "remote": remote,
                 }
+            return {
+                "success": True, "error": "", "is_ahead": ahead_count > 0,
+                "ahead_count": ahead_count, "local_commit": local_commit,
+                "remote_commit": remote_commit, "branch": target_branch, "remote": remote,
+                "commit_list": commit_list, "commit_details": commit_details, "diff_stat": diff_stat,
+            }
 
         code_count, count_str, _ = await self.run_git(["rev-list", "--count", f"HEAD..{remote_ref}"])
         ahead_count = int(count_str) if (code_count == 0 and count_str.isdigit()) else 0

@@ -156,9 +156,6 @@ class WebSocketBot:
                 await self._message_queue.put(response)
         except websockets.exceptions.ConnectionClosedError as e:
             self.logger.warning(f"WebSocket 连接关闭: {e}")
-            self.logger.warning("5秒后尝试重连")
-            await asyncio.sleep(5)
-            await self._connect_and_run()
         except Exception as e:
             self.logger.error(f"接收消息时发生错误: {e}", exc_info=True)
         finally:
@@ -220,32 +217,40 @@ class WebSocketBot:
             self._processing_task = None
 
     async def _connect_and_run(self):
-        """
-        建立 WebSocket 连接并开始接收消息。
-        """
-        await self._connect()
-        if self.websocket:
-            self.receive_task = asyncio.create_task(self._receive())
-            self._processing_task = asyncio.create_task(self._process_messages())
-
-            # 等待接收任务完成（通常是连接断开时）
+        """由单一循环管理连接生命周期，长时间断线不会累积递归栈或接收任务。"""
+        while True:
+            await self._connect()
+            if self.websocket is None:
+                self.logger.warning("WebSocket 连接失败，5秒后尝试重连")
+                await asyncio.sleep(5)
+                continue
+            socket = self.websocket
+            receive_task = asyncio.create_task(self._receive())
+            processing_task = asyncio.create_task(self._process_messages())
+            self.receive_task = receive_task
+            self._processing_task = processing_task
             try:
-                await self.receive_task
+                await receive_task
             except Exception as e:
                 self.logger.error(f"接收任务出错: {e}")
             finally:
-                if self._processing_task and not self._processing_task.done():
-                    self._processing_task.cancel()
+                receive_task.cancel()
+                processing_task.cancel()
+                await asyncio.gather(receive_task, processing_task, return_exceptions=True)
+                self.receive_task = None
+                self._processing_task = None
+                self.websocket = None
+                await socket.close()
+            self.logger.warning("WebSocket 连接断开，5秒后尝试重连")
+            await asyncio.sleep(5)
 
     async def _connect(self):
         try:
             self.websocket = await websockets.connect(self.uri,max_size=None)
             self.logger.info_msg("WebSocket 连接已建立")
         except Exception as e:
+            self.websocket = None
             self.logger.error(f"WebSocket 连接出现错误: {e}")
-            self.logger.warning("WebSocket 连接失败，5秒后尝试重连")
-            await asyncio.sleep(5)
-            await self._connect_and_run()
 
     async def _call_api(self, action: str, params: dict, timeout: int = 10) -> dict:
         if self.websocket is None:
