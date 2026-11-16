@@ -79,7 +79,7 @@ def _get_api_key_from_system() -> Optional[str]:
     try:
         cfg = YAMLManager.get_instance()
         # 1. 优先从 tts_v2 配置中获取
-        key = cfg.tts_v2.config.get("breeze_tts", {}).get("api_key") or cfg.tts_v2.config.get("tts", {}).get("api_key")
+        key = cfg.tts_v2.config.get("breeze_tts", {}).get("api_key")
         if key:
             return key
         # 2. 从 core_reply 的 trigger_llm 获取
@@ -529,7 +529,7 @@ class TTS:
         effective_auto_tag = auto_tag if auto_tag is not None else breeze_cfg.get("auto_add_audio_tags", True)
         auto_instruction = breeze_cfg.get("auto_generate_instruction", True)
         target_lang = normalize_language(lang_type or cfg.get("lang_type") or ("ZH" if engine_name == "breeze_tts" else "JP"))
-        api_token = api_key or breeze_cfg.get("api_key") or cfg.get("api_key") or _get_api_key_from_system()
+        api_token = api_key or breeze_cfg.get("api_key") or _get_api_key_from_system()
 
         # 3. 所有引擎先统一翻译；Breeze 的合法音频标签需要保留，译文再增强语气。
         cleaned_text = protect_and_clean_breeze_text(text) if engine_name == "breeze_tts" else self.clean_text(text)
@@ -537,7 +537,7 @@ class TTS:
             raise ValueError("TTS 输入文本为空或不含可朗读文本")
         cleaned_text = await translate_text(
             cleaned_text, target_lang=target_lang,
-            **translation_options(config or self.config),
+            **translation_options(config or self.config, fallback_config=self.config),
             preserve_audio_tags=(engine_name == "breeze_tts"),
             strict=(target_lang == "EN"),
         )

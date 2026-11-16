@@ -2,11 +2,11 @@
   default_speaker: "natuki"   # 默认发音人（未指定角色时使用，支持达妮娅/natuki等）
   length_limit: 150           # 最大单次合成字符长度上限（超长自动截断）
   lang_type: "JP"             # 目标语言：EN 自动翻译为英文，JP 自动翻译为日文，ZH 保留原文；适用于 Breeze 等引擎
-  api_key: ""                 # 在线语音接口鉴权；显式启用 translator 时也复用此 key，填 key 本身不会启用 LLM 翻译
 
-translator:  #无需配置。默认优先免费有道api，失败后尝试公共备用；不会自动调用 trigger_llm 或其他 LLM。
-   base_url: "http://api.apollodorus.xyz/v1"
-   model: ""
+translator:  # 三项填全时优先调用；未配全或失败用有道，二者不可用后回退 core_reply.trigger_llm
+  base_url: "http://api.apollodorus.xyz/v1"
+  model: ""
+  api_key: ""  # 专用翻译 LLM 的 key
 
 breeze_tts:
   connection_mode: "gateway"  # 连接模式: "gateway" (走网关需 api_key) 或 "direct" (直连自建服务端无需 api_key)

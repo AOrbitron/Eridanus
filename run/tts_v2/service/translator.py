@@ -17,19 +17,23 @@ def normalize_language(target_lang: str) -> str:
     return aliases[target]
 
 
-def translation_options(config=None) -> dict:
-    """LLM translation is opt-in; its key is the existing global tts.api_key."""
+def translation_options(config=None, *, fallback_config=None) -> dict:
+    """Keep explicit translator credentials separate from the last-resort trigger LLM."""
     if isinstance(config, dict):
         tts_config = config
+        system_config = fallback_config
     else:
         tts_config = getattr(getattr(config, "tts_v2", None), "config", {}) or {}
+        system_config = config or fallback_config
     settings = tts_config.get("translator", {}) or {}
-    tts = tts_config.get("tts", {}) or {}
-    return {
-        "api_key": tts.get("api_key") or None,
-        "base_url": str(settings.get("base_url") or "").strip() or None,
-        "model": str(settings.get("model") or "").strip() or None,
-    }
+    core = getattr(getattr(system_config, "core_reply", None), "config", {}) or {}
+    trigger = core.get("trigger_llm", {}) or {}
+
+    def options(values):
+        return {key: str(values.get(key) or "").strip() or None
+                for key in ("api_key", "base_url", "model")}
+
+    return {**options(settings), "fallback_llm": options(trigger)}
 
 
 def clean_tts_text(text: str) -> str:
@@ -59,13 +63,15 @@ async def translate_text(
     base_url: Optional[str] = None,
     *,
     model: Optional[str] = None,
+    fallback_llm: Optional[dict] = None,
     preserve_audio_tags: bool = False,
     strict: bool = False,
 ) -> str:
-    """Youdao first; use an LLM only with an explicit base_url AND model.
+    """Explicit translator first, then Youdao, then the configured trigger LLM.
 
-    An api_key alone never enables paid translation. No trigger_llm configuration
-    is inherited. Translate to EN/JP; ZH keeps the source, optionally with tags.
+    All three explicit translator fields are required. An absent or incomplete
+    translator starts with Youdao; trigger credentials are used only after failure.
+    Translate to EN/JP; ZH keeps the source, optionally with tags.
 
     The synthesis pipeline uses strict EN translation so an outage cannot silently
     produce Chinese speech for an English request. Direct callers retain the
@@ -93,16 +99,16 @@ async def translate_text(
             translated.append(part)
             continue
         translated.append(await _translate_cleaned_text(
-            part, target, api_key, base_url, model=model, strict=strict))
+            part, target, api_key, base_url, model=model, fallback_llm=fallback_llm, strict=strict))
     return "".join(translated)
 
 
 async def _translate_cleaned_text(
     cleaned: str, target: str, api_key: Optional[str], base_url: Optional[str],
-    *, model: Optional[str], strict: bool,
+    *, model: Optional[str], fallback_llm: Optional[dict], strict: bool,
 ) -> str:
     """
-    默认有道优先；失败后仅使用显式配置的 LLM，再尝试公共备用翻译源。
+    显式 translator → 有道 → trigger_llm → 公共备用；任一步成功立即返回。
     """
     def usable(value):
         if not isinstance(value, str) or not value.strip():
@@ -110,7 +116,46 @@ async def _translate_cleaned_text(
         # Some failed providers return the unmodified Chinese input as a success.
         return target != "EN" or not re.search(r"[\u3400-\u9fff\u3040-\u30ff]", value)
 
-    # 1. 有道优先，不携带任何用户 key。
+    async def llm_translate(options, label):
+        values = {key: str(options.get(key) or "").strip()
+                  for key in ("base_url", "model", "api_key")}
+        if not all(values.values()):
+            return None
+        try:
+            base = values["base_url"].rstrip("/")
+            if not base.endswith("/v1"):
+                base += "/v1"
+            target_desc = "日文" if target == "JP" else "英文"
+            payload = {
+                "model": values["model"],
+                "messages": [
+                    {"role": "system", "content": f"你是一个专业的口语文本文档翻译员。请直接将用户的输入文本翻译为自然的{target_desc}。要求：绝不要添加任何说明、解释、罗马音或符号，只返回翻译后的纯文本。"},
+                    {"role": "user", "content": cleaned},
+                ],
+                "temperature": 0.3,
+                "max_tokens": max(200, len(cleaned) * 3),
+            }
+            async with httpx.AsyncClient(timeout=20, trust_env=False) as client:
+                response = await client.post(base + "/chat/completions", json=payload,
+                    headers={"Authorization": "Bearer " + values["api_key"], "Content-Type": "application/json"})
+                if response.status_code == 200:
+                    choices = response.json().get("choices", [])
+                    if choices and choices[0].get("finish_reason") != "length":
+                        text = choices[0].get("message", {}).get("content")
+                        if usable(text):
+                            logger.info(f"[TTS Translator] {label} 翻译成功")
+                            return text.strip()
+        except Exception:
+            # Avoid logging a credential-bearing client exception or response body.
+            logger.debug(f"[TTS Translator] {label} 翻译异常，尝试下一来源")
+        return None
+
+    # 1. 仅三项均填全时优先使用专用 translator；不借用其他配置补全。
+    result = await llm_translate({"base_url": base_url, "model": model, "api_key": api_key}, "translator")
+    if result is not None:
+        return result
+
+    # 2. 未配置 translator 或调用失败时使用有道，不携带任何用户 key。
     try:
         yd_lang = "ja" if target == "JP" else "en"
         yd_data = {"q": cleaned, "from": "zh-CHS", "to": yd_lang}
@@ -126,41 +171,10 @@ async def _translate_cleaned_text(
     except Exception as exc:
         logger.debug(f"[TTS Translator] 有道翻译异常: {exc}")
 
-    # 2. 只有用户明确配置了 translator 的地址和模型，才启用 LLM 备用。
-    if base_url and model:
-        try:
-            chat_base = base_url.rstrip("/")
-            if not chat_base.endswith("/v1"):
-                chat_base += "/v1"
-            chat_url = f"{chat_base}/chat/completions"
-            headers = {"Content-Type": "application/json"}
-            if api_key:
-                headers["Authorization"] = f"Bearer {api_key}"
-            target_desc = "日文" if target in ["JP", "JA"] else "英文"
-            chat_payload = {
-                "model": model,
-                "messages": [
-                    {
-                        "role": "system",
-                        "content": f"你是一个专业的口语文本文档翻译员。请直接将用户的输入文本翻译为自然的{target_desc}。要求：绝不要添加任何说明、解释、罗马音或符号，只返回翻译后的纯文本。"
-                    },
-                    {"role": "user", "content": cleaned}
-                ],
-                "temperature": 0.3,
-                "max_tokens": max(200, len(cleaned) * 3)
-            }
-            async with httpx.AsyncClient(timeout=20, trust_env=False) as client:
-                resp = await client.post(chat_url, json=chat_payload, headers=headers)
-                if resp.status_code == 200:
-                    data = resp.json()
-                    choices = data.get("choices", [])
-                    if choices and "message" in choices[0]:
-                        trans = choices[0]["message"].get("content", "").strip()
-                        if choices[0].get("finish_reason") != "length" and usable(trans):
-                            logger.info(f"[TTS Translator] LLM Chat 翻译成功: '{cleaned}' -> '{trans}'")
-                            return trans
-        except Exception as e:
-            logger.debug(f"[TTS Translator] LLM Chat 翻译异常: {e}")
+    # 3. translator 不可用（或未配置）且有道失败后，才允许消耗 trigger_llm 配额。
+    result = await llm_translate(fallback_llm or {}, "trigger_llm")
+    if result is not None:
+        return result
 
     # 3. 备用接口 2: appworlds (通用备用)
     try:
