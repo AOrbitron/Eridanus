@@ -67,7 +67,7 @@ persona:  # 人设
 tts:
   voice_reply_probability: 30 # 回复时附带语音的概率（0=关闭，1-100=概率）。需要配置voice_model和相关参数
   speaker: natuki  # api.apollodorus.xyz提供的语音模型说话人
-  lang_type: JP  #自动翻译
+  lang_type: JP  # 目标语言：EN 自动翻译为英文，JP 自动翻译为日文，ZH 保留原文；覆盖 tts_v2 的全局语言
 
 
 

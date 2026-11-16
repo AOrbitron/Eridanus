@@ -1,8 +1,12 @@
 ﻿tts: #全局通用配置
   default_speaker: "natuki"   # 默认发音人（未指定角色时使用，支持达妮娅/natuki等）
   length_limit: 150           # 最大单次合成字符长度上限（超长自动截断）
-  lang_type: "JP"             # 目标发音语言（JP / ZH 等），JP 会将中文自动翻译为自然日文
-  api_key: ""                 # 翻译/在线接口 API Key，留空则自动继承 core_reply 中的 trigger_llm/openai key
+  lang_type: "JP"             # 目标语言：EN 自动翻译为英文，JP 自动翻译为日文，ZH 保留原文；适用于 Breeze 等引擎
+  api_key: ""                 # 在线语音接口鉴权；显式启用 translator 时也复用此 key，填 key 本身不会启用 LLM 翻译
+
+translator:  #无需配置。默认优先免费有道api，失败后尝试公共备用；不会自动调用 trigger_llm 或其他 LLM。
+   base_url: "http://api.apollodorus.xyz/v1"
+   model: ""
 
 breeze_tts:
   connection_mode: "gateway"  # 连接模式: "gateway" (走网关需 api_key) 或 "direct" (直连自建服务端无需 api_key)
@@ -35,6 +39,7 @@ breeze_tts:
     - 弗洛洛
     - 东雪莲
     - 莉莉
+    - moon_jelly
 gpt_sovits:
   api_base: ""  # 填写自建或代理服务地址。例如 http://127.0.0.1:9880
   api_key: ""   # 留空=直连服务端；非空=经过API鉴权
@@ -112,3 +117,4 @@ vits:  #VITS 本地服务（兼容性保留） 适合本地独立部署了 VITS-
 apollodorus:  #Apollodorus 在线语音网关（辅助 / 云端备用通道）
   base_url: "http://api.apollodorus.xyz/v1"
   api_key: ""
+
