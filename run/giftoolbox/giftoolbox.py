@@ -21,7 +21,7 @@ import httpx
 
 from developTools.event.events import GroupMessageEvent, PrivateMessageEvent
 from developTools.message.message_components import (
-    At, Forward, Image, Mface, Node, Reply, Text, Video,
+    At, File, Forward, Image, Mface, Node, Reply, Text, Video,
 )
 from framework_common.framework_util.websocket_fix import ExtendBot
 from framework_common.framework_util.yamlLoader import YAMLManager
@@ -318,13 +318,22 @@ _ART_TYPES = ("image", "mface", "video")
 
 
 def _media_of_item(item):
-    """从一个消息段里取媒体地址（组件与原始 dict 都支持）。"""
+    """从一个消息段里取媒体地址（组件与原始 dict 都支持）。
+
+    群文件段的 file 是 file_id 而非 URL，统一标记成 groupfile:// 交给解析器换下载地址。
+    """
+    if isinstance(item, File):
+        fid = getattr(item, "file_id", "") or getattr(item, "file", "")
+        return f"groupfile://{fid}" if isinstance(fid, str) and fid else None
     if isinstance(item, (Image, Mface, Video)):
         u = getattr(item, "url", "") or getattr(item, "file", "")
         return u if isinstance(u, str) and u else None
     if isinstance(item, dict):
         t = item.get("type")
         data = item.get("data") if isinstance(item.get("data"), dict) else {}
+        if t == "file":
+            fid = data.get("file_id") or data.get("file")
+            return f"groupfile://{fid}" if isinstance(fid, str) and fid else None
         if t in _ART_TYPES:
             u = data.get("url") or data.get("file") or item.get("url") or item.get("file")
             return u if isinstance(u, str) and u else None
@@ -396,6 +405,64 @@ async def _fetch_forward(bot, fid):
     return None
 
 
+def _url_in(obj) -> bool:
+    """判断一个 API 返回值里是否含有可下载地址。"""
+    if isinstance(obj, str):
+        return obj.startswith(("http://", "https://"))
+    if isinstance(obj, dict):
+        for key in ("url", "download_url", "file"):
+            v = obj.get(key)
+            if isinstance(v, str) and v.startswith(("http://", "https://")):
+                return True
+        data = obj.get("data")
+        return _url_in(data) if isinstance(data, (dict, str)) else False
+    return False
+
+
+async def _resolve_group_file(bot, file_id: str, group_id=None):
+    """把群文件 file_id 换成可下载地址；失败返回 None 让调用方给出明确提示。"""
+    if not file_id:
+        return None
+    raw = None
+    try:
+        if hasattr(bot, "get_group_file_url"):
+            try:
+                raw = await bot.get_group_file_url(str(file_id), group_id=group_id)
+            except TypeError:
+                raw = await bot.get_group_file_url(str(file_id))
+    except Exception:
+        pass
+    if not _url_in(raw) and hasattr(bot, "_call_api"):
+        calls = []
+        if group_id:
+            calls.append(("get_group_file_download_url", {"group_id": int(group_id), "file_id": str(file_id)}))
+        calls.append(("get_group_file_url", {"file_id": str(file_id), "group_id": group_id}))
+        calls.append(("get_group_file_url", {"file_id": str(file_id)}))
+        for action, params in calls:
+            try:
+                candidate = await bot._call_api(action, params)
+                if _url_in(candidate):
+                    raw = candidate
+                    break
+            except Exception:
+                continue
+
+    def _find_url(obj):
+        if isinstance(obj, str):
+            return obj if obj.startswith(("http://", "https://")) else None
+        if isinstance(obj, dict):
+            for key in ("url", "download_url", "file"):
+                v = obj.get(key)
+                if isinstance(v, str) and v.startswith(("http://", "https://")):
+                    return v
+            data = obj.get("data")
+            if isinstance(data, (dict, str)):
+                return _find_url(data)
+        return None
+
+    return _find_url(raw)
+
+
 def _chain_from_message(msg):
     """把 get_msg 的各种返回形状统一成消息段列表。"""
     if msg is None:
@@ -445,7 +512,7 @@ async def _fetch_message(bot, mid):
 
 
 async def _resolve_media(bot, chain, allow_avatar: bool, depth: int = 0,
-                         visited: set = None, urls: list = None) -> list:
+                         visited: set = None, urls: list = None, group_id=None) -> list:
     """递归展开 消息段 → 引用消息 → 合并转发 → 嵌套转发，按顺序收集媒体地址。
 
     关键点：引用一条「合并转发」时，引用链里只有一个 forward 引用（只有 id，
@@ -462,6 +529,8 @@ async def _resolve_media(bot, chain, allow_avatar: bool, depth: int = 0,
         u = _media_of_item(item)
         if len(urls) >= MAX_MEDIA_ITEMS:
             break
+        if u and u.startswith("groupfile://"):
+            u = await _resolve_group_file(bot, u[len("groupfile://"):], group_id)
         if u and u not in urls:
             urls.append(u)
             continue
@@ -470,7 +539,7 @@ async def _resolve_media(bot, chain, allow_avatar: bool, depth: int = 0,
         if kind is None:
             continue
         if inline:
-            await _resolve_media(bot, list(inline), allow_avatar, depth + 1, visited, urls)
+            await _resolve_media(bot, list(inline), allow_avatar, depth + 1, visited, urls, group_id)
             continue
         if key is None:
             continue
@@ -491,7 +560,7 @@ async def _resolve_media(bot, chain, allow_avatar: bool, depth: int = 0,
             # 2) 退回：向 QQ 拉取被引用消息
             inner = await _fetch_message(bot, key)
             if inner:
-                await _resolve_media(bot, inner, allow_avatar, depth + 1, visited, urls)
+                await _resolve_media(bot, inner, allow_avatar, depth + 1, visited, urls, group_id)
         elif kind == "forward":
             cached = await _run_in_worker(_paths_for_sent, key)
             if cached:
@@ -501,7 +570,7 @@ async def _resolve_media(bot, chain, allow_avatar: bool, depth: int = 0,
                 continue
             raw = await _fetch_forward(bot, key)
             for inner in _chains_in_container(raw):
-                await _resolve_media(bot, inner, allow_avatar, depth + 1, visited, urls)
+                await _resolve_media(bot, inner, allow_avatar, depth + 1, visited, urls, group_id)
 
     if not urls and allow_avatar and depth == 0:
         for item in chain:
@@ -513,7 +582,8 @@ async def _resolve_media(bot, chain, allow_avatar: bool, depth: int = 0,
 async def _collect_media(bot, event, allow_avatar: bool = True) -> list:
     """当前消息 → 被引用消息 → 合并转发（可嵌套）→ @对象头像。"""
     chain = list(event.message_chain)
-    urls = await _resolve_media(bot, chain, allow_avatar)
+    group_id = getattr(event, "group_id", None)
+    urls = await _resolve_media(bot, chain, allow_avatar, group_id=group_id)
 
     # 部分适配器把引用单独放在 event.reply 里（消息链中没有 reply 段）
     if not urls:
@@ -533,7 +603,7 @@ async def _collect_media(bot, event, allow_avatar: bool = True) -> list:
                     if rid is not None:
                         extra = [{"type": "reply", "data": {"id": rid}}]
             if extra:
-                urls = await _resolve_media(bot, extra, allow_avatar)
+                urls = await _resolve_media(bot, extra, allow_avatar, group_id=group_id)
     return urls
 
 
@@ -547,6 +617,9 @@ def _has_reply(chain) -> bool:
 
 def _no_media_reason(event) -> str:
     """取不到图时给一句能定位问题的原因。"""
+    if any(isinstance(i, File) or (isinstance(i, dict) and i.get("type") == "file")
+           for i in list(event.message_chain)):
+        return "群文件下载失败，可能是协议端不支持获取群文件地址，请改用直接发送图片或视频"
     if _has_reply(list(event.message_chain)):
         return "引用的消息里没有解析到图片，可能是不支持解析的转发卡片，请直接发图片或回复单张图"
     return "请回复一张动图再试"
