@@ -305,6 +305,25 @@ def _chunks(seq, size: int):
         yield seq[i:i + size]
 
 
+def _valid_arg(arg: str) -> bool:
+    """判断指令参数是否合法：必须是数字开头、且不含普通文字。
+
+    把已知的关键字与分隔符剥离后，剩下的只能是数字和小数点。
+    "2x" "30fps" "0s-5s" "3x4 边距10" "帧率12 缩放0.4" 都合法；
+    "qiis去2" "衣服" "去2" 这类含未知文字的都不合法。
+    """
+    s = str(arg).strip()
+    if not s:
+        return True
+    if not re.match(r"^[\d.+-]", s):
+        return False
+    cleaned = re.sub(
+        r"fps|帧率|缩放|边距|开始|时长|倍速|秒|[sSxX×*/~+\-\s:：上下左右]",
+        "", s, flags=re.I,
+    )
+    return bool(re.fullmatch(r"\d*\.?\d*", cleaned)) and any(c.isdigit() for c in cleaned)
+
+
 def _chain_text(chain) -> str:
     return "".join(c.text for c in chain if isinstance(c, Text))
 
@@ -615,6 +634,22 @@ def _has_reply(chain) -> bool:
     return False
 
 
+def _has_media_context(event) -> bool:
+    """消息里是否带有图片/动图/视频/群文件，或是引用/转发/发消息的人是 bot 自己。"""
+    for item in list(event.message_chain):
+        if isinstance(item, (Image, Mface, Video, File)):
+            return True
+        if isinstance(item, dict) and item.get("type") in ("image", "mface", "video", "file"):
+            return True
+        kind, _, _ = _seg_kind(item)
+        if kind in ("reply", "forward"):
+            return True
+    # event.reply 单独承载引用的适配器
+    if getattr(event, "reply", None) is not None:
+        return True
+    return False
+
+
 def _no_media_reason(event) -> str:
     """取不到图时给一句能定位问题的原因。"""
     if any(isinstance(i, File) or (isinstance(i, dict) and i.get("type") == "file")
@@ -830,8 +865,12 @@ def main(bot: ExtendBot, config: YAMLManager):
                 trig = str(trig).strip()
                 if not trig or not low.startswith(trig.lower()):
                     continue
+                rest = t[len(trig):]
+                arg = rest.strip()
+                if arg and not _valid_arg(arg):
+                    continue
                 if len(trig) > best[2]:
-                    best = (item, t[len(trig):].strip(), len(trig))
+                    best = (item, arg, len(trig))
         return best[0], best[1]
 
     def _help_text(cfg: dict) -> str:
@@ -894,7 +933,7 @@ def main(bot: ExtendBot, config: YAMLManager):
     async def _first_media(event, cfg: dict, kind: str):
         srcs = await _collect_media(bot, event, allow_avatar=(kind == "图片"))
         if not srcs:
-            raise core.ToolError(f"没有找到{kind}，{_no_media_reason(event)}")
+            raise core.NoMediaError(f"没有找到{kind}，{_no_media_reason(event)}")
         return await _download(srcs[0])
 
     async def _send_nodes_in_batches(event, nodes: list, cfg: dict, label: str = ""):
@@ -925,7 +964,7 @@ def main(bot: ExtendBot, config: YAMLManager):
         if action == "reverse":
             srcs = await _collect_media(bot, event)
             if not srcs:
-                raise core.ToolError(f"没有找到动图，{_no_media_reason(event)}")
+                raise core.NoMediaError(f"没有找到动图，{_no_media_reason(event)}")
             data = await _download(srcs[0])
             if reply:
                 await bot.send(event, [Text(reply)])
@@ -998,7 +1037,7 @@ def main(bot: ExtendBot, config: YAMLManager):
             frame_sec = _parse_concat(args, item)
             srcs = await _collect_media(bot, event)
             if not srcs:
-                raise core.ToolError(f"没有找到图片，{_no_media_reason(event)}")
+                raise core.NoMediaError(f"没有找到图片，{_no_media_reason(event)}")
             datas = []
             for s in srcs:
                 try:
@@ -1022,7 +1061,7 @@ def main(bot: ExtendBot, config: YAMLManager):
             start, end, fps, scale, max_dur = _parse_video(args, item)
             srcs = await _collect_media(bot, event, allow_avatar=False)
             if not srcs:
-                raise core.ToolError(f"没有找到视频，{_no_media_reason(event)}")
+                raise core.NoMediaError(f"没有找到视频，{_no_media_reason(event)}")
             source = str(srcs[0])
             data = await _download(source) if source.lower().startswith(("http://", "https://", "base64://")) else None
             if reply:
@@ -1069,6 +1108,10 @@ def main(bot: ExtendBot, config: YAMLManager):
         item, args = _match(text, cfg)
         if item is None:
             return
+        # 防误触发：先真正解析媒体来源，解析不到任何图片/视频/文件就静默忽略。
+        # 仅凭"有引用段"不算——引用一条纯文字消息不应收到任何回复。
+        if not await _collect_media(bot, event):
+            return
 
         fail_prefix = str(cfg.get("fail_reply", "表情包处理失败") or "表情包处理失败")
         name = item.get("name") or item.get("action") or "指令"
@@ -1086,6 +1129,21 @@ def main(bot: ExtendBot, config: YAMLManager):
             if hint:
                 await bot.send(event, [Text(hint)])
             await _handle(event, item, args, cfg)
+        except core.NoMediaError as e:
+            bot.logger.warning(f"[giftoolbox] {name} 未找到媒体: {e}")
+            msg = await bot.send(event, [Text(f"{fail_prefix}（{e}）")])
+            try:
+                mid = (msg or {}).get("data", {}).get("message_id") if isinstance(msg, dict) else None
+                if mid is not None:
+                    async def _recall_later(m=mid):
+                        await asyncio.sleep(10)
+                        try:
+                            await bot.recall(m)
+                        except Exception:
+                            pass
+                    asyncio.create_task(_recall_later())
+            except Exception:
+                pass
         except core.ToolError as e:
             bot.logger.warning(f"[giftoolbox] {name} 处理失败: {e}")
             await bot.send(event, [Text(f"{fail_prefix}（{e}）")])
