@@ -315,7 +315,8 @@ def _valid_arg(arg: str) -> bool:
     s = str(arg).strip()
     if not s:
         return True
-    if not re.match(r"^[\d.+-]", s):
+    # 首字符必须是数字，或已知参数关键字的首字；普通文字开头一律拒绝。
+    if not re.match(r"^[\d.+-]|[fF帧缩边开时倍秒]", s):
         return False
     cleaned = re.sub(
         r"fps|帧率|缩放|边距|开始|时长|倍速|秒|[sSxX×*/~+\-\s:：上下左右]",
