@@ -21,7 +21,7 @@ import httpx
 
 from developTools.event.events import GroupMessageEvent, PrivateMessageEvent
 from developTools.message.message_components import (
-    At, Forward, Image, Mface, Node, Reply, Text, Video,
+    At, File, Forward, Image, Mface, Node, Reply, Text, Video,
 )
 from framework_common.framework_util.websocket_fix import ExtendBot
 from framework_common.framework_util.yamlLoader import YAMLManager
@@ -133,12 +133,16 @@ def _prefixes(cfg: dict) -> list:
     return sorted([str(p) for p in ps if str(p)], key=len, reverse=True)
 
 
-def _strip_prefix(text: str, cfg: dict) -> str:
+def _strip_prefix_ex(text: str, cfg: dict) -> tuple[str, bool]:
     t = (text or "").strip()
     for p in _prefixes(cfg):
-        if t.startswith(p):
-            return t[len(p):].strip()
-    return t
+        if p and t.startswith(p):
+            return t[len(p):].strip(), True
+    return t, False
+
+
+def _strip_prefix(text: str, cfg: dict) -> str:
+    return _strip_prefix_ex(text, cfg)[0]
 
 
 # --------------------------------------------------------------------------
@@ -305,6 +309,32 @@ def _chunks(seq, size: int):
         yield seq[i:i + size]
 
 
+_NO_ARG_ACTIONS = {"reverse", "decompose", "lineart"}
+
+
+def _valid_arg(action: str, arg: str) -> bool:
+    """判断指令参数是否合法。
+
+    1. 无参指令（倒放/分解/线稿）后面禁止跟有多余文字，避免日常群聊词语（如"倒放回顾"）误触；
+    2. 带参指令（变速/裁剪/做旧/合成/转gif）：
+       - 参数为空时允许使用指令默认值；
+       - 参数非空时，剥离所有合法参数关键词、单位、数字与符号后，不得留有未知的文字或符号。
+    """
+    s = str(arg or "").strip()
+    if action in _NO_ARG_ACTIONS:
+        return not s
+    if not s:
+        return True
+
+    cleaned = re.sub(
+        r"(?i)scale|start|fps|sec|len|[sxX×*~+\-/:：0-9.\s]|"
+        r"帧率|缩放|开始|时长|倍速|边距|[帧倍秒边上下左右]",
+        "",
+        s,
+    )
+    return not cleaned and any(c.isdigit() for c in s)
+
+
 def _chain_text(chain) -> str:
     return "".join(c.text for c in chain if isinstance(c, Text))
 
@@ -318,13 +348,36 @@ _ART_TYPES = ("image", "mface", "video")
 
 
 def _media_of_item(item):
-    """从一个消息段里取媒体地址（组件与原始 dict 都支持）。"""
+    """从一个消息段里取媒体地址（组件与原始 dict 都支持）。
+
+    群文件段的 file 若是 file_id，标记成 groupfile:// 交给解析器换下载地址；若已是 URL 或本地路径则直接返回。
+    """
+    if isinstance(item, File):
+        u = getattr(item, "url", "")
+        if isinstance(u, str) and u.startswith(("http://", "https://")):
+            return u
+        f = getattr(item, "file", "")
+        if isinstance(f, str) and f:
+            if f.startswith(("http://", "https://", "file://", "base64://")) or os.path.exists(f):
+                return f
+        fid = getattr(item, "file_id", "") or f
+        return f"groupfile://{fid}" if isinstance(fid, str) and fid else None
     if isinstance(item, (Image, Mface, Video)):
         u = getattr(item, "url", "") or getattr(item, "file", "")
         return u if isinstance(u, str) and u else None
     if isinstance(item, dict):
         t = item.get("type")
         data = item.get("data") if isinstance(item.get("data"), dict) else {}
+        if t == "file":
+            u = data.get("url") or data.get("download_url")
+            if isinstance(u, str) and u.startswith(("http://", "https://")):
+                return u
+            f = data.get("file")
+            if isinstance(f, str) and f:
+                if f.startswith(("http://", "https://", "file://", "base64://")) or os.path.exists(f):
+                    return f
+            fid = data.get("file_id") or f
+            return f"groupfile://{fid}" if isinstance(fid, str) and fid else None
         if t in _ART_TYPES:
             u = data.get("url") or data.get("file") or item.get("url") or item.get("file")
             return u if isinstance(u, str) and u else None
@@ -396,6 +449,58 @@ async def _fetch_forward(bot, fid):
     return None
 
 
+def _extract_url(obj) -> str | None:
+    """递归从 API 返回对象中提取 http(s) URL。"""
+    if isinstance(obj, str):
+        return obj if obj.startswith(("http://", "https://")) else None
+    if isinstance(obj, dict):
+        for key in ("url", "download_url", "file"):
+            v = obj.get(key)
+            if isinstance(v, str) and v.startswith(("http://", "https://")):
+                return v
+        data = obj.get("data")
+        if isinstance(data, (dict, str)):
+            return _extract_url(data)
+    return None
+
+
+async def _resolve_group_file(bot, file_id: str, group_id=None):
+    """把群文件 file_id 换成可下载地址；失败返回 None 让调用方给出明确提示。"""
+    if not file_id:
+        return None
+    raw = None
+    try:
+        if hasattr(bot, "get_group_file_url"):
+            try:
+                raw = await bot.get_group_file_url(str(file_id), group_id=group_id)
+            except TypeError:
+                raw = await bot.get_group_file_url(str(file_id))
+    except Exception:
+        pass
+
+    u = _extract_url(raw)
+    if u:
+        return u
+
+    if hasattr(bot, "_call_api"):
+        calls = []
+        gid = int(group_id) if str(group_id or "").isdigit() else None
+        if gid is not None:
+            calls.append(("get_group_file_download_url", {"group_id": gid, "file_id": str(file_id)}))
+            calls.append(("get_group_file_url", {"group_id": gid, "file_id": str(file_id)}))
+        calls.append(("get_group_file_url", {"file_id": str(file_id)}))
+        for action, params in calls:
+            try:
+                candidate = await bot._call_api(action, params)
+                cand_u = _extract_url(candidate)
+                if cand_u:
+                    return cand_u
+            except Exception:
+                continue
+
+    return None
+
+
 def _chain_from_message(msg):
     """把 get_msg 的各种返回形状统一成消息段列表。"""
     if msg is None:
@@ -445,7 +550,7 @@ async def _fetch_message(bot, mid):
 
 
 async def _resolve_media(bot, chain, allow_avatar: bool, depth: int = 0,
-                         visited: set = None, urls: list = None) -> list:
+                         visited: set = None, urls: list = None, group_id=None) -> list:
     """递归展开 消息段 → 引用消息 → 合并转发 → 嵌套转发，按顺序收集媒体地址。
 
     关键点：引用一条「合并转发」时，引用链里只有一个 forward 引用（只有 id，
@@ -462,6 +567,8 @@ async def _resolve_media(bot, chain, allow_avatar: bool, depth: int = 0,
         u = _media_of_item(item)
         if len(urls) >= MAX_MEDIA_ITEMS:
             break
+        if u and u.startswith("groupfile://"):
+            u = await _resolve_group_file(bot, u[len("groupfile://"):], group_id)
         if u and u not in urls:
             urls.append(u)
             continue
@@ -470,7 +577,7 @@ async def _resolve_media(bot, chain, allow_avatar: bool, depth: int = 0,
         if kind is None:
             continue
         if inline:
-            await _resolve_media(bot, list(inline), allow_avatar, depth + 1, visited, urls)
+            await _resolve_media(bot, list(inline), allow_avatar, depth + 1, visited, urls, group_id)
             continue
         if key is None:
             continue
@@ -491,7 +598,7 @@ async def _resolve_media(bot, chain, allow_avatar: bool, depth: int = 0,
             # 2) 退回：向 QQ 拉取被引用消息
             inner = await _fetch_message(bot, key)
             if inner:
-                await _resolve_media(bot, inner, allow_avatar, depth + 1, visited, urls)
+                await _resolve_media(bot, inner, allow_avatar, depth + 1, visited, urls, group_id)
         elif kind == "forward":
             cached = await _run_in_worker(_paths_for_sent, key)
             if cached:
@@ -501,7 +608,7 @@ async def _resolve_media(bot, chain, allow_avatar: bool, depth: int = 0,
                 continue
             raw = await _fetch_forward(bot, key)
             for inner in _chains_in_container(raw):
-                await _resolve_media(bot, inner, allow_avatar, depth + 1, visited, urls)
+                await _resolve_media(bot, inner, allow_avatar, depth + 1, visited, urls, group_id)
 
     if not urls and allow_avatar and depth == 0:
         for item in chain:
@@ -513,7 +620,8 @@ async def _resolve_media(bot, chain, allow_avatar: bool, depth: int = 0,
 async def _collect_media(bot, event, allow_avatar: bool = True) -> list:
     """当前消息 → 被引用消息 → 合并转发（可嵌套）→ @对象头像。"""
     chain = list(event.message_chain)
-    urls = await _resolve_media(bot, chain, allow_avatar)
+    group_id = getattr(event, "group_id", None)
+    urls = await _resolve_media(bot, chain, allow_avatar, group_id=group_id)
 
     # 部分适配器把引用单独放在 event.reply 里（消息链中没有 reply 段）
     if not urls:
@@ -533,7 +641,7 @@ async def _collect_media(bot, event, allow_avatar: bool = True) -> list:
                     if rid is not None:
                         extra = [{"type": "reply", "data": {"id": rid}}]
             if extra:
-                urls = await _resolve_media(bot, extra, allow_avatar)
+                urls = await _resolve_media(bot, extra, allow_avatar, group_id=group_id)
     return urls
 
 
@@ -545,11 +653,15 @@ def _has_reply(chain) -> bool:
     return False
 
 
-def _no_media_reason(event) -> str:
+def _no_media_reason(event, kind: str = "动图") -> str:
     """取不到图时给一句能定位问题的原因。"""
-    if _has_reply(list(event.message_chain)):
-        return "引用的消息里没有解析到图片，可能是不支持解析的转发卡片，请直接发图片或回复单张图"
-    return "请回复一张动图再试"
+    chain = list(getattr(event, "message_chain", []) or [])
+    if any(isinstance(i, File) or (isinstance(i, dict) and i.get("type") == "file")
+           for i in chain):
+        return "群文件下载失败，可能是协议端不支持获取群文件地址，请改用直接发送图片或视频"
+    if _has_reply(chain) or getattr(event, "reply", None) is not None:
+        return f"引用的消息里没有解析到{kind}（若引用的为群文件，可能协议端不支持解析），请直接发{kind}或回复单张图"
+    return f"请回复一张{kind}再试"
 
 
 def _local_path(src: str) -> str:
@@ -746,8 +858,8 @@ def main(bot: ExtendBot, config: YAMLManager):
     init_lock = asyncio.Lock()
 
     def _match(text: str, cfg: dict):
-        """返回 (item, 参数字符串)；未命中返回 (None, "")。最长触发词优先。"""
-        t = _strip_prefix(text, cfg)
+        """返回 (item, 参数字符串, 是否带前缀)；未命中返回 (None, "", False)。最长触发词优先。"""
+        t, has_prefix = _strip_prefix_ex(text, cfg)
         low = t.lower()
         best = (None, "", 0)
         for item in _commands(cfg).values():
@@ -757,9 +869,13 @@ def main(bot: ExtendBot, config: YAMLManager):
                 trig = str(trig).strip()
                 if not trig or not low.startswith(trig.lower()):
                     continue
+                rest = t[len(trig):]
+                arg = rest.strip()
+                if not _valid_arg(item.get("action", ""), arg):
+                    continue
                 if len(trig) > best[2]:
-                    best = (item, t[len(trig):].strip(), len(trig))
-        return best[0], best[1]
+                    best = (item, arg, len(trig))
+        return best[0], best[1], has_prefix
 
     def _help_text(cfg: dict) -> str:
         h = cfg.get("help") or {}
@@ -818,10 +934,11 @@ def main(bot: ExtendBot, config: YAMLManager):
         for r in sent:
             await _run_in_worker(_remember_sent, r, [path])
 
-    async def _first_media(event, cfg: dict, kind: str):
-        srcs = await _collect_media(bot, event, allow_avatar=(kind == "图片"))
+    async def _first_media(event, cfg: dict, kind: str, srcs: list = None):
         if not srcs:
-            raise core.ToolError(f"没有找到{kind}，{_no_media_reason(event)}")
+            srcs = await _collect_media(bot, event, allow_avatar=(kind == "图片"))
+        if not srcs:
+            raise core.NoMediaError(f"没有找到{kind}，{_no_media_reason(event, kind)}")
         return await _download(srcs[0])
 
     async def _send_nodes_in_batches(event, nodes: list, cfg: dict, label: str = ""):
@@ -844,15 +961,16 @@ def main(bot: ExtendBot, config: YAMLManager):
             await _run_in_worker(_remember_sent, res, paths)
         return len(batches)
 
-    async def _handle(event, item: dict, args: str, cfg: dict):
+    async def _handle(event, item: dict, args: str, cfg: dict, srcs: list = None):
         action = str(item.get("action", "")).strip().lower()
         reply = _reply_text(item)
         fmt = str(cfg.get("output_format", "GIF"))
 
         if action == "reverse":
-            srcs = await _collect_media(bot, event)
             if not srcs:
-                raise core.ToolError(f"没有找到动图，{_no_media_reason(event)}")
+                srcs = await _collect_media(bot, event)
+            if not srcs:
+                raise core.NoMediaError(f"没有找到动图，{_no_media_reason(event, '动图')}")
             data = await _download(srcs[0])
             if reply:
                 await bot.send(event, [Text(reply)])
@@ -862,7 +980,7 @@ def main(bot: ExtendBot, config: YAMLManager):
 
         if action == "speed":
             mode, value = _parse_speed(args, item)
-            data = await _first_media(event, cfg, "动图")
+            data = await _first_media(event, cfg, "动图", srcs=srcs)
             out, info = await _run_in_worker(core.speed_change, data, mode, value, fmt)
             text = _compose(reply, _speed_suffix(mode, info))
             if info.get("dropped"):
@@ -871,7 +989,7 @@ def main(bot: ExtendBot, config: YAMLManager):
             return
 
         if action == "decompose":
-            data = await _first_media(event, cfg, "动图")
+            data = await _first_media(event, cfg, "动图", srcs=srcs)
             try:
                 max_frames = int(item.get("max_frames") or cfg.get("decompose_max_frames") or 500)
             except (TypeError, ValueError):
@@ -896,7 +1014,7 @@ def main(bot: ExtendBot, config: YAMLManager):
             rows, cols, margins = _parse_crop(args)
             if rows > 20 or cols > 20:
                 raise core.ToolError("格子太密了，最多 20x20")
-            data = await _first_media(event, cfg, "图片")
+            data = await _first_media(event, cfg, "图片", srcs=srcs)
             crops = await _run_in_worker(core.crop_grid, data, rows, cols, margins)
             if reply:
                 await bot.send(event, [Text(f"{reply}（{rows}x{cols}，共 {len(crops)} 张）")])
@@ -907,7 +1025,7 @@ def main(bot: ExtendBot, config: YAMLManager):
 
         if action == "age":
             times = _parse_age(args, item)
-            data = await _first_media(event, cfg, "图片")
+            data = await _first_media(event, cfg, "图片", srcs=srcs)
             out, info = await _run_in_worker(core.age, data, times, fmt)
             suffix = f"{times}次做旧"
             if info["frames"] > 1:
@@ -916,16 +1034,17 @@ def main(bot: ExtendBot, config: YAMLManager):
             return
 
         if action == "lineart":
-            data = await _first_media(event, cfg, "图片")
+            data = await _first_media(event, cfg, "图片", srcs=srcs)
             out = await _run_in_worker(core.lineart, data)
             await _send_image(event, out, cfg, reply)
             return
 
         if action == "concat":
             frame_sec = _parse_concat(args, item)
-            srcs = await _collect_media(bot, event)
             if not srcs:
-                raise core.ToolError(f"没有找到图片，{_no_media_reason(event)}")
+                srcs = await _collect_media(bot, event)
+            if not srcs:
+                raise core.NoMediaError(f"没有找到图片，{_no_media_reason(event, '图片')}")
             datas = []
             for s in srcs:
                 try:
@@ -947,9 +1066,10 @@ def main(bot: ExtendBot, config: YAMLManager):
 
         if action == "video":
             start, end, fps, scale, max_dur = _parse_video(args, item)
-            srcs = await _collect_media(bot, event, allow_avatar=False)
             if not srcs:
-                raise core.ToolError(f"没有找到视频，{_no_media_reason(event)}")
+                srcs = await _collect_media(bot, event, allow_avatar=False)
+            if not srcs:
+                raise core.NoMediaError(f"没有找到视频，{_no_media_reason(event, '视频')}")
             source = str(srcs[0])
             data = await _download(source) if source.lower().startswith(("http://", "https://", "base64://")) else None
             if reply:
@@ -993,7 +1113,7 @@ def main(bot: ExtendBot, config: YAMLManager):
                 await bot.send(event, [Text(_help_text(cfg))])
             return
 
-        item, args = _match(text, cfg)
+        item, args, has_prefix = _match(text, cfg)
         if item is None:
             return
 
@@ -1004,6 +1124,17 @@ def main(bot: ExtendBot, config: YAMLManager):
             return
         active_jobs += 1
         try:
+            # 防误触发：先解析媒体来源（执行一次，结果直接传递给 _handle）
+            action = str(item.get("action", "")).strip().lower()
+            allow_avatar = (action not in ("video", "decompose"))
+            srcs = await _collect_media(bot, event, allow_avatar=allow_avatar)
+            if not srcs:
+                # 未带前缀的日常群聊消息无媒体时静默忽略，避免误触打扰；明确带前缀的指令才报错提醒
+                if not has_prefix:
+                    return
+                kind = "视频" if action == "video" else ("动图" if action in ("reverse", "speed", "decompose") else "图片")
+                raise core.NoMediaError(f"没有找到{kind}，{_no_media_reason(event, kind)}")
+
             async with init_lock:
                 if not initialized:
                     await _run_in_worker(_load_sent_index)
@@ -1012,7 +1143,12 @@ def main(bot: ExtendBot, config: YAMLManager):
             hint = _processing_text(cfg, item)
             if hint:
                 await bot.send(event, [Text(hint)])
-            await _handle(event, item, args, cfg)
+            await _handle(event, item, args, cfg, srcs=srcs)
+        except core.NoMediaError as e:
+            bot.logger.warning(f"[giftoolbox] {name} 未找到媒体: {e}")
+            msg = await bot.send(event, [Text(f"{fail_prefix}（{e}）")])
+            if msg and hasattr(bot, "delay_recall"):
+                await bot.delay_recall(msg, interval=10)
         except core.ToolError as e:
             bot.logger.warning(f"[giftoolbox] {name} 处理失败: {e}")
             await bot.send(event, [Text(f"{fail_prefix}（{e}）")])
