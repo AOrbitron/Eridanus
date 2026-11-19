@@ -86,7 +86,7 @@ async def PrettyDerby_TTS(text: str, speaker: str = "natuki", lang_type: str = "
                 await ws.send(json.dumps({"session_hash": session_hash, "fn_index": 0}))
             elif msg == "send_data":
                 await ws.send(json.dumps({
-                    "data": [text, resolved, 0.2, 0.6, 0.8, 1, "JP"],
+                    "data": [text, resolved, 0.2, 0.6, 0.8, 1, lang_type.upper()],
                     "event_data": None,
                     "fn_index": 0,
                     "session_hash": session_hash

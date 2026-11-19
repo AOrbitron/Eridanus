@@ -5,6 +5,37 @@ from developTools.utils.logger import get_logger
 
 logger = get_logger("tts_translator")
 
+
+def normalize_language(target_lang: str) -> str:
+    """Use one language identity for config values, translation and synthesis."""
+    target = str(target_lang).strip().upper().replace("-", "_")
+    aliases = {"EN": "EN", "EN_US": "EN", "EN_GB": "EN", "ENGLISH": "EN",
+               "JP": "JP", "JA": "JP", "JA_JP": "JP",
+               "ZH": "ZH", "ZH_CN": "ZH", "ZH_TW": "ZH", "CN": "ZH"}
+    if target not in aliases:
+        raise ValueError(f"不支持的 TTS 目标语言: {target_lang}，请使用 EN / JP / ZH")
+    return aliases[target]
+
+
+def translation_options(config=None, *, fallback_config=None) -> dict:
+    """Keep explicit translator credentials separate from the last-resort trigger LLM."""
+    if isinstance(config, dict):
+        tts_config = config
+        system_config = fallback_config
+    else:
+        tts_config = getattr(getattr(config, "tts_v2", None), "config", {}) or {}
+        system_config = config or fallback_config
+    settings = tts_config.get("translator", {}) or {}
+    core = getattr(getattr(system_config, "core_reply", None), "config", {}) or {}
+    trigger = core.get("trigger_llm", {}) or {}
+
+    def options(values):
+        return {key: str(values.get(key) or "").strip() or None
+                for key in ("api_key", "base_url", "model")}
+
+    return {**options(settings), "fallback_llm": options(trigger)}
+
+
 def clean_tts_text(text: str) -> str:
     """清洗文本：去除 Markdown 代码块、行内代码、各类心理描写/动作描写括号（小括号、方括号、黑括号等），保留纯发音字符"""
     if not text:
@@ -29,89 +60,121 @@ async def translate_text(
     text: str,
     target_lang: str = "JP",
     api_key: Optional[str] = None,
-    base_url: str = "http://api.apollodorus.xyz/v1",
+    base_url: Optional[str] = None,
+    *,
+    model: Optional[str] = None,
+    fallback_llm: Optional[dict] = None,
+    preserve_audio_tags: bool = False,
+    strict: bool = False,
 ) -> str:
-    """
-    通用翻译函数：
-    1. 优先使用 api.apollodorus.xyz/translate（携带 trigger_llm / apollodorus api_key）
-    2. 若未配置 key 或失败，备用使用高可用翻译接口（有道等备用翻译源）
-    """
-    cleaned = clean_tts_text(text)
-    if not cleaned:
-        return ""
+    """Explicit translator first, then Youdao, then the configured trigger LLM.
 
-    target = target_lang.upper()
-    if target in ["ZH", "ZH_CN", "CN"]:
+    All three explicit translator fields are required. An absent or incomplete
+    translator starts with Youdao; trigger credentials are used only after failure.
+    Translate to EN/JP; ZH keeps the source, optionally with tags.
+
+    The synthesis pipeline uses strict EN translation so an outage cannot silently
+    produce Chinese speech for an English request. Direct callers retain the
+    historical source-text fallback unless they also request strict mode.
+    """
+    target = normalize_language(target_lang)
+    if preserve_audio_tags:
+        from .breeze_tts import ALL_BREEZE_TAG_NAMES, protect_and_clean_breeze_text
+        cleaned = protect_and_clean_breeze_text(text)
+        tags = "|".join(re.escape(name) for name in ALL_BREEZE_TAG_NAMES)
+        parts = re.split(r"(\[(?:" + tags + r")\])", cleaned)
+    else:
+        cleaned = clean_tts_text(text)
+        parts = [cleaned]
+    if not cleaned or target == "ZH":
         return cleaned
 
-    direction = "zh2ja" if target in ["JP", "JA"] else "zh2en"
+    translated = []
+    for index, part in enumerate(parts):
+        if index % 2 or not part.strip():
+            translated.append(part)
+            continue
+        # Plain English (including punctuation/numbers) needs no network round trip.
+        if target == "EN" and not any(c.isalpha() and not ("a" <= c.lower() <= "z") for c in part):
+            translated.append(part)
+            continue
+        translated.append(await _translate_cleaned_text(
+            part, target, api_key, base_url, model=model, fallback_llm=fallback_llm, strict=strict))
+    return "".join(translated)
 
-    # 1. 尝试使用 trigger_llm / apollodorus api_key 翻译
-    if api_key:
-        # 1.1 尝试专用 /translate 接口
-        try:
-            root_url = base_url.replace("/v1", "").rstrip("/")
-            trans_url = f"{root_url}/translate"
-            headers = {"Authorization": f"Bearer {api_key}"}
-            payload = {"text": cleaned, "direction": direction}
-            async with httpx.AsyncClient(timeout=8) as client:
-                resp = await client.post(trans_url, json=payload, headers=headers)
-                if resp.status_code == 200:
-                    data = resp.json()
-                    trans = data.get("translation")
-                    if trans:
-                        logger.info(f"[TTS Translator] Apollodorus /translate 翻译成功: '{cleaned}' -> '{trans}'")
-                        return str(trans).strip()
-        except Exception as e:
-            logger.debug(f"[TTS Translator] /translate 接口异常: {e}")
 
-        # 1.2 尝试 trigger_llm 的 Chat Completions 接口
+async def _translate_cleaned_text(
+    cleaned: str, target: str, api_key: Optional[str], base_url: Optional[str],
+    *, model: Optional[str], fallback_llm: Optional[dict], strict: bool,
+) -> str:
+    """
+    显式 translator → 有道 → trigger_llm → 公共备用；任一步成功立即返回。
+    """
+    def usable(value):
+        if not isinstance(value, str) or not value.strip():
+            return False
+        # Some failed providers return the unmodified Chinese input as a success.
+        return target != "EN" or not re.search(r"[\u3400-\u9fff\u3040-\u30ff]", value)
+
+    async def llm_translate(options, label):
+        values = {key: str(options.get(key) or "").strip()
+                  for key in ("base_url", "model", "api_key")}
+        if not all(values.values()):
+            return None
         try:
-            chat_url = f"{base_url.rstrip('/')}/chat/completions" if "/v1" in base_url else f"{base_url.rstrip('/')}/v1/chat/completions"
-            headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
-            target_desc = "日文" if target in ["JP", "JA"] else "英文"
-            chat_payload = {
-                "model": "gpt-4o-mini",
+            base = values["base_url"].rstrip("/")
+            if not base.endswith("/v1"):
+                base += "/v1"
+            target_desc = "日文" if target == "JP" else "英文"
+            payload = {
+                "model": values["model"],
                 "messages": [
-                    {
-                        "role": "system",
-                        "content": f"你是一个专业的口语文本文档翻译员。请直接将用户的输入文本翻译为自然的{target_desc}。要求：绝不要添加任何说明、解释、罗马音或符号，只返回翻译后的纯文本。"
-                    },
-                    {"role": "user", "content": cleaned}
+                    {"role": "system", "content": f"你是一个专业的口语文本文档翻译员。请直接将用户的输入文本翻译为自然的{target_desc}。要求：绝不要添加任何说明、解释、罗马音或符号，只返回翻译后的纯文本。"},
+                    {"role": "user", "content": cleaned},
                 ],
                 "temperature": 0.3,
-                "max_tokens": 200
+                "max_tokens": max(200, len(cleaned) * 3),
             }
-            async with httpx.AsyncClient(timeout=10) as client:
-                resp = await client.post(chat_url, json=chat_payload, headers=headers)
-                if resp.status_code == 200:
-                    data = resp.json()
-                    choices = data.get("choices", [])
-                    if choices and "message" in choices[0]:
-                        trans = choices[0]["message"].get("content", "").strip()
-                        if trans:
-                            logger.info(f"[TTS Translator] LLM Chat 翻译成功: '{cleaned}' -> '{trans}'")
-                            return trans
-        except Exception as e:
-            logger.debug(f"[TTS Translator] LLM Chat 翻译异常: {e}")
+            async with httpx.AsyncClient(timeout=20, trust_env=False) as client:
+                response = await client.post(base + "/chat/completions", json=payload,
+                    headers={"Authorization": "Bearer " + values["api_key"], "Content-Type": "application/json"})
+                if response.status_code == 200:
+                    choices = response.json().get("choices", [])
+                    if choices and choices[0].get("finish_reason") != "length":
+                        text = choices[0].get("message", {}).get("content")
+                        if usable(text):
+                            logger.info(f"[TTS Translator] {label} 翻译成功")
+                            return text.strip()
+        except Exception:
+            # Avoid logging a credential-bearing client exception or response body.
+            logger.debug(f"[TTS Translator] {label} 翻译异常，尝试下一来源")
+        return None
 
-    # 2. 备用接口 1: 有道翻译（毫秒级高可用稳定接口）
+    # 1. 仅三项均填全时优先使用专用 translator；不借用其他配置补全。
+    result = await llm_translate({"base_url": base_url, "model": model, "api_key": api_key}, "translator")
+    if result is not None:
+        return result
+
+    # 2. 未配置 translator 或调用失败时使用有道，不携带任何用户 key。
     try:
-        yd_lang = "ja" if target in ["JP", "JA"] else "en"
-        yd_url = "https://aidemo.youdao.com/trans"
+        yd_lang = "ja" if target == "JP" else "en"
         yd_data = {"q": cleaned, "from": "zh-CHS", "to": yd_lang}
-        yd_headers = {"User-Agent": "Mozilla/5.0"}
-        async with httpx.AsyncClient(timeout=6) as client:
-            r = await client.post(yd_url, data=yd_data, headers=yd_headers)
-            if r.status_code == 200:
-                yd_res = r.json()
-                translations = yd_res.get("translation")
-                if translations and isinstance(translations, list) and translations[0]:
-                    trans = str(translations[0]).strip()
+        async with httpx.AsyncClient(timeout=6, trust_env=False) as client:
+            response = await client.post("https://aidemo.youdao.com/trans", data=yd_data,
+                                         headers={"User-Agent": "Mozilla/5.0"})
+            if response.status_code == 200:
+                translations = response.json().get("translation")
+                if isinstance(translations, list) and translations and usable(translations[0]):
+                    trans = translations[0].strip()
                     logger.info(f"[TTS Translator] 有道翻译成功: '{cleaned}' -> '{trans}'")
                     return trans
-    except Exception as e:
-        logger.debug(f"[TTS Translator] 有道翻译异常: {e}")
+    except Exception as exc:
+        logger.debug(f"[TTS Translator] 有道翻译异常: {exc}")
+
+    # 3. translator 不可用（或未配置）且有道失败后，才允许消耗 trigger_llm 配额。
+    result = await llm_translate(fallback_llm or {}, "trigger_llm")
+    if result is not None:
+        return result
 
     # 3. 备用接口 2: appworlds (通用备用)
     try:
@@ -119,11 +182,11 @@ async def translate_text(
         import urllib.parse
         encoded_text = urllib.parse.quote(cleaned)
         url = f"https://translate.appworlds.cn?text={encoded_text}&from=zh-CN&to={to_lang}"
-        async with httpx.AsyncClient(timeout=6, verify=False) as client:
+        async with httpx.AsyncClient(timeout=6, trust_env=False) as client:
             r = await client.get(url)
             if r.status_code == 200:
                 res = r.json()
-                if isinstance(res, dict) and res.get("data"):
+                if isinstance(res, dict) and usable(res.get("data")):
                     logger.info(f"[TTS Translator] AppWorlds 翻译成功: '{cleaned}' -> '{res['data']}'")
                     return str(res["data"])
     except Exception as e:
@@ -132,12 +195,12 @@ async def translate_text(
     # 4. 备用接口 3: findmyip
     try:
         to_lang = "ja" if target in ["JP", "JA"] else "en"
-        url = f"https://findmyip.net/api/translate.php?text={cleaned}&target_lang={to_lang}"
-        async with httpx.AsyncClient(timeout=6, verify=False) as client:
-            r = await client.get(url)
+        url = "https://findmyip.net/api/translate.php"
+        async with httpx.AsyncClient(timeout=6, trust_env=False) as client:
+            r = await client.get(url, params={"text": cleaned, "target_lang": to_lang})
             if r.status_code == 200:
                 res = r.json()
-                if "data" in res and "translate_result" in res["data"]:
+                if isinstance(res.get("data"), dict) and usable(res["data"].get("translate_result")):
                     return res["data"]["translate_result"]
     except Exception as e:
         logger.debug(f"[TTS Translator] findmyip 异常: {e}")
@@ -145,15 +208,17 @@ async def translate_text(
     # 5. 备用接口 4: pearktrue
     try:
         mode = "ZH_CN2JA" if target in ["JP", "JA"] else "ZH_CN2EN"
-        url = f"https://api.pearktrue.cn/api/translate/?text={cleaned}&type={mode}"
-        async with httpx.AsyncClient(timeout=5) as client:
-            r = await client.get(url)
+        url = "https://api.pearktrue.cn/api/translate/"
+        async with httpx.AsyncClient(timeout=5, trust_env=False) as client:
+            r = await client.get(url, params={"text": cleaned, "type": mode})
             if r.status_code == 200:
                 res = r.json()
-                if "data" in res and "translate" in res["data"]:
+                if isinstance(res.get("data"), dict) and usable(res["data"].get("translate")):
                     return res["data"]["translate"]
     except Exception as e:
         logger.debug(f"[TTS Translator] pearktrue 异常: {e}")
 
-    # 最终降级：直接返回原清洗文本
+    if strict:
+        raise RuntimeError(f"TTS 翻译为 {target} 失败：所有翻译接口均未返回有效译文，已停止合成")
+    logger.warning(f"[TTS Translator] 翻译为 {target} 失败，回退原文")
     return cleaned

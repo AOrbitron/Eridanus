@@ -63,7 +63,7 @@ from .blue_archive_tts import (
 )
 from .ottoTTS import OttoTTS, OTTO_SPEAKERS, get_otto_speakers
 from .vits import vits, get_vits_speakers
-from .translator import clean_tts_text, translate_text
+from .translator import clean_tts_text, normalize_language, translate_text, translation_options
 
 logger = get_logger("tts_v2")
 
@@ -79,7 +79,7 @@ def _get_api_key_from_system() -> Optional[str]:
     try:
         cfg = YAMLManager.get_instance()
         # 1. 优先从 tts_v2 配置中获取
-        key = cfg.tts_v2.config.get("breeze_tts", {}).get("api_key") or cfg.tts_v2.config.get("tts", {}).get("api_key")
+        key = cfg.tts_v2.config.get("breeze_tts", {}).get("api_key")
         if key:
             return key
         # 2. 从 core_reply 的 trigger_llm 获取
@@ -225,11 +225,7 @@ class PrettyDerbyEngine(TTSEngine):
     async def synthesize(self, text, speaker=None, *, bot=None, config=None, lang_type=None, api_key=None, **kwargs):
         speaker = speaker or "natuki"
         resolved = resolve_pretty_derby_speaker(speaker) or speaker
-        token = api_key or _get_api_key_from_system()
         target_lang = (lang_type or "JP").upper()
-
-        if target_lang in ["JP", "JA"] and any('\u4e00' <= char <= '\u9fff' for char in text):
-            text = await translate_text(text, target_lang="JP", api_key=token)
 
         return await PrettyDerby_TTS(text=text, speaker=resolved, lang_type=target_lang)
 
@@ -247,11 +243,7 @@ class HoliveEngine(TTSEngine):
     async def synthesize(self, text, speaker=None, *, bot=None, config=None, lang_type=None, api_key=None, **kwargs):
         speaker = speaker or "MoriCalliope"
         resolved = resolve_holive_speaker(speaker) or speaker
-        token = api_key or _get_api_key_from_system()
         target_lang = (lang_type or "JP").upper()
-
-        if target_lang in ["JP", "JA"] and any('\u4e00' <= char <= '\u9fff' for char in text):
-            text = await translate_text(text, target_lang="JP", api_key=token)
 
         cache_path = _cache_path(".wav")
         return await self.client.synthesize_to_file(
@@ -272,11 +264,7 @@ class BlueArchiveEngine(TTSEngine):
     async def synthesize(self, text, speaker=None, *, bot=None, config=None, lang_type=None, api_key=None, **kwargs):
         speaker = speaker or "JP_Mari"
         resolved = resolve_blue_archive_speaker(speaker) or speaker
-        token = api_key or _get_api_key_from_system()
         target_lang = (lang_type or "ja").lower()
-
-        if any('\u4e00' <= char <= '\u9fff' for char in text):
-            text = await translate_text(text, target_lang="JP", api_key=token)
 
         return await huggingface_blue_archive_tts(
             text=text,
@@ -322,10 +310,6 @@ class LocalVITSEngine(TTSEngine):
         cfg = self._cfg(config)
         base_url = cfg.get("base_url", "http://127.0.0.1:5009")
         speaker = speaker or cfg.get("speaker", "綾地寧々")
-        token = api_key or _get_api_key_from_system()
-        target_lang = (lang_type or "JP").upper()
-        if target_lang in ["JP", "JA"] and any('\u4e00' <= char <= '\u9fff' for char in text):
-            text = await translate_text(text, target_lang="JP", api_key=token)
         return await vits(text=text, speaker=speaker, base_url=base_url)
 
 
@@ -341,9 +325,6 @@ class ApollodorusEngine(TTSEngine):
         resolved = resolve_apollodorus_speaker(speaker) or speaker
         token = api_key or _get_api_key_from_system()
         target_lang = (lang_type or "JP").upper()
-
-        if target_lang in ["JP", "JA"] and any('\u4e00' <= char <= '\u9fff' for char in text):
-            text = await translate_text(text, target_lang="JP", api_key=token)
 
         return await synthesize_apollodorus_or_fallback(
             text=text,
@@ -547,15 +528,21 @@ class TTS:
         effective_voice_settings = voice_settings or kwargs.get("voice_settings") or breeze_cfg.get("voice_settings")
         effective_auto_tag = auto_tag if auto_tag is not None else breeze_cfg.get("auto_add_audio_tags", True)
         auto_instruction = breeze_cfg.get("auto_generate_instruction", True)
-        target_lang = lang_type or ("ZH" if engine_name == "breeze_tts" else cfg.get("lang_type", "JP"))
-        api_token = api_key or breeze_cfg.get("api_key") or cfg.get("api_key") or _get_api_key_from_system()
+        target_lang = normalize_language(lang_type or cfg.get("lang_type") or ("ZH" if engine_name == "breeze_tts" else "JP"))
+        api_token = api_key or breeze_cfg.get("api_key") or _get_api_key_from_system()
 
-        # 3. 仅在确认目标引擎是 breeze_tts 时，才执行标签保护与 trigger_llm 结构化增强
+        # 3. 所有引擎先统一翻译；Breeze 的合法音频标签需要保留，译文再增强语气。
+        cleaned_text = protect_and_clean_breeze_text(text) if engine_name == "breeze_tts" else self.clean_text(text)
+        if not cleaned_text:
+            raise ValueError("TTS 输入文本为空或不含可朗读文本")
+        cleaned_text = await translate_text(
+            cleaned_text, target_lang=target_lang,
+            **translation_options(config or self.config, fallback_config=self.config),
+            preserve_audio_tags=(engine_name == "breeze_tts"),
+            strict=(target_lang == "EN"),
+        )
+
         if engine_name == "breeze_tts":
-            cleaned_text = protect_and_clean_breeze_text(text)
-            if not cleaned_text:
-                raise ValueError("Breeze TTS 输入文本为空或不含可朗读文本")
-
             # 若未显式传入 instruction 且允许自动生成，或需要自动标签润色，则调用 trigger_llm 一次性结构化生成
             if not ref_audio:
                 need_gen_instruct = (not instruction) and auto_instruction
@@ -573,11 +560,6 @@ class TTS:
 
             if not instruction:
                 instruction = breeze_cfg.get("default_instruction", "说话轻柔温和，略带自然真实的情感。")
-        else:
-            cleaned_text = self.clean_text(text)
-            if not cleaned_text:
-                raise ValueError("TTS 输入文本为空或全部为不可发音符号")
-
         # 4. 长度限制检查
         length_limit = int(cfg.get("length_limit", 150))
         if len(cleaned_text) > length_limit:
@@ -592,7 +574,7 @@ class TTS:
 
         logger.info(
             f"[TTS] 路由调度: 引擎={engine_name}, 发音人={resolved_speaker}, "
-            f"连接={effective_conn_mode}, 模式={effective_mode}, 长度={len(cleaned_text)}"
+            f"连接={effective_conn_mode}, 模式={effective_mode}, 语言={target_lang}, 长度={len(cleaned_text)}"
         )
 
         return await engine.synthesize(
@@ -637,14 +619,12 @@ class TTS:
     ) -> Dict[str, Any]:
         """供消息事件或外部模块调用的便捷方法，合成并直接发送音频"""
         try:
-            cfg = self._tts_config(config)
-            target_lang = lang_type or kwargs.get("lang_type") or ("ZH" if (speaker and any(s in str(speaker).lower() for s in ["breeze", "dania", "达妮娅"])) else cfg.get("lang_type", "JP"))
             path = await self.tts(
                 text=text,
                 speaker=speaker,
                 config=config,
                 bot=bot,
-                lang_type=target_lang,
+                lang_type=lang_type,
                 instruction=instruction,
                 cfg_scale=cfg_scale,
                 mode=mode,
@@ -658,6 +638,7 @@ class TTS:
                 **kwargs,
             )
             await bot.send(event, Record(file=path))
+            return {"status": "success", "path": path}
 
         except Exception as e:
             logger.error(f"[call_tts] 合成或发送失败: {e}", exc_info=True)

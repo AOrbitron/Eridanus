@@ -525,13 +525,17 @@ class AsyncBreezeTTSClient:
                 resp = await client.get(target_url, headers=headers)
                 if resp.status_code == 200:
                     data = resp.json()
-                    res_list = []
+                    cands = []
                     if isinstance(data, list):
-                        res_list = [str(x) for x in data if x]
+                        cands = data
                     elif isinstance(data, dict):
                         cands = data.get("speakers") or data.get("data") or []
-                        if isinstance(cands, list):
-                            res_list = [str(x) for x in cands if x]
+                    res_list = []
+                    if isinstance(cands, list):
+                        for entry in cands:
+                            value = (entry.get("speaker") or entry.get("id") or entry.get("name")) if isinstance(entry, dict) else entry
+                            if isinstance(value, str) and value.strip() and value.strip() not in res_list:
+                                res_list.append(value.strip())
                     if res_list:
                         self._remote_speakers_cache = res_list
                         self._last_speakers_fetch_time = now
