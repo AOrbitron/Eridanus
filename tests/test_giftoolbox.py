@@ -213,6 +213,51 @@ class AsyncTests(unittest.IsolatedAsyncioTestCase):
             gate.set()
             await asyncio.gather(first, second)
 
+    def test_pr354_valid_arg_and_prefix(self):
+        self.assertTrue(plugin._valid_arg('reverse', ''))
+        self.assertFalse(plugin._valid_arg('reverse', '123'))
+        self.assertFalse(plugin._valid_arg('reverse', '回顾'))
+        self.assertTrue(plugin._valid_arg('speed', '2.5x'))
+        self.assertTrue(plugin._valid_arg('speed', '30fps'))
+        self.assertFalse(plugin._valid_arg('speed', '推进'))
+        self.assertTrue(plugin._valid_arg('video', '0.5s-2.5s'))
+        self.assertTrue(plugin._valid_arg('video', '1s-3s 帧率12 缩放0.4'))
+        self.assertTrue(plugin._valid_arg('video', 'start 1s len 2s'))
+        self.assertTrue(plugin._valid_arg('video', 'scale 0.5'))
+        self.assertTrue(plugin._valid_arg('crop', '2x2 上边10 下边10'))
+        self.assertTrue(plugin._valid_arg('crop', '2*2 边距10'))
+
+        cfg = {'prefixes': ['/', '#']}
+        self.assertEqual(plugin._strip_prefix_ex('/加速', cfg), ('加速', True))
+        self.assertEqual(plugin._strip_prefix_ex('加速', cfg), ('加速', False))
+
+    async def test_pr354_group_file_and_no_media_error(self):
+        from developTools.message.message_components import File
+        self.assertTrue(issubclass(core.NoMediaError, core.ToolError))
+
+        f_id = File(file="", file_id='abc12345')
+        self.assertEqual(plugin._media_of_item(f_id), 'groupfile://abc12345')
+
+        # Test _extract_url
+        self.assertEqual(plugin._extract_url('https://example.com/a.gif'), 'https://example.com/a.gif')
+        self.assertEqual(plugin._extract_url({'data': {'url': 'http://example.com/b.jpg'}}), 'http://example.com/b.jpg')
+        self.assertEqual(plugin._extract_url({'download_url': 'https://example.com/c.png'}), 'https://example.com/c.png')
+
+        # Test non-prefixed command without media is silently ignored
+        bot, handler = self.bot(action='reverse')
+        with patch.object(plugin, '_collect_media', AsyncMock(return_value=[])):
+            await handler(NS(message_chain=[plugin.Text('测试')]))
+        self.assertEqual(len(bot.send.await_args_list), 0)
+
+        # Test prefixed command without media triggers NoMediaError / message with delay_recall
+        bot, handler = self.bot(action='reverse', prefixes=['/'])
+        bot.delay_recall = AsyncMock()
+        with patch.object(plugin, '_collect_media', AsyncMock(return_value=[])):
+            await handler(NS(message_chain=[plugin.Text('/测试')]))
+        self.assertEqual(len(bot.send.await_args_list), 1)
+        self.assertTrue(any('没有找到' in str(call.args[1]) for call in bot.send.await_args_list))
+        bot.delay_recall.assert_awaited_once()
+
 
 if __name__ == '__main__':
     unittest.main()
