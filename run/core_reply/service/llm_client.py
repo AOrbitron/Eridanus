@@ -411,19 +411,39 @@ class LLMClient:
     # 辅助构建与执行方法
     # ==================================================================
     @staticmethod
+    def _nonempty_content(content):
+        """Fill empty transport content without removing messages or media."""
+        if content is None or (isinstance(content, str) and not content.strip()):
+            return "。"
+        if isinstance(content, list):
+            if not content:
+                return "。"
+            return [
+                {**part, "text": LLMClient._nonempty_content(part.get("text"))}
+                if isinstance(part, dict) and part.get("type") == "text" else part
+                for part in content
+            ]
+        return content
+
+    @staticmethod
     def _build_openai_messages(messages: List[Dict]) -> List[Dict]:
-        """Copy messages for transport, leaving local activity metadata intact."""
-        return [
-            {key: value for key, value in message.items()
-             if key not in ("ts", "hour", "timestamp")}
-            for message in messages
-        ]
+        """Copy messages for transport, retaining roles and local history."""
+        result = []
+        for message in messages:
+            item = {key: value for key, value in message.items()
+                    if key not in ("ts", "hour", "timestamp")}
+            # Native assistant tool calls may omit text or use null content.
+            if not (item.get("role") == "assistant" and item.get("tool_calls")
+                    and item.get("content") is None):
+                item["content"] = LLMClient._nonempty_content(item.get("content"))
+            result.append(item)
+        return result
 
     def _build_gemini_contents(self, messages: List[Dict]) -> List[Dict]:
         contents = []
         for msg in messages:
             role = "user" if msg["role"] == "user" else "model"
-            content = msg.get("content")
+            content = self._nonempty_content(msg.get("content"))
 
             if isinstance(content, str):
                 contents.append({"role": role, "parts": [{"text": content}]})

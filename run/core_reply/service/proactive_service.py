@@ -25,6 +25,7 @@ from typing import Dict, List, Optional, Tuple, Any
 
 from developTools.message.message_components import Text, Record
 from framework_common.utils.system_logger import get_logger
+from run.core_reply.service.llm_client import LLMClient
 from run.core_reply.service.reply_processor import calc_typing_delay, split_message
 
 logger = get_logger(__name__)
@@ -131,12 +132,40 @@ class ProactiveService:
         self.cfg = engine.cfg
         self.context = engine.context
         self.llm = engine.llm
+        self.decision_llm = self._build_decision_llm()
         self.emotion = engine.emotion
         self.prompt_builder = engine.prompt_builder
         self.processor = engine.processor
 
         # 记录每个用户最近一次主动发消息的UNIX时间戳，避免高频打扰
         self._last_proactive_time: Dict[int, float] = {}
+
+    def _build_decision_llm(self):
+        """???????? trigger_llm????????????????"""
+        config = self.cfg.core_reply.config
+        trigger_cfg = config.get("trigger_llm", {}) or {}
+        model = str(trigger_cfg.get("model") or "").strip()
+        if not model:
+            logger.warning("[MaiReply Proactive] trigger_llm 未配置")
+            return self.llm
+
+        main_openai = (config.get("llm", {}) or {}).get("openai", {}) or {}
+        api_key = str(trigger_cfg.get("api_key") or "").strip()
+        custom_llm_cfg = {
+            "provider": "openai",
+            "stream": bool(trigger_cfg.get("stream", False)),
+            "openai": {
+                "model": model,
+                "base_url": (str(trigger_cfg.get("base_url") or "").strip()
+                             or main_openai.get("base_url") or "https://api.openai.com/v1"),
+                "api_keys": [api_key] if api_key else main_openai.get("api_keys", []),
+                "temperature": 0.3,
+                "max_tokens": 1024,
+            },
+        }
+        client = LLMClient(self.cfg, custom_llm_cfg=custom_llm_cfg)
+        logger.info(f"[MaiReply Proactive] 主动关怀决策 trigger_llm: model={model}")
+        return client
 
     def get_proactive_config(self) -> dict:
         """安全读取主动消息配置，优先从 YAMLManager 客户端读取，若缺失则直接回退读取 run/core_reply/proactive.yaml"""
@@ -346,10 +375,9 @@ class ProactiveService:
 """
 
         try:
-            res = await self.llm.chat(
+            res = await self.decision_llm.chat(
                 [{"role": "user", "content": analysis_prompt}],
                 system_prompt="你是一个高情商的拟人关怀决策系统。只输出合法的标准 JSON，严禁输出任何解释或 Markdown 格式包裹。",
-                stream=False
             )
             if not res:
                 return None
