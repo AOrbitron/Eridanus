@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import re
+import subprocess
 import tempfile
 import uuid
 from pathlib import Path
@@ -44,23 +45,27 @@ async def convert_twitter_gif(source: Path, target: Path) -> None:
 
     async def ffmpeg(*arguments: str) -> None:
         try:
-            process = await asyncio.create_subprocess_exec(
-                "ffmpeg", "-nostdin", "-hide_banner", "-loglevel", "error", "-y",
-                "-threads", "2", "-filter_threads", "1", "-filter_complex_threads", "1", *arguments,
-                stdin=asyncio.subprocess.DEVNULL, stdout=asyncio.subprocess.DEVNULL,
-                stderr=asyncio.subprocess.PIPE,
+            process = subprocess.Popen(
+                ("ffmpeg", "-nostdin", "-hide_banner", "-loglevel", "error", "-y",
+                "-threads", "2", "-filter_threads", "1", "-filter_complex_threads", "1", *arguments),
+                stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                stderr=subprocess.PIPE,
             )
         except FileNotFoundError as exc:
             raise RuntimeError("ffmpeg 未安装或不在 PATH 中") from exc
+        # Windows SelectorEventLoop cannot create asyncio subprocesses.
+        # Shield the worker so timeout/cancellation can kill and reap FFmpeg
+        # before the temporary palette directory is removed.
+        communication = asyncio.create_task(asyncio.to_thread(process.communicate))
         try:
-            _, stderr = await asyncio.wait_for(process.communicate(), 300)
+            _, stderr = await asyncio.wait_for(asyncio.shield(communication), 300)
         except BaseException as exc:
-            if process.returncode is None:
+            if process.poll() is None:
                 try:
                     process.kill()
                 except ProcessLookupError:
                     pass
-            await process.communicate()
+            await communication
             if isinstance(exc, TimeoutError):
                 raise TimeoutError("GIF 转换超时，请稍后重试") from exc
             raise
