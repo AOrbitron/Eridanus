@@ -19,7 +19,7 @@ logger=get_logger(__name__)
 config=YAMLManager.get_instance()
 # 2. 如果服务器在国内，请务必填写代理地址；如果在海外，请填 None
 PROXY =config.common_config.basic_config["proxy"]["http_proxy"] if config.common_config.basic_config["proxy"].get("http_proxy") else None
-TG_BOT_TOKEN=config.common_cofig.basic_config["telegram"]["bot_token"]
+TG_BOT_TOKEN=config.common_config.basic_config["telegram"]["bot_token"]
 
 CACHE_DIR = Path("data/pictures/cache")
 CACHE_DIR.mkdir(parents=True, exist_ok=True)
