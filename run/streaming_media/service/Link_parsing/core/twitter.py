@@ -9,7 +9,13 @@ import httpx
 from bs4 import BeautifulSoup
 
 from .common import COMMON_HEADER, json_init, no_draw_type
-from .twitter_download import is_twitter_gif, twitter_gif_reference
+try:
+    from .twitter_download import is_twitter_gif, twitter_gif_reference
+except ImportError:
+    def is_twitter_gif(url):
+        return False
+    def twitter_gif_reference(url):
+        return url
 from developTools.utils.logger import get_logger
 from framework_common.manshuo_draw.manshuo_draw import manshuo_draw
 
