@@ -25,8 +25,6 @@ iwara:
   iwara_gray_layer: true #是否开启iwara灰度图功能
   zip_file: false #是否压缩文件
   zip_password: "123456" #压缩密码
-telegram_stickers:  #tg表情包
-  bot_token: ""   #tgbot token，自己搜教程
 JMComic:                  #禁漫相关功能设置
   anti_nsfw: obfuscate   #防吞策略，可选gif、black_and_white、no_censor、obfuscate
   gif_compress: false     #gif模式下是否压缩
