@@ -14,13 +14,13 @@ async def test():
     #info = await bili_up_dynamic_monitor_add(275734421,326183226,)
     #pprint.pprint(info)
 
-    #await data_delete(7071924)
-    info = await bili_login_new(is_save=False)
+    # await data_delete(7071924)
+    # info = await bili_login_new(is_save=False)
     # info = await data_init()
 
-    pprint.pprint(info)
-    # print(await check_credential())
-    # print(await upgrade_credential())
+    # pprint.pprint(info)
+    print(await check_credential())
+    #print(await upgrade_credential())
 
 
     # ccokies = {'SESSDATA':'a0369fd3%2C1794366130%2Ca6767%2A52CjDXXD_gmCn5uwkgLJ_RqFBj22uy91gpJ1J_UAAoOEcrDk7l89ddmzx50q8_8hlSoOISVkNfX3NnS216VkZJQmN4NjVZeFUtLVNRbmVOVkVsSmlXeDZadTNhWjlWUkhnbDN3X0YxdkktY3ZBcTdFN0Z0Ty0yeVhfZzlpYkFPUXQ2R21menlqaUVRIIEC',

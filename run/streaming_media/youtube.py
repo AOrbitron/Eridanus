@@ -8,6 +8,7 @@ from developTools.message.message_components import File, Image, Video, Node, Te
 from framework_common.database_util.User import get_user
 from run.resource_collector.service.asmr.asmr100 import parse_from_asmr_id
 from run.streaming_media.service.Link_parsing.Link_parsing import link_prising, download_video_link_prising
+from run.streaming_media.service.Link_parsing.core.common import get_video_options
 from run.streaming_media.service.youtube.youtube_tools import get_img, audio_download, video_download
 from framework_common.utils.random_str import random_str
 from framework_common.utils.utils import download_img, download_file, merge_audio_files
@@ -62,22 +63,31 @@ async def download_video(bot, event, config, url, type="audio", platform="youtub
             link_prising_json = await link_prising(url, filepath='data/pictures/cache/', proxy=proxy)
             if link_prising_json['status']:
                 bot.logger.info('链接解析成功，开始推送~')
-                if link_prising_json['video_url']:
+                video_options = get_video_options(link_prising_json)
+                if video_options:
                     if "QQ小程序" in url and config.streaming_media.config.get("bili_dynamic", {}).get("is_QQ_chek") is not True:
                         return {"status": False, "reason": "QQ小程序动态暂不支持下载"}
                 if link_prising_json['soft_type'] not in {'bilibili', 'dy', 'wb', 'xhs', 'x'}:
                     await bot.send(event, '该类型视频暂未提供下载支持，敬请期待')
                     return
                 try:
-                    video_json = await download_video_link_prising(link_prising_json, filepath='data/pictures/cache/', proxy=proxy)
-                    if 'video' in video_json['type']:
-                        await bot.send(event, Video(file=video_json['video_path']))
-                        return {"status": True, "reason": "下载成功，视频已发送。"}
-                    elif video_json['type'] == 'file':
-                        await bot.send(event, File(file=video_json['video_path']))
-                        return {"status": True, "reason": "下载成功，文件已发送。"}
-                    elif video_json['type'] == 'too_big':
-                        return {"status": False, "reason": "文件过大"}
+                    if not video_options:
+                        raise ValueError('视频下载地址为空')
+                    for item in video_options:
+                        video_json = await download_video_link_prising(
+                            item['url'], item['type'], filepath='data/pictures/cache/',
+                            proxy=proxy, soft_type=item.get('soft_type') or link_prising_json.get('soft_type'),
+                            audio_url=item.get('audio_url', link_prising_json.get('audio_url')),
+                        )
+                        if video_json['type'] == 'too_big':
+                            return {"status": False, "reason": "文件过大"}
+                        elif video_json['type'] == 'file':
+                            await bot.send(event, File(file=video_json['video_path']))
+                        elif video_json['video_path'].endswith('.gif'):
+                            await bot.send(event, Image(file=video_json['video_path']))
+                        else:
+                            await bot.send(event, Video(file=video_json['video_path']))
+                    return {"status": True, "reason": "下载成功，媒体已发送。"}
                 except Exception as e:
                     await bot.send(event, f'下载失败\n{e}')
                     return {"status": False, "reason": str(e)}

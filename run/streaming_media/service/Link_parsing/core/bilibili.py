@@ -2,6 +2,7 @@ import httpx
 import re
 import copy
 import os
+import uuid
 from .login_core import ini_login_Link_Prising
 from .common import json_init,filepath_init,COMMON_HEADER,GLOBAL_NICKNAME,no_draw_type
 from urllib.parse import urlparse
@@ -30,6 +31,7 @@ from bilibili_api.opus import Opus
 from bilibili_api.video import VideoDownloadURLDataDetecter, VideoQuality
 from .bili import bili_init,av_to_bv,download_b,info_search_bili
 from .common import name_qq_list,card_url_list,add_append_img,download_video,get_file_size_mb,download_img
+from .twitter_download import download_twitter_media
 try:
     from bilibili_api import select_client
     select_client("httpx")
@@ -196,10 +198,12 @@ async def bilibili(url,filepath=None,is_twice=None,type=None,credential_bili=Non
         #print(json.dumps(dynamic_info, indent=4))
         orig_check=1        #判断是否为转发，转发为2
         type_set=None
+        #pprint.pprint(dynamic_info)
         if dynamic_info is not None:
             paragraphs = []
             for module in dynamic_info['item']:
-                if 'orig' in module:
+                #pprint.pprint(module)
+                if 'orig' in module and dynamic_info['item'][module] is not None:
                     orig_check=2
                     orig_context=dynamic_info['item'][module]
             for module in dynamic_info['item']['modules']:
@@ -224,13 +228,32 @@ async def bilibili(url,filepath=None,is_twice=None,type=None,credential_bili=Non
                 #avatar_json = await info_search_bili(dynamic_info, is_opus, filepath=filepath,card_url_list=card_url_list)
                 #print('非转发')
                 type_software='bilibili 动态'
-                if 'opus' in dynamic_info['item']['modules']['module_dynamic']['major']:
+                #pprint.pprint(dynamic_info['item'])
+                if dynamic_info['item']['modules']['module_dynamic']['major'].get('archive', None) is not None:
+                    archive_paragraphs = dynamic_info['item']['modules']['module_dynamic']['major']['archive']
+                    dynamic_type = dynamic_info['item']['type']
+                    # pprint.pprint(archive_paragraphs)
+                    # pprint.pprint(dynamic_type)
+                    if dynamic_type == 'DYNAMIC_TYPE_AV':
+                        type_software = 'BiliBili 投稿'
+                        if archive_paragraphs['title'] is not None:
+                            context += f"[title]{archive_paragraphs['title']}[/title]\n"
+                        context += f"[des]{archive_paragraphs['desc']}[/des]"
+                        image_list = [archive_paragraphs['cover']]
+                        #是否读取详细信息
+                        if up_info_get:
+                            des_draw_type = 'common_with_des_bili'
+                            des_draw_info = {'duration': archive_paragraphs['duration_text'], 'view': archive_paragraphs['stat']['play'],
+                                'danmaku': archive_paragraphs['stat']['danmaku'], 'type': 'dynamic_video'}
+                    #其他类型的遇到了再适配
+                    else:
+                        context += f"该类型暂未适配，请联系管理员"
+                        
+                elif dynamic_info['item']['modules']['module_dynamic']['major'].get('opus', None) is not None:
                     opus_paragraphs = dynamic_info['item']['modules']['module_dynamic']['major']['opus']
                     text_list_check = ''
                     pics_context=[]
                     #print(json.dumps(opus_paragraphs, indent=4))
-
-
                     for text_check in opus_paragraphs['summary']['rich_text_nodes']:
                         #print('\n\n')
                         if text_check['type'] == 'RICH_TEXT_NODE_TYPE_EMOJI':
@@ -259,7 +282,7 @@ async def bilibili(url,filepath=None,is_twice=None,type=None,credential_bili=Non
                             pics_context.append(pic_check['url'])
                         image_list = [item for item in pics_context]
                     #print(context)
-                elif 'live_rcmd' in dynamic_info['item']['modules']['module_dynamic']['major']:
+                elif dynamic_info['item']['modules']['module_dynamic']['major'].get('live_rcmd', None) is not None:
                     live_paragraphs = dynamic_info['item']['modules']['module_dynamic']['major']['live_rcmd']
                     content = json.loads(live_paragraphs['content'])
                     #print(json.dumps(content['live_play_info'], indent=4))
@@ -293,6 +316,7 @@ async def bilibili(url,filepath=None,is_twice=None,type=None,credential_bili=Non
                         {'type': 'img', 'subtype': 'common_with_des_right', 'img': image_list, 'label': [type_software],'label_color':color_info['label_color'],
                          'content': [context],'description_color':color_info['img_des_rgba']}]
                 elif len(image_list) == 1 and type_software in {'BiliBili 投稿'}:
+
                     manshuo_draw_json=[{'type': 'basic_set', 'debug': False,
                          'font_title_color': color_info['font_title_rgb'],'font_des_color': color_info['font_des_rgb'],
                          'backdrop_color': {'color1': color_info['layer_rgba']},'shadow_font_color':color_info['back_rgb']},
@@ -324,34 +348,61 @@ async def bilibili(url,filepath=None,is_twice=None,type=None,credential_bili=Non
                 return manshuo_draw_json
             elif orig_check ==2:
                 #print(json.dumps(paragraphs, indent=4))
+                #pprint.pprint(paragraphs)
                 text_list_check = ''
-                for text_check in paragraphs['desc']['rich_text_nodes']:
-                    if 'emoji' in text_check:
-                        text_list_check += f"[emoji]{text_check['emoji']['icon_url']}[/emoji]"
-                    elif 'orig_text' in text_check:
-                        text_list_check += text_check['orig_text']
+                if paragraphs.get('desc', None) is not None:
+                    for text_check in paragraphs['desc']['rich_text_nodes']:
+                        if text_check.get('emoji', None) is not None:
+                            text_list_check += f"[emoji]{text_check['emoji']['icon_url']}[/emoji]"
+                        elif text_check.get('orig_text', None) is not None:
+                            text_list_check += text_check['orig_text']
+                elif paragraphs.get('major') is not None:
+                    for text_check in paragraphs['major']['opus']['summary']['rich_text_nodes']:
+                        if text_check.get('emoji', None) is not None:
+                            text_list_check += f"[emoji]{text_check['emoji']['icon_url']}[/emoji]"
+                        elif text_check.get('orig_text', None) is not None:
+                            text_list_check += text_check['orig_text']
                 #contents.append(text_list_check)
                 #print(text_list_check)
-
-                for module in orig_context['modules']:
-                    if 'module_dynamic' in module:
-                        if 'opus' in orig_context['modules']['module_dynamic']['major']:
-                            opus_orig_paragraphs=orig_context['modules']['module_dynamic']['major']['opus']
-                            orig_title=opus_orig_paragraphs['summary']['text']
-                            context += f"{orig_title}"
-                            #logger.info(opus_orig_paragraphs)
-                            image_list = [item['url'] for item in opus_orig_paragraphs['pics']]
-                        else:
-                            orig_paragraphs = orig_context['modules']['module_dynamic']['major']['archive']
-                            orig_title, orig_desc, orig_cover, orig_bvid = orig_paragraphs['title'], orig_paragraphs['desc'], orig_paragraphs['cover'], orig_paragraphs['bvid']
-                            image_list=[orig_cover]
-                            context += f"[title]{orig_title}[/title]\n{orig_desc}"
-                            try:
-                                pics_context = paragraphs[1]['pic']['pics']
-                            except KeyError:
-                                pics_context = []
-                            image_list = await add_append_img(image_list,[item['url'] for item in pics_context])
-
+                #pprint.pprint(orig_context['modules']['module_dynamic'])
+                if orig_context['modules'].get('major', None) is not None:
+                    for module in orig_context['modules']['major']:
+                        if 'module_dynamic' in module:
+                            if orig_context['modules']['module_dynamic']['major'].get('opus') is not None:
+                                opus_orig_paragraphs=orig_context['modules']['module_dynamic']['major']['opus']
+                                orig_title=opus_orig_paragraphs['summary']['text']
+                                context += f"{orig_title}"
+                                #logger.info(opus_orig_paragraphs)
+                                image_list = [item['url'] for item in opus_orig_paragraphs['pics']]
+                            else:
+                                orig_paragraphs = orig_context['modules']['module_dynamic']['major']['archive']
+                                orig_title, orig_desc, orig_cover, orig_bvid = orig_paragraphs['title'], orig_paragraphs['desc'], orig_paragraphs['cover'], orig_paragraphs['bvid']
+                                image_list=[orig_cover]
+                                context += f"[title]{orig_title}[/title]\n{orig_desc}"
+                                try:
+                                    pics_context = paragraphs[1]['pic']['pics']
+                                except KeyError:
+                                    pics_context = []
+                                image_list = await add_append_img(image_list,[item['url'] for item in pics_context])
+                else:
+                    #调整后的版本，原版保留
+                    if orig_context['modules']['module_dynamic']['major'].get('opus') is not None:
+                        opus_orig_paragraphs=orig_context['modules']['module_dynamic']['major']['opus']
+                        orig_title=opus_orig_paragraphs['summary']['text']
+                        context += f"{orig_title}"
+                        #logger.info(opus_orig_paragraphs)
+                        image_list = [item['url'] for item in opus_orig_paragraphs['pics']]
+                    else:
+                        orig_paragraphs = orig_context['modules']['module_dynamic']['major']['archive']
+                        orig_title, orig_desc, orig_cover, orig_bvid = orig_paragraphs['title'], orig_paragraphs['desc'], orig_paragraphs['cover'], orig_paragraphs['bvid']
+                        image_list=[orig_cover]
+                        context += f"[title]{orig_title}[/title]\n{orig_desc}"
+                        try:
+                            pics_context = paragraphs[1]['pic']['pics']
+                        except KeyError:
+                            pics_context = []
+                        image_list = await add_append_img(image_list,[item['url'] for item in pics_context])
+        
                 orig_pub_time=orig_context['modules']['module_author']['pub_time']
                 orig_owner_name = orig_context['modules']['module_author']['name']
                 orig_owner_cover = orig_context['modules']['module_author']['face']
@@ -553,30 +604,36 @@ async def bilibili(url,filepath=None,is_twice=None,type=None,credential_bili=Non
 
 
 
-async def download_video_link_prising(json,filepath=None,proxy=None):
+async def download_video_link_prising(
+    url,
+    media_type="video",
+    filepath=None,
+    proxy=None,
+    soft_type=None,
+    audio_url=None,
+):
+    """按传入的视频 URL、媒体类型和平台类型在本地下载，返回路径与大小分类。"""
     if filepath is None:filepath = filepath_init
-    if not isinstance(json, dict):
-        raise TypeError("解析结果必须是字典")
+    if media_type not in {"video", "gif"}:
+        raise ValueError(f"不支持的视频媒体类型: {media_type}")
     video_json={}
-    video_url = json.get('video_url')
-    audio_url = json.get('audio_url')
-    if not isinstance(video_url, str) or not video_url.strip():
+    if not isinstance(url, str) or not url.strip():
         raise ValueError("视频下载地址为空")
-    if json.get('soft_type') == 'bilibili':
-        video_path=await download_b(video_url, audio_url, int(time.time()), filepath=filepath, proxy=proxy)
-    elif json.get('soft_type') == 'dy':
-        video_path = await download_video(video_url, proxy=proxy, filepath=filepath)
-    elif json.get('soft_type') == 'wb':
-        video_path = await download_video(video_url, proxy=proxy, filepath=filepath, ext_headers={
+    url = url.strip()
+    if soft_type == 'x' or media_type == 'gif':
+        video_path = await download_twitter_media(url, filepath, proxy=proxy, media_type=media_type)
+    elif soft_type == 'bilibili':
+        video_path = await download_b(
+            url, audio_url, uuid.uuid4().hex,
+            filepath=os.path.join(filepath, ''), proxy=proxy,
+        )
+    elif soft_type == 'wb':
+        video_path = await download_video(url, proxy=proxy, filepath=filepath, ext_headers={
                 "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
                 "referer": "https://weibo.com/"
             })
-    elif json.get('soft_type') == 'x':
-        video_path = await download_b(video_url, audio_url, int(time.time()),filepath=filepath,proxy=proxy)
-    elif json.get('soft_type') == 'xhs':
-        video_path = await download_video(video_url, proxy=proxy, filepath=filepath)
     else:
-        raise ValueError(f"不支持的视频类型: {json.get('soft_type')}")
+        video_path = await download_video(url, proxy=proxy, filepath=filepath)
     if not video_path or not os.path.isfile(video_path) or os.path.getsize(video_path) <= 0:
         raise FileNotFoundError(f"视频下载未生成有效文件: {video_path!r}")
     video_json['video_path'] = video_path

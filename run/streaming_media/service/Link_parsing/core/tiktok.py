@@ -151,11 +151,11 @@ def _extract_aweme_id(url):
     """从抖音页面 URL 中提取作品 ID。"""
     url = str(url).strip()
     patterns = (
-        r"(?:^|//)(?:www\.)?douyin\.com/(?:video|note)/(?P<id>\d+)",
-        r"(?:^|//)(?:www\.)?iesdouyin\.com/share/(?:video|note)/(?P<id>\d+)",
-        r"(?:^|//)m\.douyin\.com/share/(?:video|note)/(?P<id>\d+)",
-        r"(?:^|//)jingxuan\.douyin\.com/m/(?:video|note)/(?P<id>\d+)",
-        r"(?:^|//)(?:www\.)?douyin\.com/share/(?:video|note)/(?P<id>\d+)",
+        r"(?:^|//)(?:www\.)?douyin\.com/(?:video|note|slides)/(?P<id>\d+)",
+        r"(?:^|//)(?:www\.)?iesdouyin\.com/share/(?:video|note|slides)/(?P<id>\d+)",
+        r"(?:^|//)m\.douyin\.com/share/(?:video|note|slides)/(?P<id>\d+)",
+        r"(?:^|//)jingxuan\.douyin\.com/m/(?:video|note|slides)/(?P<id>\d+)",
+        r"(?:^|//)(?:www\.)?douyin\.com/share/(?:video|note|slides)/(?P<id>\d+)",
     )
     for pattern in patterns:
         match = re.search(pattern, str(url), re.IGNORECASE)
@@ -173,6 +173,16 @@ def _last_url(value):
             if item:
                 return item
     return value if isinstance(value, str) else ""
+
+
+def _douyin_video_url(video):
+    address = video.get("play_addr") or {}
+    uri = address.get("uri")
+    if uri:
+        return "https://aweme.snssdk.com/aweme/v1/play/?" + urllib.parse.urlencode({
+            "video_id": uri, "ratio": "1080p", "line": "0",
+        })
+    return _last_url(address)
 
 
 def _format_time(timestamp):
@@ -315,42 +325,70 @@ async def dy(url,filepath=None,type_check=None):
         if share_desc:
             share_text = share_text.replace(f"#{share_desc}#", "", 1)
         context = _format_context(share_text, signature)
+        json_check.update({
+            "user_name": owner_name, "user_avatar": avatar_url,
+            "user_description": signature, "time": video_time,
+            "title": detail.get("title") or "", "des": share_text,
+            "content": {"text": context, "type": "dy"},
+        })
 
         image_urls = []
+        video_options = []
         video = detail.get("video")
         images = detail.get("images") or []
         if images:
-            # 图文笔记以及实况图：沿用参考插件的 clip_type 判断。
-            for image in images:
+            # 图文笔记保留全部图片与实况视频，分别供图片和视频下载入口使用。
+            for index, image in enumerate(images):
                 if not isinstance(image, dict):
                     continue
-                if image.get("clip_type") in (None, 2):
-                    image_url = _last_url(image.get("url_list"))
-                    if image_url:
-                        image_urls.append(image_url)
-                else:
-                    image_video = image.get("video") or {}
-                    image_cover = _last_url(image_video.get("cover"))
-                    if image_cover:
-                        image_urls.append(image_cover)
-                    image_play_addr = image_video.get("play_addr") or {}
-                    image_uri = image_play_addr.get("uri")
-                    # json_init 只有一个 video_url 字段，实况图取第一条视频。
-                    if image_uri and not json_check["video_url"]:
-                        json_check["video_url"] = DY_TOUTIAO_INFO.format(image_uri)
+                image_video = image.get("video") or {}
+                cover = _last_url(image.get("url_list")) or _last_url(image_video.get("cover"))
+                if cover:
+                    image_urls.append(cover)
+                play_url = _douyin_video_url(image_video)
+                if image.get("clip_type") not in (None, 2) and play_url:
+                    video_options.append({
+                        "url": play_url, "type": "video", "quality": "原画",
+                        "label": f"实况 {index + 1}", "cover_url": cover,
+                        "duration": (image_video.get("duration") or 0) / 1000,
+                    })
+            music = detail.get("music") or {}
+            if music and not music.get("is_original_sound", True):
+                audio = (music.get("play_url") or {}).get("uri")
+                if not audio and music.get("extra"):
+                    try:
+                        audio = json.loads(music["extra"]).get("original_song_url")
+                    except (ValueError, TypeError, AttributeError):
+                        pass
+                audio = audio or _last_url(music.get("play_url"))
+                if isinstance(audio, str) and audio.startswith(("https://", "http://")):
+                    json_check["audio_url"] = audio
         elif isinstance(video, dict):
-            play_addr = video.get("play_addr") or {}
-            video_uri = play_addr.get("uri")
-            if video_uri:
-                json_check["video_url"] = DY_TOUTIAO_INFO.format(video_uri)
             # 参考插件优先使用原始封面，接口缺失时回退到普通封面/动态封面。
             cover = _last_url(video.get("cover_original_scale"))
             cover = cover or _last_url(video.get("cover"))
             cover = cover or _last_url(video.get("dynamic_cover"))
             if cover:
                 image_urls = [cover]
+            play_url = _douyin_video_url(video)
+            if play_url:
+                video_options.append({
+                    "url": play_url, "type": "video", "quality": "原画",
+                    "label": "视频 1", "cover_url": cover,
+                    "duration": (video.get("duration") or 0) / 1000,
+                })
 
-        json_check["pic_url_list"] = image_urls
+        if not image_urls and not video_options:
+            raise ValueError("抖音接口未返回可解析的图片或视频")
+        json_check["pic_url_list"] = list(dict.fromkeys(image_urls))
+        seen_video_urls = set()
+        json_check["video_options"] = []
+        for option in video_options:
+            if option["url"] not in seen_video_urls:
+                json_check["video_options"].append(option)
+                seen_video_urls.add(option["url"])
+        if json_check["video_options"]:
+            json_check["video_url"] = json_check["video_options"][0]["url"]
         share_url = detail.get("share_url")
         if share_url:
             json_check["url"] = str(share_url).split("?", 1)[0]
