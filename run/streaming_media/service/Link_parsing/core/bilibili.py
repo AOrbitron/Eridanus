@@ -30,6 +30,7 @@ from bilibili_api import login_v2, sync, search, user
 from bilibili_api.opus import Opus
 from bilibili_api.video import VideoDownloadURLDataDetecter, VideoQuality
 from .bili import bili_init,av_to_bv,download_b,info_search_bili
+from .twitter_download import download_twitter_media
 from .common import name_qq_list,card_url_list,add_append_img,download_video,get_file_size_mb,download_img
 
 
