@@ -4,6 +4,7 @@ import os
 import re
 import sys
 import time
+import uuid
 from io import BytesIO
 from typing import List, Dict
 from urllib.parse import urlparse
@@ -13,6 +14,7 @@ import httpx
 import requests
 from PIL import Image
 from .bili import bili_init
+from .twitter_download import is_twitter_gif
 import inspect
 
 if sys.platform == 'win32':
@@ -35,10 +37,32 @@ GENERAL_REQ_LINK = "http://47.99.158.118/video-crack/v2/parse?content={}"
 # 解析列表文件名
 RESOLVE_SHUTDOWN_LIST_NAME = "resolver_shutdown_list"
 
-json_init={'status':False,'content':{},'reason':{},'pic_path':{},'url':{},'video_url':False,'audio_url':False,'soft_type':False,'pic_url_list':[],'code':0}
+json_init={'status':False,'content':{},'reason':{},'pic_path':{},'url':{},'video_url':False,'video_options':[],'audio_url':False,'soft_type':False,'pic_url_list':[],'code':0}
 filepath_init=f'{os.path.dirname(os.path.dirname(os.path.abspath(inspect.getfile(bili_init))))}/data/cache/'
 if not os.path.exists(filepath_init):  # 初始化检测文件夹
     os.makedirs(filepath_init)
+
+
+def get_video_options(result):
+    """统一新旧解析结果，返回包含每段视频 URL 与媒体类型的独立列表。"""
+    options = result.get("video_options")
+    if not isinstance(options, list) or not options:
+        urls = result.get("video_url") or result.get("video_urls") or []
+        urls = [urls] if isinstance(urls, str) else urls
+        options = [{"url": url} for url in urls] if isinstance(urls, list) else []
+    normalized = []
+    seen = set()
+    for option in options:
+        if not isinstance(option, dict):
+            continue
+        url = option.get("url")
+        if not isinstance(url, str) or not url.strip() or url.strip() in seen:
+            continue
+        url = url.strip()
+        seen.add(url)
+        gif = option.get("type") in {"gif", "animated_gif"} or option.get("mime_type") == "image/gif" or is_twitter_gif(url)
+        normalized.append({**option, "url": url, "type": "gif" if gif else "video"})
+    return normalized
 
 name_qq_list={'漫朔':1270858640,'枫与岚':2319804644,'Lemony':2424378897,'forandsix':1004704649,'魏咸哲':1431631009}
 card_url_list=['https://gal.manshuo.ink/usr/uploads/galgame/img/zhenhong.png',
@@ -60,15 +84,16 @@ card_url_list=['https://gal.manshuo.ink/usr/uploads/galgame/img/zhenhong.png',
                'https://gal.manshuo.ink/usr/uploads/galgame/img/guangguang.png',
                ]
 
-async def download_video(url, proxy: str = None, ext_headers=None,filepath=None) -> str:
+async def download_video(url, proxy: str = None, ext_headers=None,filepath=None, extension=".mp4") -> str:
     """
     异步下载（httpx）视频，并支持通过代理下载。
-    文件名将使用时间戳生成，以确保唯一性。
+    文件名使用 UUID，以便多段视频分别保存。
     如果提供了代理地址，则会通过该代理下载视频。
 
     :param ext_headers:
     :param url: 要下载的视频的URL。
     :param proxy: 可选，下载视频时使用的代理服务器的URL。
+    :param extension: 保存文件的扩展名，默认为 .mp4。
     :return: 保存视频的路径。
     """
     if not isinstance(url, str) or not url.strip():
@@ -77,9 +102,7 @@ async def download_video(url, proxy: str = None, ext_headers=None,filepath=None)
         filepath = filepath_init
     os.makedirs(filepath, exist_ok=True)
 
-    # 使用时间戳生成文件名，确保唯一性
-    #path = os.path.join(os.getcwd(), f"{int(time.time())}.mp4")
-    path=filepath+f"{int(time.time())}.mp4"
+    path = os.path.join(filepath, f"{uuid.uuid4().hex}{extension}")
     print(f"下载视频路径:{path}")
     # 判断 ext_headers 是否为 None
     if ext_headers is None:
@@ -96,7 +119,7 @@ async def download_video(url, proxy: str = None, ext_headers=None,filepath=None)
         'follow_redirects': True
     }
     if proxy:
-        client_config['proxies'] = { 'https': proxy }
+        client_config['proxies'] = proxy
 
     # 下载文件
     download_completed = False
@@ -213,10 +236,24 @@ async def download_img(url: str, path: str = '', proxy: str = None, session=None
 
 
 
+async def _convert_audio_to_mp3(audio_path):
+    mp3_path = os.path.splitext(audio_path)[0] + '.mp3'
+    process = await asyncio.create_subprocess_exec(
+        'ffmpeg', '-nostdin', '-y', '-i', audio_path,
+        '-vn', '-codec:a', 'libmp3lame', '-q:a', '2', mp3_path,
+        stdout=asyncio.subprocess.DEVNULL,
+        stderr=asyncio.subprocess.PIPE,
+    )
+    _, stderr = await process.communicate()
+    if process.returncode != 0:
+        error = stderr.decode('utf-8', errors='replace').strip()
+        raise RuntimeError(f'ffmpeg 转换 MP3 失败: {error[-1000:]}')
+    if not os.path.isfile(mp3_path) or os.path.getsize(mp3_path) <= 0:
+        raise FileNotFoundError(f'ffmpeg 未生成有效 MP3 文件: {mp3_path!r}')
+    return mp3_path
 
 
-
-async def download_audio(url: str, path: str = '', proxy: str = None, headers=None) -> str:
+async def download_audio(url: str, path: str = '', proxy: str = None, headers=None, convert2mp3 = False, download_type = None) -> str:
     """流式下载音频文件并返回本地路径。
 
     音频链接通常是带查询参数的临时 CDN 地址，因此文件名只取 URL 路径部分。
@@ -224,7 +261,13 @@ async def download_audio(url: str, path: str = '', proxy: str = None, headers=No
     """
     if not isinstance(url, str) or not url.strip():
         raise ValueError("音频下载地址不能为空")
-
+    if headers is None and download_type in ['bilibili']:
+        headers = {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
+                                  'AppleWebKit/537.36 (KHTML, like Gecko) '
+                                  'Chrome/100.0.4896.127 Safari/537.36',
+                    'referer': 'https://www.bilibili.com',
+                }
     parsed_url = urlparse(url)
     file_name = os.path.basename(parsed_url.path)
     if not file_name:
@@ -256,9 +299,11 @@ async def download_audio(url: str, path: str = '', proxy: str = None, headers=No
                     async for chunk in response.aiter_bytes():
                         await file.write(chunk)
                 download_completed = True
+        if convert2mp3 and not full_path.endswith('.mp3'): full_path = await _convert_audio_to_mp3(full_path)
         return full_path
     except Exception:
         if download_completed and os.path.isfile(full_path) and os.path.getsize(full_path) > 0:
+            if convert2mp3 and not full_path.endswith('.mp3'): full_path = await _convert_audio_to_mp3(full_path)
             return full_path
         if os.path.isfile(full_path):
             try:

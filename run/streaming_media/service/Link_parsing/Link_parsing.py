@@ -8,10 +8,7 @@ import traceback
 from developTools.utils.logger import get_logger
 import pprint
 from run.streaming_media.service.Link_parsing.core import *
-from run.streaming_media.service.Link_parsing.core.manshuo_api import (
-    manshuo_api_link_prising,
-    should_use_manshuo_api,
-)
+from run.streaming_media.service.Link_parsing.core.manshuo_api import manshuo_api
 import os
 
 try:
@@ -23,7 +20,7 @@ except ImportError:
 logger=get_logger("Link_parsing")
 linking_cache = {}
 import time
-from run.streaming_media.service.Link_parsing.core.common import json_init
+from run.streaming_media.service.Link_parsing.core.common import json_init, get_video_options
 from bilibili_api import Credential, dynamic, user
 from framework_common.database_util.ManShuoDrawCompatibleDataBase import AsyncSQLiteDatabase
 db=asyncio.run(AsyncSQLiteDatabase.get_instance())
@@ -31,8 +28,8 @@ credential_bili_global = None
 
 
 
-async def link_prising(url,filepath=None,proxy=None,type=None,credential_bili=None,re_prising=False,absorb_color=False,up_info_get=False,
-                       master_id=None):
+async def link_prising(url,filepath=None,proxy=None,type=None,credential_bili=None,re_prising=False,
+                       absorb_color=False,up_info_get=False):
     json_check = copy.deepcopy(json_init)
     link_prising_json=None
     try:
@@ -58,7 +55,7 @@ async def link_prising(url,filepath=None,proxy=None,type=None,credential_bili=No
             cached_info = linking_cache[url]['info']
             # 视频地址通常是带过期时间的临时 CDN 地址，不能和封面图一样长期复用。
             # 图片解析结果仍可复用；QQ 小程序保持原有的快速返回行为。
-            cached_is_video = cached_info.get('video_url', False) is not False
+            cached_is_video = bool(get_video_options(cached_info))
             if type != 'QQ_Check' and not cached_is_video and os.path.exists(linking_cache[url]['path']):
                 return cached_info
         except:pass
@@ -66,9 +63,10 @@ async def link_prising(url,filepath=None,proxy=None,type=None,credential_bili=No
             return linking_cache[url]['info']
         linking_cache.pop(url)
     #是否从数据库获取B站凭证并用于解析,定义一个全局变量，不要重复从数据库读取
-
     try:
         match url:
+            case url if manshuo_api.should_use_manshuo_api(url):
+                link_prising_json = await manshuo_api.parse(url, filepath=filepath, type=type)
             case url if 'bili' in url or 'b23' in url:
                 logger.info(f"解析bilibili链接:{url}")
                 global credential_bili_global
@@ -96,7 +94,7 @@ async def link_prising(url,filepath=None,proxy=None,type=None,credential_bili=No
             case url if 'xhslink' in url or 'xiaohongshu' in url:
                 logger.info(f"解析小红书链接:{url}")
                 link_prising_json = await xiaohongshu(url, filepath=filepath,type_check=type)
-            case url if 'x.com' in url:
+            case url if 'x.com' in url or 'twitter.com' in url:
                 logger.info(f"解析x链接:{url}")
                 link_prising_json = await twitter(url, filepath=filepath, proxy=proxy,type_check=type)
             case url if 'gal.manshuo.ink/archives/' in url or 'www.hikarinagi.com' in url :
@@ -105,14 +103,6 @@ async def link_prising(url,filepath=None,proxy=None,type=None,credential_bili=No
             case url if 'www.mysqil.com' in url:
                 #link_prising_json = await youxi_pil(url, filepath=filepath)
                 pass
-            case url if should_use_manshuo_api(url):
-                if master_id in [1270858640]:
-                    link_prising_json = await manshuo_api_link_prising(
-                        url,
-                        filepath=filepath,
-                        proxy=True,
-                        type=type,
-                    )
             case _:#https://asmr.one/work/RJ01603537
                 pass
         if link_prising_json is not None and link_prising_json['status'] is True and 'pic_path' in link_prising_json:
@@ -133,38 +123,38 @@ async def link_prising(url,filepath=None,proxy=None,type=None,credential_bili=No
     #     if credential_bili is not None:
     #         del credential_bili
     if link_prising_json is not None:
-        if type == 'dynamic_check':
-            if '编辑于 ' in link_prising_json['time']:
-                time_check=link_prising_json['time'].split("编辑于 ")[1].strip()
-            else:
-                time_check = link_prising_json['time']
-            possible_formats = [
-                "%Y年%m月%d日 %H:%M",
-                "%Y/%m/%d %H:%M",
-                "%Y-%m-%d %H:%M",
-                "%d-%m-%Y %H:%M",
-                "%Y.%m.%d %H:%M",
-                "%Y年%m月%d日",
-                "%Y/%m/%d",
-                "%Y-%m-%d",
-                "%d-%m-%Y",
-                "%Y.%m.%d",
-            ]
+        # if type == 'dynamic_check':
+        #     if '编辑于 ' in link_prising_json['time']:
+        #         time_check=link_prising_json['time'].split("编辑于 ")[1].strip()
+        #     else:
+        #         time_check = link_prising_json['time']
+        #     possible_formats = [
+        #         "%Y年%m月%d日 %H:%M",
+        #         "%Y/%m/%d %H:%M",
+        #         "%Y-%m-%d %H:%M",
+        #         "%d-%m-%Y %H:%M",
+        #         "%Y.%m.%d %H:%M",
+        #         "%Y年%m月%d日",
+        #         "%Y/%m/%d",
+        #         "%Y-%m-%d",
+        #         "%d-%m-%Y",
+        #         "%Y.%m.%d",
+        #     ]
 
-            for fmt in possible_formats:
-                try:
-                    # 尝试解析日期字符串
-                    check_time=datetime.strptime(time_check, fmt).strftime("%Y-%m-%d")
-                    #print(f"check_time:{check_time}\nnow:{datetime.now().date()}")
-                    if str(check_time) != str(datetime.now().date()):
-                        link_prising_json['status'] = False
-                        link_prising_json['check_time']=check_time
-                        #print(f"时间不匹配，拒绝发送 {link_prising_json['time']}\ncheck_time:{check_time}\ndatetime:{datetime.now().date()}")
-                    break
-                except ValueError:
-                    # 如果解析失败，继续尝试下一个格式
-                    #traceback.print_exc()
-                    continue
+        #     for fmt in possible_formats:
+        #         try:
+        #             # 尝试解析日期字符串
+        #             check_time=datetime.strptime(time_check, fmt).strftime("%Y-%m-%d")
+        #             #print(f"check_time:{check_time}\nnow:{datetime.now().date()}")
+        #             if str(check_time) != str(datetime.now().date()):
+        #                 link_prising_json['status'] = False
+        #                 link_prising_json['check_time']=check_time
+        #                 #print(f"时间不匹配，拒绝发送 {link_prising_json['time']}\ncheck_time:{check_time}\ndatetime:{datetime.now().date()}")
+        #             break
+        #         except ValueError:
+        #             # 如果解析失败，继续尝试下一个格式
+        #             #traceback.print_exc()
+        #             continue
 
         logger.info(f"解析完成，返回识别结果")
         return link_prising_json
@@ -176,8 +166,18 @@ async def link_prising(url,filepath=None,proxy=None,type=None,credential_bili=No
 
 async def test(url_check):
     from run.streaming_media.service.Link_parsing.core.bili import download_b
-    link_info = await link_prising(url_check,absorb_color=True,up_info_get=True,credential_bili=True,master_id=1270858640)
+    manshuo_api.enable = True
+    # manshuo_api.base_url = "https://web.manshuo.ink"
+    # manshuo_api.api_key = ''
+
+
+    link_info = await link_prising(url_check,absorb_color=True,up_info_get=True,credential_bili=True)
     pprint.pprint(link_info)
+
+    await manshuo_api.download_media(
+        link_info['video_url'], 'video', filepath='data/pictures/cache/', soft_type=link_info['soft_type'],
+        audio_url=link_info.get('audio_url', False),
+    )
 
     # video_path = await download_b(link_info['video_url'], link_info['audio_url'], int(time.time()), filepath='data/pictures/cache/')
     # pprint.pprint(video_path)
@@ -205,18 +205,21 @@ if __name__ == "__main__":#测试用，不用管
     # url = 'https://t.bilibili.com/1217329482778542083?spm_id_from=333.1387.0.0'
     # url = 'https://t.bilibili.com/1217764206464466978'
     # url = 'https://www.bilibili.com/video/BV1vvjR6REyP'
-    url = '【那你的梦呢 仪玄？-哔哩哔哩】 https://b23.tv/SFkYzoC'
+    #url = '【那你的梦呢 仪玄？-哔哩哔哩】 https://b23.tv/SFkYzoC'
     # url = 'https://b23.tv/RHtz2mO'
     #url = 'https://live.bilibili.com/9576151'
     #url = 'http://xhslink.cn/o/4DZvlOLnu8q'
     #url = 'https://v.douyin.com/cZUlzDmvtok/ 09/15 :7pm oQk:/ N@J.VY '
-
-    #url = '】 https://b23.tv/N4yiTRP'
+    url = 'https://v.douyin.com/barPzOW4xtU/'
+    #url = 'https://t.bilibili.com/1272253374226497536?spm_id_from=333.1365.list.card_time.click'
     #url = '【挽昼麻麻-哔哩哔哩】 https://b23.tv/IjyAnfu'
     # data_info = await data_init()
     # credential = Credential(sessdata=data_info['cookies']['sessdata'], bili_jct=data_info['cookies']['bili_jct'],
     #                         buvid3=data_info['cookies']['buvid3'], dedeuserid=data_info['cookies']['dedeuserid'])
     url = 'https://asmr.one/work/RJ01603537'
+    #url = 'https://x.com/mirea_fraise/status/2119299523675840914?a=DdVAfB8yZF3FSDGO6Hs&s=46'
+    url = 'https://x.com/naipowapepe/status/2122591811839668474?s=46'
+    #url = 'https://t.bilibili.com/1271971746789982217'
     info = asyncio.run(test(url))
     # pprint.pprint(info)
     # if info['status'] and info['content']['type'] == 'dynamic':

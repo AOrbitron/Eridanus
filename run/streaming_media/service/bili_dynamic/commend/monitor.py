@@ -19,7 +19,7 @@ loop_cache = {'is_refresh_group':True,'group_list':[],'check_time':'',
                 'is_refresh_data':True,'data_info':{},'credential':'',
               'need_repush_dynamic':{},'need_repush_live':{},
               }
-#检测当前凭证是否失效,True--需要刷熊，False--不需要刷新
+#检测当前凭证是否失效,True--需要刷新，False--不需要刷新
 async def check_credential(credential = None):
     if credential is None:
         data_info = await data_init()

@@ -10,7 +10,22 @@ bili_dynamic:     #B站解析与推送相关设置
   linking_prising_video_text: '可“下载视频”喵' #链接解析后随图片一起发送的文字
   linking_prising_picture_text: '可“下载图片”喵' #链接解析后随图片一起发送的文字
   is_download_high_quality: True   #B站视频下载是否下载高清视频,最高1080P，打开后需‘/bili login’登录你的b站账户，否则只能获取到480P
-  use_proxy: false
+
+  manshuo_api: 
+    enable: false        #是否使用manshuo_api，启用后部分链接解析将交给网关处理
+    base_url: "https://web.manshuo.ink"   #manshuo_api网关地址
+    api_key: ""         #下载视频需要使用；可前往"https://web.manshuo.ink"注册并申请api key
+    parse_domains:      #匹配到以下关键字走漫朔网关解析
+      - kuaishou.com
+      - chenzhongtech.com
+      - acfun.cn
+      - nga.178.com
+      - ngabbs.com
+      - bbs.nga.cn
+      - youtube.com
+      - youtu.be
+      - asmr.one
+      - music.163.com
 
 网易云卡片:    #绘制网易云歌曲分享卡片
   enable: false
