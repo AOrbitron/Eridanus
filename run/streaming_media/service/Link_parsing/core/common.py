@@ -14,7 +14,11 @@ import httpx
 import requests
 from PIL import Image
 from .bili import bili_init
-from .twitter_download import is_twitter_gif
+try:
+    from .twitter_download import is_twitter_gif
+except:
+    def is_twitter_gif(**kwargs):
+        return False
 import inspect
 
 if sys.platform == 'win32':
