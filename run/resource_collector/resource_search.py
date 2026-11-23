@@ -514,10 +514,11 @@ async def jm_download(bot,event,config,comic_id):
             msg = await bot.send(event, "已启用线程,请等待下载完成", True)
             await delay_recall(bot, msg)
             #新增一个判断，当下载的本子有多个时直接拒绝
-            if await check_jm_multiple(comic_id):
-                msg = await bot.send(event, "检测到该jm包含多个本子，拒绝下载喵", True)
-                #await delay_recall(bot, msg)
-                return
+            if config.resource_collector.config["JMComic"]["禁止批量下载"]:
+                if await check_jm_multiple(comic_id):
+                    msg = await bot.send(event, "检测到该jm包含多个本子，拒绝下载喵", True)
+                    #await delay_recall(bot, msg)
+                    return
 
             loop = asyncio.get_running_loop()
             with ThreadPoolExecutor() as executor:

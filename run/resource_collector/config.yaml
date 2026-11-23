@@ -34,6 +34,7 @@ JMComic:                  #禁漫相关功能设置
   autoClearPDF: True      #下载后自动清除pdf
   autoEncrypt: True       #下载后自动加密pdf
   savePath: "data/pictures/benzi"  #下载为pdf的默认保存路径
+  禁止批量下载: True
   jm_ban:     #是否ban掉一些车牌号的下载验车
     - 350234
     - 350235
