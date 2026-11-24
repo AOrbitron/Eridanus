@@ -20,32 +20,28 @@ comfyui:
   default_vae: "qwen_image_vae.safetensors" # 默认VAE
   default_lora: "lily_wuthering_waves_v1.0_Anima.safetensors" # 默认/首选LoRA模型
   default_lora_strength: 0.9 # 默认LoRA权重
-  # 固定链式加载的 LoRA 列表（支持同时指定多个，ComfyUI 自动串联节点并合并触发词）
+  # 固定链式加载的 LoRA 列表（轻量化配置：仅保留轻度 Rella 与低权重鬼针草，避免过重叠加扭曲角色原本五官）
   fixed_loras:
     - name: "re-000180.safetensors"
-      strength: 0.45
-      trigger: "@shu, (Rella:1.2)"
+      strength: 0.35
+      trigger: "@shu, (Rella:1.05)"
     - name: "chen-bin_v4.0.safetensors"
-      strength: 0.45
-      trigger: "@4x0style"
-    - name: "starshadowmagician_style_v2.safetensors"
-      strength: 0.50
-      trigger: "(starshadowmagician:1.2)"
-    - name: "onineko_v2.2_epoch40.safetensors"
-      strength: 0.40
-      trigger: "onineko style"
-  default_steps: 32 # 默认采样步数 (28-60)
-  default_cfg: 4.5 # 默认CFG
+      strength: 0.20
+      trigger: "(@4x0style:0.75)"
+  default_steps: 30 # 默认采样步数 (28-60)
+  default_cfg: 5.0 # 默认CFG
   default_sampler: "er_sde" # 默认采样器
-  default_scheduler: "simple" # 默认调度算法
+  default_scheduler: "beta" # 默认调度算法（服务端若安装 RES4LYF 则支持 beta57，否则自动使用 beta）
   default_width: 1280 # 默认出图宽度 (1200-1800)
   default_height: 1728 # 默认出图高度 (1200-1800)
   timeout: 300 # 超时时间(秒)
   decrypt_encrypted_image: true # 是否对 pixel_shuffle 加密图片自动还原解密
   decrypt_password: "1234" # 解密密码
-  enable_hires_fix: true # 是否开启两阶段高清平滑精修（二阶段以0.38重绘幅度抚平毛躁发丝与消除高频伪影）
-  hires_scale: 1.333 # 高清精修放大倍数
-  hires_denoise: 0.38 # 高清精修第二阶段重绘幅度 (0.35~0.42，专门抚平发丝毛躁且保持构图)
+  enable_teacache: true # 是否开启推理缓存加速（优先使用 AnimaTeaCache，未安装则自动使用 ComfyUI 原生 EasyCache）
+  teacache_thresh: 0.35 # TeaCache 缓存阈值（参考工作流推荐 0.35）
+  enable_hires_fix: false # 默认关闭耗时的两阶段 Hires Fix（单阶段高速直出，避免耗时翻倍与面部偏移）
+  hires_scale: 1.333 # 高清精修放大倍数（仅当手动开启 enable_hires_fix 时生效）
+  hires_denoise: 0.38 # 高清精修第二阶段重绘幅度
   hires_steps: 15 # 高清精修第二阶段采样步数
   default_img2img_denoise: 0.65 # 以图生图默认重绘幅度 (0.2~0.85)
 
@@ -76,7 +72,7 @@ gptimage2:
   接管sd: false  #开启后将接管sd画图功能
   bot_oc: "data/system/bot_oc.png" # bot的形象设定png
   extra_prompt: "赛璐璐风格。不必绘制过于繁复的服饰细节和发丝，不用完全还原参考图细节，保持角色可识别即可。允许简化。保持图片清晰"
-  character_anchor: "的固定外貌特征如下：粉色和蓝色渐变眼睛；少女体型；标志性服装为白色不对称吊带礼裙，腰间系蓝色细带蝴蝶结，裙摆呈不规则燕尾形；白色过膝袜配白色高跟鞋"
+  character_anchor: "的固定外貌特征如下：银白色长发及肩以下且发尾带淡蓝微光，单根呆毛，耳侧小发髻别着两朵淡粉樱花发饰，雾霾蓝与浅粉色渐变双色瞳带纤细精致睫毛，圆润可爱少女脸型；标志性服装为白色不对称吊带礼裙，腰间系蓝色细带蝴蝶结，裙摆呈不规则燕尾形；白色过膝袜配白色高跟鞋"
 
 ai绘画:
   # 并发指令触发绘图开关（同一级别独立控制）

@@ -16,9 +16,10 @@ import numpy as np
 from framework_common.framework_util.yamlLoader import YAMLManager
 from framework_common.utils.random_str import random_str
 from framework_common.framework_util.reply_config import core_reply_enabled
+from framework_common.utils.system_logger import get_logger
 from run.ai_generated_art.service.audit_policy import requires_nsfw_audit
 from run.ai_generated_art.service.setu_moderate import pic_audit_standalone
-
+logger=get_logger(__name__)
 try:
     from run.wardrobe.wardrobe_manager import get_wardrobe_manager
     from run.wardrobe.sd_prompt import ensure_art_anchor
@@ -232,8 +233,12 @@ def decrypt_pixel_shuffle(img_bytes: bytes, password: str = "1234") -> bytes:
 
 
 def safe_parse_json(resp: httpx.Response) -> Any:
-    """安全解析 HTTP 响应为 JSON，兼容 UTF-8、GBK、GB18030、CP936 等多编码，并防止服务端报错时抛出 UnicodeDecodeError"""
-    content = resp.content
+    """安全解析 HTTP 响应为 JSON，兼容 UTF-8、GBK、GB18030、CP936 等多编码，并兼容测试 Mock 响应"""
+    content = getattr(resp, "content", None)
+    if not isinstance(content, (bytes, bytearray, str)):
+        return resp.json()
+    if isinstance(content, str):
+        return json.loads(content)
     try:
         return json.loads(content.decode("utf-8"))
     except (UnicodeDecodeError, json.JSONDecodeError):
@@ -267,29 +272,31 @@ async def optimize_prompt_with_llm(user_prompt: str, config) -> Dict[str, Any]:
         for item in KNOWN_LORAS
     ])
 
-    system_instruction = f"""你是一个顶级的二次元动漫绘图与 ComfyUI 参数调控专家。你的任务是根据用户的中文或英文绘图要求，控制生成最完美的二次元动漫图节点参数。
-服务端搭载 Anima 2.9B DiT 动漫大模型。请遵循以下专业规则：
-1. positive_prompt 必须转化为最贴合画面的高质量 Danbooru 风格逗号分隔英文 tags（如 masterpiece, best quality, aesthetic, 1girl, ...），不要包含任何中文。
-   【核心规范·角色与着装保护】：若输入的提示词中已包含角色外貌锚点（如发色、瞳色、发型、呆毛、脸型）或服装穿搭（如开衫、贝雷帽、百褶裙、及膝袜、特定套装），必须完整严密保留这些核心设定标签，在此基础上扩充场景、动作、光影氛围与细节画质，绝不可丢弃或随意替换原有的角色和着装特征！
-2. negative_prompt 给出恰当的负面标签（如 worst quality, low quality, blurry, bad anatomy 等）。
+    system_instruction = f"""你是一个顶级的二次元动漫绘图与 ComfyUI 参数调控专家。你的任务是根据用户的中文或英文绘图要求，控制生成最完美的二次元日漫手绘风图片节点参数。
+服务端搭载 Anima DiT 动漫大模型（使用 Qwen3-0.6B 文本编码器）。请遵循以下专业规则：
+1. positive_prompt 必须转化为高质量 Danbooru 风格小写逗号分隔英文 tags，可辅以简短准确的英文视觉补充说明，绝不可包含任何中文。
+   【核心规范·角色与着装保护】：若输入的提示词中已包含角色外貌锚点（如 silver-white hair, grey hair, ahoge, single side bun, white flower hair ornament, dusty blue and pale pink gradient eyes, delicate long eyelashes 等）或服装穿搭（如开衫、百褶裙、吊带礼裙、睡裙等），必须完整严密保留这些核心设定标签，绝不可丢弃、改写或替换为不相关的发型！
+   【Anima 日漫手绘激活规则】：Anima 对权重敏感度与 SDXL 不同，常规权重 `1.2` 较弱；如需激活手绘日漫线稿感，需使用 `(lineart:1.45), (hand-drawn:1.5), (sketch:1.3), (anime coloring:1.45), (cel shading:1.35)`。
+   【严禁幻觉词条】：禁止使用 `feathered`（极易在头顶或耳侧生出羽毛角/兽耳翅）以及 `(side-swept hair:...)`！
+2. negative_prompt 必须包含基础画质保护与防兽耳/防头角保护（worst quality, low quality, lowres, score_1, score_2, score_3, 3d, realistic, animal ears, head wings, hair wings, horns, teeth, showing teeth, bad anatomy, bad hands 等）。
 3. 比例与尺寸推荐（所有宽高比必须严格在 1200 到 1800 之间，且为 64 的倍数）：
    - 竖图/全身/立绘：width=1280, height=1728 或 width=1216, height=1792
    - 横图/场景/壁纸：width=1728, height=1280 或 width=1792, height=1216
    - 正方形/头像：width=1536, height=1536
-4. 采样步数 steps 必须自主选在 28~60 之间（根据画面复杂精细度决定，推荐 30~45），cfg 推荐 4.0~5.5。
-5. 采样器推荐 sampler_name="er_sde" 或 "euler", scheduler="simple"。
+4. 采样步数 steps 必须自主选在 28~60 之间（推荐 30），cfg 推荐 4.0~5.0。
+5. 采样器推荐 sampler_name="er_sde", scheduler="simple"（清透日漫平涂风）或 "beta"（细腻光影插画风）。
 6. 检查是否匹配到以下可用 LoRA：
 {lora_desc}
-   - 如果用户需求明确匹配某种风格或角色（例如画莉莉、吊带袜、美式复古卡通、3D画风），请在 lora_name 中填入对应文件名，lora_strength 填 0.8~1.0，并在 positive_prompt 中加入其专属触发词。
+   - 如果用户需求明确匹配某种风格或角色（例如画莉莉、吊带袜、salty平涂、3D画风），请在 lora_name 中填入对应文件名，lora_strength 填 0.6~0.9，并在 positive_prompt 中加入其专属触发词。
    - 若不匹配任何可用 LoRA，则 lora_name 设为 null，lora_strength 设为 0。
 
 你必须仅输出合法可解析的 JSON 对象，不得输出 markdown 代码块外多余文字：
 {{
-  "positive_prompt": "masterpiece, best quality, ...",
-  "negative_prompt": "worst quality, low quality, ...",
+  "positive_prompt": "masterpiece, best quality, safe, (lineart:1.45), (hand-drawn:1.5), (sketch:1.3), ...",
+  "negative_prompt": "worst quality, low quality, lowres, ...",
   "width": 1280,
   "height": 1728,
-  "steps": 32,
+  "steps": 30,
   "cfg": 4.5,
   "sampler_name": "er_sde",
   "scheduler": "simple",
@@ -353,6 +360,59 @@ async def optimize_prompt_with_llm(user_prompt: str, config) -> Dict[str, Any]:
     }
 
 
+# 服务端能力缓存（避免每次生图重复请求 /object_info）
+_SERVER_CAPABILITIES_CACHE: Dict[str, Dict[str, Any]] = {}
+
+
+async def get_server_capabilities(base_url: str) -> Dict[str, Any]:
+    """查询并缓存 ComfyUI 服务端已安装节点与调度器能力，以实现无缝兼容适配"""
+    key = base_url.rstrip("/")
+    if key in _SERVER_CAPABILITIES_CACHE:
+        return _SERVER_CAPABILITIES_CACHE[key]
+
+    caps = {
+        "has_teacache": False,
+        "has_easycache": False,
+        "has_remap_lora": False,
+        "has_beta57": False,
+        "available_unets": [],
+        "available_loras": [],
+    }
+    try:
+        async with httpx.AsyncClient(timeout=10.0, verify=False) as client:
+            resp = await client.get(f"{key}/object_info")
+            if resp.status_code == 200:
+                info = safe_parse_json(resp)
+                if isinstance(info, dict):
+                    caps["has_teacache"] = "AnimaTeaCache" in info
+                    caps["has_easycache"] = "EasyCache" in info
+                    caps["has_remap_lora"] = "AnimaLoRARemapTagLoader" in info
+                    sched_list = (
+                        info.get("KSampler", {})
+                        .get("input", {})
+                        .get("required", {})
+                        .get("scheduler", [[]])[0]
+                    )
+                    if isinstance(sched_list, list):
+                        caps["has_beta57"] = "beta57" in sched_list
+                    caps["available_unets"] = (
+                        info.get("UNETLoader", {})
+                        .get("input", {})
+                        .get("required", {})
+                        .get("unet_name", [[]])[0]
+                    )
+                    caps["available_loras"] = (
+                        info.get("LoraLoader", {})
+                        .get("input", {})
+                        .get("required", {})
+                        .get("lora_name", [[]])[0]
+                    )
+                    _SERVER_CAPABILITIES_CACHE[key] = caps
+    except Exception:
+        pass
+    return caps
+
+
 def build_anima_workflow(
     positive_prompt: str,
     negative_prompt: str,
@@ -360,9 +420,9 @@ def build_anima_workflow(
     height: int = 1728,
     seed: int = -1,
     steps: int = 30,
-    cfg: float = 4.5,
+    cfg: float = 5.0,
     sampler_name: str = "er_sde",
-    scheduler: str = "simple",
+    scheduler: str = "beta",
     unet_name: str = "anima-base-v1.0.safetensors",
     clip_name: str = "qwen_3_06b_base.safetensors",
     vae_name: str = "qwen_image_vae.safetensors",
@@ -373,11 +433,16 @@ def build_anima_workflow(
     hires_fix: bool = False,
     hires_scale: float = 1.333,
     hires_denoise: float = 0.38,
-    hires_steps: int = 15
+    hires_steps: int = 15,
+    cache_type: Optional[str] = None,
+    teacache_thresh: float = 0.35,
+    use_remap_lora: bool = False,
 ) -> Dict[str, Any]:
-    """构建标准 Anima DiT 架构的 ComfyUI API Prompt 节点图（支持链式多 LoRA 串联加载与两阶段 Hires Fix 高清平滑精修）"""
+    """构建标准 Anima DiT 架构的 ComfyUI API Prompt 节点图（支持 TeaCache/EasyCache 加速与 2.9B LoRA 重映射）"""
     if seed == -1:
         seed = random.randint(1, 10**14)
+
+    is_29b = "29b" in unet_name.lower() or "2.9b" in unet_name.lower()
 
     prompt_nodes = {
         "1": {
@@ -400,15 +465,48 @@ def build_anima_workflow(
                 "vae_name": vae_name
             },
             "class_type": "VAELoader"
-        },
-        "4": {
+        }
+    }
+
+    cur_model_ref = ["1", 0]
+    cur_clip_ref = ["2", 0]
+
+    # 2B 模型保留 ModelSamplingAuraFlow(shift=3.0)；2.9B 模型遵循最新工作流直连
+    if not is_29b:
+        prompt_nodes["4"] = {
             "inputs": {
-                "model": ["1", 0],
+                "model": cur_model_ref,
                 "shift": 3.0
             },
             "class_type": "ModelSamplingAuraFlow"
         }
-    }
+        cur_model_ref = ["4", 0]
+
+    # 可选缓存加速节点（AnimaTeaCache 或 ComfyUI 原生 EasyCache）
+    if cache_type == "AnimaTeaCache":
+        prompt_nodes["88"] = {
+            "inputs": {
+                "rel_l1_thresh": float(teacache_thresh),
+                "start_percent": 0,
+                "end_percent": 1,
+                "cache_device": "cuda",
+                "model": cur_model_ref
+            },
+            "class_type": "AnimaTeaCache"
+        }
+        cur_model_ref = ["88", 0]
+    elif cache_type == "EasyCache":
+        prompt_nodes["88"] = {
+            "inputs": {
+                "model": cur_model_ref,
+                "reuse_threshold": 0.2,
+                "start_percent": 0.15,
+                "end_percent": 0.95,
+                "verbose": False
+            },
+            "class_type": "EasyCache"
+        }
+        cur_model_ref = ["88", 0]
 
     # 链式串联加载一个或多个 LoRA
     active_lora_list = []
@@ -417,27 +515,47 @@ def build_anima_workflow(
     elif lora_name:
         active_lora_list.append({"name": lora_name, "strength": float(lora_strength)})
 
-    cur_model_ref = ["4", 0]
-    cur_clip_ref = ["2", 0]
-
-    for idx, l_item in enumerate(active_lora_list):
-        ln = l_item.get("name")
-        ls = float(l_item.get("strength", 0.9))
-        if not ln:
-            continue
-        node_key = "5" if idx == 0 else str(50 + idx)
-        prompt_nodes[node_key] = {
+    if use_remap_lora and is_29b and active_lora_list:
+        tag_text = " ".join(
+            f"<lora:{l_item['name'].replace('.safetensors', '')}:{float(l_item.get('strength', 0.8))}>,"
+            for l_item in active_lora_list if l_item.get("name")
+        )
+        prompt_nodes["92"] = {
             "inputs": {
+                "text": tag_text,
+                "default_weight": 1,
+                "weight_multiplier": 1,
+                "auto_remap": True,
+                "save_remapped": False,
+                "extend_to_new_layers": False,
+                "extend_strength": 0.5,
+                "manifest": "Auto (Recommended)",
                 "model": cur_model_ref,
-                "clip": cur_clip_ref,
-                "lora_name": ln,
-                "strength_model": ls,
-                "strength_clip": ls
+                "clip": cur_clip_ref
             },
-            "class_type": "LoraLoader"
+            "class_type": "AnimaLoRARemapTagLoader"
         }
-        cur_model_ref = [node_key, 0]
-        cur_clip_ref = [node_key, 1]
+        cur_model_ref = ["92", 0]
+        cur_clip_ref = ["92", 1]
+    else:
+        for idx, l_item in enumerate(active_lora_list):
+            ln = l_item.get("name")
+            ls = float(l_item.get("strength", 0.9))
+            if not ln:
+                continue
+            node_key = "5" if idx == 0 else str(50 + idx)
+            prompt_nodes[node_key] = {
+                "inputs": {
+                    "model": cur_model_ref,
+                    "clip": cur_clip_ref,
+                    "lora_name": ln,
+                    "strength_model": ls,
+                    "strength_clip": ls
+                },
+                "class_type": "LoraLoader"
+            }
+            cur_model_ref = [node_key, 0]
+            cur_clip_ref = [node_key, 1]
 
     model_ref = cur_model_ref
     clip_ref = cur_clip_ref
@@ -771,10 +889,10 @@ async def comfyui_draw(
     if ar:
         width, height = map_aspect_ratio_to_resolution(ar, default_w=width, default_h=height)
 
-    steps = comfy_cfg.get("default_steps", 32)
-    cfg_val = comfy_cfg.get("default_cfg", 4.5)
+    steps = comfy_cfg.get("default_steps", 30)
+    cfg_val = comfy_cfg.get("default_cfg", 5.0)
     sampler = comfy_cfg.get("default_sampler", "er_sde")
-    scheduler = comfy_cfg.get("default_scheduler", "simple")
+    scheduler = comfy_cfg.get("default_scheduler", "beta")
     unet = comfy_cfg.get("default_unet", "anima-base-v1.0.safetensors")
     clip = comfy_cfg.get("default_clip", "qwen_3_06b_base.safetensors")
     vae = comfy_cfg.get("default_vae", "qwen_image_vae.safetensors")
@@ -826,12 +944,13 @@ async def comfyui_draw(
             outfit_tags = ""
             art_anchor = None
 
-        # 如果用户提示词中已经明确指定了具体服装 (例如睡裙、泳装、特定裙子等)，则不强行叠加默认常服以防服饰冲突
+        # 如果用户提示词中已经明确指定了具体服装 (例如睡裙、睡衣、泳装、卫衣等)，则不强行叠加默认常服以防服饰冲突
         has_custom_clothing = any(
             kw in positive_prompt.lower()
             for kw in [
                 "睡裙", "睡衣", "nightgown", "pajama", "sleepwear", "吊带裙", "泳装", "比基尼", "swimsuit",
-                "bikini", "礼服", "dress", "旗袍", "汉服", "制服", "uniform", "cosplay", "lo裙", "lolita"
+                "bikini", "礼服", "dress", "旗袍", "汉服", "制服", "uniform", "cosplay", "lo裙", "lolita",
+                "hoodie", "卫衣", "水手服", "汉元素", "洋装", "jacket", "skirt"
             ]
         )
         if has_custom_clothing:
@@ -900,7 +1019,12 @@ async def comfyui_draw(
         try:
             optimized = await optimize_prompt_with_llm(positive_prompt, config)
             positive_prompt = optimized.get("positive_prompt", positive_prompt)
-            negative_prompt = optimized.get("negative_prompt", negative_prompt)
+            opt_neg = optimized.get("negative_prompt", "")
+            # 始终保留衣橱系统的防畸变/防角/防兽耳核心负面约束，防止 LLM 覆盖丢失
+            if opt_neg and negative_prompt:
+                negative_prompt = f"{negative_prompt}, {opt_neg}"
+            elif opt_neg:
+                negative_prompt = opt_neg
             if "width" in optimized:
                 width = max(1200, min(1800, int(round(int(optimized["width"]) / 64) * 64)))
             if "height" in optimized:
@@ -950,6 +1074,23 @@ async def comfyui_draw(
     hires_denoise = float(comfy_cfg.get("hires_denoise", 0.38))
     hires_steps = int(comfy_cfg.get("hires_steps", 15))
 
+    # 探测服务端能力：自动启用 AnimaTeaCache / EasyCache、2.9B LoRA 重映射、beta57 -> beta 兼容回退
+    enable_cache = comfy_cfg.get("enable_teacache", True)
+    teacache_thresh = float(comfy_cfg.get("teacache_thresh", 0.35))
+    caps = await get_server_capabilities(base_url)
+
+    cache_type = None
+    if enable_cache:
+        if caps.get("has_teacache"):
+            cache_type = "AnimaTeaCache"
+        elif caps.get("has_easycache"):
+            cache_type = "EasyCache"
+
+    if scheduler == "beta57" and not caps.get("has_beta57"):
+        scheduler = "beta"
+
+    use_remap_lora = bool(caps.get("has_remap_lora") and ("29b" in unet.lower() or "2.9b" in unet.lower()))
+
     workflow = build_anima_workflow(
         positive_prompt=positive_prompt,
         negative_prompt=negative_prompt,
@@ -967,7 +1108,10 @@ async def comfyui_draw(
         hires_fix=hires_fix,
         hires_scale=hires_scale,
         hires_denoise=hires_denoise,
-        hires_steps=hires_steps
+        hires_steps=hires_steps,
+        cache_type=cache_type,
+        teacache_thresh=teacache_thresh,
+        use_remap_lora=use_remap_lora,
     )
 
     client_id = f"eridanus_{random_str(8)}"

@@ -798,8 +798,17 @@ def main(bot: ExtendBot, config: YAMLManager):
         pass
     def get_chara_drawing_rules() -> dict:
         """从 run/qq_zone/config.yaml 读取用户配置的角色绘图规则与外观设定，留空时使用默认形象提示词"""
-        default_base = "1girl, teenager, solo, grey hair, gradient hair, multicolored hair, blue hair, light purple-light blue mixed eyes, (Side swept hair:1.6), ahoge, bangs, middle long hair, (round face:1.2)"
-        default_art = "(Rella:1.2), (chen bin:1.3), virtual youtuber, (starshadowmagician:1.2), masterpiece, extremely detailed, lineart, (hand-drawn:1.3), (sketch:1.2), Picasso style, Van Gogh's almond blossoms, <lora:DeniaV1-Nuclear1811-IL:0.5>"
+        default_base = (
+            "1girl, teenager, solo, virtual youtuber, silver-white hair, grey hair, subtle pale blue hair tips, gradient hair, "
+            "long hair, very long hair, wispy parted bangs, single ahoge, soft sidelocks framing face, single side bun, "
+            "one side up, white flower hair ornament, (dusty blue and pale pink gradient eyes:1.25), "
+            "(light blue eyes with pink highlights:1.2), (delicate long eyelashes:1.2), cute round face, normal human ears"
+        )
+        default_art = (
+            "masterpiece, best quality, safe, (lineart:1.45), (hand-drawn:1.5), (sketch:1.3), "
+            "(anime coloring:1.45), (cel shading:1.35), clean ink lines, japanese anime style, "
+            "@shu, (Rella:1.05), (@4x0style:0.75), <lora:re-000180:0.35>, <lora:chen-bin_v4.0:0.20>"
+        )
         default_outfit = "hair ornament,detached sleeves, hair bow, flower, off shoulder,layered dress, virtual youtuber,lace rim, ornaments sleeves, lolita sleeves,white pantyhose"
 
         chara_draw_cfg = config.qq_zone.config.get("角色绘图设置", {})
