@@ -55,95 +55,30 @@ def main(bot: ExtendBot, config: YAMLManager):
                 #await bot.send(event, "你还没有添加任何内容哦。")
                 return
 
-            # 获取配置
-            api_config = config.ai_generated_art.config.get("gptimage2", {})
-            base_url = api_config.get("base_url", "http://api.apollodorus.xyz/v1")
-            apikey = api_config.get("apikey", "")
-
-            # 整合 Prompt（将多次发送的文本合并）
-            full_prompt = " ".join(user_dict[uid]["text"])
-            if not full_prompt:
-                full_prompt = "编辑图像"  # 兜底 prompt
-
             await bot.send(event, "正在处理图片，请稍候...")
 
+            # 整合 Prompt（将多次发送的文本合并）
+            full_prompt = " ".join(user_dict[uid]["text"]) or "编辑图像"
+            img_paths = list(user_dict[uid]["image"])
+            user_dict.pop(uid)  # 立即清理用户数据，避免重复提交
+
             try:
-                # 准备文件流
-                import io
-
-                # 准备文件流（异步读取到内存）
-                file_objects = []
-                for path in user_dict[uid]["image"]:
-                    if os.path.exists(path):
-                        async with aiofiles.open(path, "rb") as f:
-                            content = await f.read()
-                        file_objects.append(
-                            ("images", (os.path.basename(path), io.BytesIO(content), "image/png"))
-                        )
-
-                headers = {"Authorization": f"Bearer {apikey}"}
-                data = {
-                    "prompt": full_prompt,
-                    "aspect_ratio": config.ai_generated_art.config["gptimage2"]["aspect_ratio"],
-                    "model": config.ai_generated_art.config["gptimage2"]["model"],
-                    "resolution": config.ai_generated_art.config["gptimage2"]["resolution"] or "1K",
-                }
-                user_dict.pop(uid)  # 立即清理用户数据，避免重复提交
-
-
-                max_retry = config.ai_generated_art.config["gptimage2"]["max_retry"] or 5
-
-                async def request_api(retries=0):
-                    if file_objects:
-                        async with httpx.AsyncClient() as client:
-                            resp = await client.post(
-                                f"{base_url}/images/edits",
-                                headers=headers,
-                                files=file_objects,
-                                data=data,
-                                timeout=None  # 图像生成较慢，设置长一点的超时
-                            )
-                    else:
-                        url1 = "http://api.apollodorus.xyz/v1/images/generations"
-                        payload = {
-                            "prompt": full_prompt,
-                            "aspect_ratio": config.ai_generated_art.config["gptimage2"]["aspect_ratio"],
-                            "resolution": config.ai_generated_art.config["gptimage2"]["resolution"] or "1K",
-                            "model": config.ai_generated_art.config["gptimage2"]["model"],
-                            "response_format": "url",  # 或 "b64_json"
-                            "n": 1,
-                        }
-
-                        async with httpx.AsyncClient(timeout=None, headers=headers) as client:
-                            resp = await client.post(url1, json=payload)
-
-                    if resp.status_code == 200:
-                        res_json = resp.json()
-                        img_url = res_json["data"][0]["url"]
-                        # 发送结果图片
-                        await bot.send(event, [Image(file=img_url)],True)
-                    else:
-                        retries+=1
-                        if retries >= max_retry:
-                            await bot.send(event, f"请求失败 ({resp.status_code}): {resp.text}")
-                            return
-                        await request_api(retries)
-                        bot.logger.error(f"请求失败 ({resp.status_code}): {resp.text} 重试")
-
-
-
-                await request_api(0)
-
+                from run.ai_generated_art.service.gptimage2_client import gptimage2_draw, gptimage2_edit
+                if img_paths:
+                    res_path = await gptimage2_edit(img_paths, full_prompt, config)
+                else:
+                    res_path = await gptimage2_draw(full_prompt, config, is_about_bot=False)
+                await bot.send(event, [Image(file=res_path)], True)
             except Exception as e:
                 traceback.print_exc()
                 await bot.send(event, f"发生错误: {str(e)}")
             finally:
-                # 无论成功失败，清理该用户的临时数据和本地文件
-                if uid in user_dict:
-                    for path in user_dict[uid]["image"]:
-                        if os.path.exists(path):
-                            os.remove(path)  # 删除临时下载的图片
-                    user_dict.pop(uid)
+                for path in img_paths:
+                    if os.path.exists(path):
+                        try:
+                            os.remove(path)
+                        except Exception:
+                            pass
             return
 
         # 4. 收集模式：当用户在 user_dict 中时，记录他发的消息

@@ -170,16 +170,10 @@ def main(bot: ExtendBot, config: YAMLManager):
             # 准备图片
             img_path = data_store["image"][0]
             try:
-                async with aiofiles.open(img_path, "rb") as f:
-                    char_content = await f.read()
-
-                files = [("images", (os.path.basename(img_path), io.BytesIO(char_content), "image/png"))]
+                src_images = [img_path]
                 has_style_ref = False
-
                 if style_ref_path and os.path.exists(style_ref_path):
-                    async with aiofiles.open(style_ref_path, "rb") as f_ref:
-                        style_content = await f_ref.read()
-                    files.append(("images", (os.path.basename(style_ref_path), io.BytesIO(style_content), "image/png")))
+                    src_images.append(style_ref_path)
                     has_style_ref = True
 
                 if has_style_ref:
@@ -204,56 +198,21 @@ def main(bot: ExtendBot, config: YAMLManager):
                         f"{user_extra}"
                     )
 
-                headers = {"Authorization": f"Bearer {apikey}"}
-                data = {
-                    "prompt": final_prompt,
-                    "aspect_ratio": "1:1",
-                    "model": model,
-                    "resolution": resolution
-                }
-
                 # 提交后清理当前用户状态
                 saved_images = list(sticker_user_dict[uid]["image"])
                 sticker_user_dict.pop(uid, None)
 
-                async def request_api(current_retry=0):
-                    try:
-                        retry_files = []
-                        retry_files.append(("images", (os.path.basename(img_path), io.BytesIO(char_content), "image/png")))
-                        if has_style_ref:
-                            retry_files.append(("images", (os.path.basename(style_ref_path), io.BytesIO(style_content), "image/png")))
-
-                        async with httpx.AsyncClient() as client:
-                            resp = await client.post(
-                                f"{base_url}/images/edits",
-                                headers=headers,
-                                files=retry_files,
-                                data=data,
-                                timeout=None
-                            )
-                            if resp.status_code != 200:
-                                raise Exception(f"API HTTP {resp.status_code}: {resp.text}")
-                            return resp
-                    except Exception as e:
-                        bot.logger.error(f"表情包绘图出现错误: {e}")
-                        if current_retry < max_retry:
-                            await asyncio.sleep(2)
-                            return await request_api(current_retry + 1)
-                        else:
-                            raise e
-
-                resp = await request_api(0)
-                if resp.status_code != 200:
-                    await bot.send(event, f"❌ 生成失败: {resp.text}")
-                    return
-
-                # 下载生成的网格大图
-                res_json = resp.json()
-                grid_img_url = res_json["data"][0]["url"]
-
-                async with httpx.AsyncClient() as client:
-                    img_resp = await client.get(grid_img_url, timeout=None)
-                    grid_img_bytes = img_resp.content
+                from run.ai_generated_art.service.gptimage2_client import gptimage2_edit
+                grid_img_path = await gptimage2_edit(
+                    src_images,
+                    final_prompt,
+                    config,
+                    aspect_ratio="1:1",
+                    resolution=resolution,
+                    max_retries=max_retry,
+                )
+                async with aiofiles.open(grid_img_path, "rb") as f_grid:
+                    grid_img_bytes = await f_grid.read()
 
                 # 在线程池中执行 OpenCV 切分，避免阻塞事件循环
                 loop = asyncio.get_event_loop()

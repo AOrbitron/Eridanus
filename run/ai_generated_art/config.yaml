@@ -1,5 +1,5 @@
 # 统一文生图 Function Calling 后端选择
-# 可选值: "comfyui", "sd", "gptimage2", "gpt_official", "nano_banana", "novelai"
+# 可选值: "comfyui", "sd", "gptimage2", "nano_banana", "novelai"
 文生图function_calling后端: "sd"
 
 # 大模型生图控制与提示词优化配置 (支持 ComfyUI 参数控制 及 SD 纯 Danbooru 词条转换优化)
@@ -12,7 +12,8 @@ llm_config:
 
 # ComfyUI 绘图配置 (默认 Illustrious / WAI-NSFW-Illustrious v17.0 SDXL 架构)
 comfyui:
-  url: "" # ComfyUI 服务地址（Cloudflare Tunnel 穿透URL）
+  url: "" # ComfyUI 服务地址或网关地址（支持填网关 http://api.apollodorus.xyz/comfyui 或直连穿透 URL，兼容 base_url 字段）
+  apikey: "" # 若填写网关地址，请填入在网关申请的 API Key（直连无需填写）
   comfyui画图: true # 是否开启 ComfyUI 后端
   主模型控制生图: false # 实验性功能：是否调用主回复模型/配置的LLM来智能解析提示词、匹配LoRA及生成节点
   default_ckpt: "waiIllustriousSDXL_v170.safetensors" # 默认 Illustrious/SDXL 一体化 Checkpoint 底模
@@ -38,32 +39,26 @@ comfyui:
   hires_denoise: 0.38
   hires_steps: 15
   default_img2img_denoise: 0.65 # 以图生图默认重绘幅度 (0.2~0.85)
-
-# OpenAI 官方 DALL-E 接口配置 (或兼容 OpenAI images/generations 的第三方中转)
-gpt_official:
-  base_url: "https://api.openai.com/v1" # 官方接口地址或第三方中转地址
-  apikey: "" # API Key
-  model: "dall-e-3" # 可选: "dall-e-3", "dall-e-2"
-  size: "1024x1024" # 可选: "1024x1024", "1024x1792", "1792x1024"
-  quality: "standard" # 可选: "standard", "hd"
-  style: "vivid" # 可选: "vivid", "natural"
-  timeout: 120 # 超时时间(秒)
-
 sightengine:       #ai创作图片鉴别，自己去申请https://dashboard.sightengine.com/api-credentials
   api_user: ''
   api_secret: ''
 
+# 统一遵循 OpenAI Images API 标准的图像生成/编辑配置（已合并原 gpt_official 与 gptimage2）
 gptimage2:
-  base_url: "http://api.apollodorus.xyz/v1" # gptimage2 API 基础地址
+  base_url: "http://api.apollodorus.xyz/v1" # OpenAI 标准或网关 API 基础地址 (例如 https://api.openai.com/v1 或网关 /v1)
   权限要求: 0   #使用gptimage2功能所需的权限等级，超过此等级不受次数限制
-  model: "gpt-image-2.5-flare"   # 模型名称，当前可用的模型有 "gpt-image-2.5-flare" 和 "nano-banana-2"
+  model: "gpt-image-2.5-flare"   # 可选网关模型 (gpt-image-2.5-flare / nano-banana-2 / gpt-image-2) 或官方模型 (gpt-image-1 / dall-e-3)
   apikey: ''  # 接口apikey
+  size: ""    # OpenAI 标准尺寸（可选，如 "1024x1024", "1024x1536"；留空则按 aspect_ratio 与 resolution 自动换算）
+  quality: "medium" # OpenAI 标准质量（low / medium / high / standard / hd）
+  output_format: "png" # 输出格式（png / jpeg / webp）
+  timeout: 180 # 请求超时时间（秒）
   sticker_style_ref: "data/system/sticker_template_3x3.png" # 表情包画风参考图片路径
   sticker_resolution: "1K" # 表情包生成分辨率
   aspect_ratio: '1:1'  # 生成图像的宽高比
   resolution: "1K"  # 1K 或 2K
   max_retry: 5 #最大重试次数
-  接管sd: false  #开启后将接管sd画图功能
+  接管sd: false  #开启后将接管sd画图功能（含 画/重绘/空间配图等）
   bot_oc: "data/system/bot_oc.png" # bot的形象设定png
   extra_prompt: "赛璐璐风格。不必绘制过于繁复的服饰细节和发丝，不用完全还原参考图细节，保持角色可识别即可。允许简化。保持图片清晰"
   character_anchor: "的固定外貌特征如下：银白色长发及肩以下且发尾带淡蓝微光，单根呆毛，耳侧小发髻别着两朵淡粉樱花发饰，雾霾蓝与浅粉色渐变双色瞳带纤细精致睫毛，圆润可爱少女脸型；标志性服装为白色不对称吊带礼裙，腰间系蓝色细带蝴蝶结，裙摆呈不规则燕尾形；白色过膝袜配白色高跟鞋"

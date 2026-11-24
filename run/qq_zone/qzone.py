@@ -579,9 +579,9 @@ def main(bot: ExtendBot, config: YAMLManager):
 
 
     # ---------------------------------------------------------
-    # Stable Diffusion / ComfyUI 绘画服务端调用 (统一读取 ai_generated_art 配置与 wardrobe 衣橱锚点)
+    # Stable Diffusion / ComfyUI / GPTImage2 绘画服务端调用 (统一读取 ai_generated_art 配置与 wardrobe 衣橱锚点)
     # ---------------------------------------------------------
-    async def call_sd_generate(prompt: str) -> Optional[str]:
+    async def call_sd_generate(prompt: str, scene_hint: str = "") -> Optional[str]:
         from run.wardrobe.sd_prompt import ensure_art_anchor
 
         if not prompt:
@@ -595,6 +595,7 @@ def main(bot: ExtendBot, config: YAMLManager):
         ai_art_cfg = (getattr(ai_art_wrapper, "config", None) or {}) if ai_art_wrapper else {}
         draw_cfg = ai_art_cfg.get("ai绘画", {})
         comfy_cfg = ai_art_cfg.get("comfyui", {})
+        gpt2_cfg = ai_art_cfg.get("gptimage2", {})
 
         backend = str(ai_art_cfg.get("文生图function_calling后端", "comfyui")).strip().lower()
 
@@ -604,7 +605,20 @@ def main(bot: ExtendBot, config: YAMLManager):
         else:
             sd_url_val = str(raw_sd_urls or "").strip()
 
-        # 若后端为 comfyui，或未配置 sdUrl 且开启了 comfyui 开关，优先使用 ComfyUI
+        # 1. 若配置 gptimage2 为主后端或开启了 接管sd / gptimage2画图，且具备 apikey，则作为同级后端调用 gptimage2_draw
+        if backend in ("gptimage2", "gptimage2_apollodorus", "gpt_official", "openai", "dalle") or gpt2_cfg.get("接管sd", False):
+            try:
+                from run.ai_generated_art.service.gptimage2_client import gptimage2_draw
+                gpt_prompt = scene_hint or prompt
+                logger.info(f"[Qzone Image] 使用 GPTImage2 生成空间动态配图: {gpt_prompt[:80]}...")
+                img_path = await gptimage2_draw(gpt_prompt, config, is_about_bot=True)
+                if img_path:
+                    logger.info(f"[Qzone Image] GPTImage2 生图成功并保存至: {img_path}")
+                    return img_path
+            except Exception as ge:
+                logger.warning(f"[Qzone Image] GPTImage2 生图失败，尝试回退其他后端: {ge}")
+
+        # 2. 若后端为 comfyui，或未配置 sdUrl 且开启了 comfyui 开关，优先使用 ComfyUI
         if backend == "comfyui" or (not sd_url_val and draw_cfg.get("comfyui画图", True)):
             try:
                 from run.ai_generated_art.service.comfyui_drawer import comfyui_draw
@@ -617,7 +631,16 @@ def main(bot: ExtendBot, config: YAMLManager):
                     logger.warning(f"[Qzone Image] ComfyUI 生图被审核拦截: {img_path}")
                     return None
             except Exception as ce:
-                logger.warning(f"[Qzone Image] ComfyUI 生图失败，尝试回退 SD WebUI: {ce}")
+                logger.warning(f"[Qzone Image] ComfyUI 生图失败，尝试回退 SD WebUI / GPTImage2: {ce}")
+
+        if not sd_url_val and draw_cfg.get("gptimage2画图", False):
+            try:
+                from run.ai_generated_art.service.gptimage2_client import gptimage2_draw
+                img_path = await gptimage2_draw(scene_hint or prompt, config, is_about_bot=True)
+                if img_path:
+                    return img_path
+            except Exception as ge:
+                logger.warning(f"[Qzone Image] GPTImage2 兜底生图失败: {ge}")
 
         base_url = (sd_url_val or "http://api.apollodorus.xyz").rstrip("/")
         txt2img_url = f"{base_url}/sdapi/v1/txt2img"
@@ -1203,13 +1226,13 @@ def main(bot: ExtendBot, config: YAMLManager):
             "time": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         })
 
-        # 判断是否需要 SD 绘图
+        # 判断是否需要配图
         pic_paths = []
         outfit_selection = {}
         if task_info.get("绘制图片", True):
             theme_desc = sd_theme_hint
             sd_prompt = await build_sd_prompt_for_post(post_content, theme_desc, outfit_selection, task_name=task_name)
-            img_file = await call_sd_generate(sd_prompt)
+            img_file = await call_sd_generate(sd_prompt, scene_hint=f"{post_content}；画面场景参考：{theme_desc}")
             if img_file:
                 pic_paths.append(img_file)
 
@@ -1395,7 +1418,7 @@ def main(bot: ExtendBot, config: YAMLManager):
         pic_prob = float(vcfg.get("绘制图片概率", 0.5))
         if random.random() < pic_prob:
             sd_prompt = await build_sd_prompt_for_post(daily_content, chosen_sd_hint, outfit_selection, task_name="日常")
-            img_file = await call_sd_generate(sd_prompt)
+            img_file = await call_sd_generate(sd_prompt, scene_hint=f"{daily_content}；画面场景参考：{chosen_sd_hint}")
             if img_file:
                 pic_paths.append(img_file)
 

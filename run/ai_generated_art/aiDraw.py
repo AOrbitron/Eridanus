@@ -68,6 +68,26 @@ async def call_comfyui(bot, event, config, prompt):
         bot.logger.error(f"ComfyUI 绘图失败: {e}")
 
 
+async def call_gptimage2(bot, event, config, prompt):
+    user_info = await get_user(event.user_id)
+    perm_need = config.ai_generated_art.config.get("gptimage2", {}).get("权限要求", 0)
+    if user_info.permission < perm_need:
+        return
+    if not config.ai_generated_art.config.get("ai绘画", {}).get("gptimage2画图", False):
+        return
+
+    from run.ai_generated_art.service.gptimage2_client import gptimage2_draw
+    bot_name = config.common_config.basic_config.get("bot", "Bot")
+    is_about_bot = bool(bot_name and bot_name in str(prompt))
+    try:
+        img_path = await gptimage2_draw(prompt, config, is_about_bot=is_about_bot)
+        if img_path:
+            await bot.send(event, [Text("GPTImage2："), Image(file=img_path)], True)
+            return img_path
+    except Exception as e:
+        bot.logger.error(f"GPTImage2 绘图失败: {e}")
+
+
 async def call_text2img(bot, event, config, prompt):
     tag = prompt
     draw_cfg = config.ai_generated_art.config.get("ai绘画", {})
@@ -78,6 +98,8 @@ async def call_text2img(bot, event, config, prompt):
             tasks.append(asyncio.create_task(call_comfyui(bot, event, config, tag)))
         if draw_cfg.get("sd画图", False):
             tasks.append(asyncio.create_task(call_text2img1(bot, event, config, tag)))
+        if draw_cfg.get("gptimage2画图", False):
+            tasks.append(asyncio.create_task(call_gptimage2(bot, event, config, tag)))
         if draw_cfg.get("novel_ai画图", False):
             tasks.append(asyncio.create_task(nai4(bot, event, config, tag)))
         if draw_cfg.get("内置ai绘画1开关", True):
@@ -177,6 +199,18 @@ async def call_text2img1(bot, event, config, tag):
         msg = await bot.send(event, "无绘图功能使用权限", True)
         await delay_recall(bot, msg)
         return
+    if config.ai_generated_art.config.get("gptimage2", {}).get("接管sd", False):
+        from run.ai_generated_art.service.gptimage2_client import gptimage2_draw
+        bot_name = config.common_config.basic_config.get("bot", "Bot")
+        try:
+            img_path = await gptimage2_draw(tag, config, is_about_bot=bool(bot_name and bot_name in str(tag)))
+            await bot.send(event, [Image(file=img_path)], True)
+            return img_path
+        except Exception as e:
+            bot.logger.error(f"gptimage2 接管 SD 失败: {e}")
+            msg = await bot.send(event, f"GPTImage2 接管生图失败：{e}", True)
+            await delay_recall(bot, msg)
+            return
     if config.ai_generated_art.config["ai绘画"]["sd画图"] and config.ai_generated_art.config["ai绘画"][
         "sdUrl"] != "" and config.ai_generated_art.config["ai绘画"]["sdUrl"] != '':
         global turn
@@ -668,21 +702,26 @@ def main(bot, config):
                 await delay_recall(bot, msg)
                 turn += 1
                 try:
-                    args = sd_re_args.get(event.sender.user_id, {})
-                    b64_in = await url_to_base64(img_url)
-
-                    # 将 UserGet[event.sender.user_id] 列表中的内容和 positive_prompt 合并成一个字符串
-                    p = await SdOutpaint(prompts_str, path, config, event.group_id, b64_in, args)
-                    if not p:
-                        bot.logger.info("色图已屏蔽")
-                        msg = await bot.send(event, "杂鱼，色图不给你喵~", True)
-                        await delay_recall(bot, msg)
-                    elif p.startswith("审核api"):
-                        bot.logger.info(p)
-                        msg = await bot.send(event, p, True)
-                        await delay_recall(bot, msg)
+                    if config.ai_generated_art.config.get("gptimage2", {}).get("接管sd", False):
+                        from run.ai_generated_art.service.gptimage2_client import gptimage2_edit
+                        p = await gptimage2_edit(img_url, prompts_str.strip() or "重绘图像", config)
+                        await bot.send(event, [Text("GPTImage2 重绘结果"), Image(file=p)], True)
                     else:
-                        await bot.send(event, [Text("sd重绘结果"), Image(file=p)], True)
+                        args = sd_re_args.get(event.sender.user_id, {})
+                        b64_in = await url_to_base64(img_url)
+
+                        # 将 UserGet[event.sender.user_id] 列表中的内容和 positive_prompt 合并成一个字符串
+                        p = await SdOutpaint(prompts_str, path, config, event.group_id, b64_in, args)
+                        if not p:
+                            bot.logger.info("色图已屏蔽")
+                            msg = await bot.send(event, "杂鱼，色图不给你喵~", True)
+                            await delay_recall(bot, msg)
+                        elif p.startswith("审核api"):
+                            bot.logger.info(p)
+                            msg = await bot.send(event, p, True)
+                            await delay_recall(bot, msg)
+                        else:
+                            await bot.send(event, [Text("sd重绘结果"), Image(file=p)], True)
                 except httpx.TimeoutException as e:
                     bot.logger.error(f"sd重绘请求超时，已取消队列: {e}")
                     try:

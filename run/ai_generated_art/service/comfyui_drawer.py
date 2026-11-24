@@ -341,7 +341,7 @@ async def optimize_prompt_with_llm(user_prompt: str, config) -> Dict[str, Any]:
 _SERVER_CAPABILITIES_CACHE: Dict[str, Dict[str, Any]] = {}
 
 
-async def get_server_capabilities(base_url: str) -> Dict[str, Any]:
+async def get_server_capabilities(base_url: str, apikey: str = "") -> Dict[str, Any]:
     """查询并缓存 ComfyUI 服务端已安装节点与调度器能力，以实现无缝兼容适配"""
     key = base_url.rstrip("/")
     if key in _SERVER_CAPABILITIES_CACHE:
@@ -355,8 +355,13 @@ async def get_server_capabilities(base_url: str) -> Dict[str, Any]:
         "available_unets": [],
         "available_loras": [],
     }
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    }
+    if apikey:
+        headers["Authorization"] = f"Bearer {apikey}"
     try:
-        async with httpx.AsyncClient(timeout=10.0, verify=False) as client:
+        async with httpx.AsyncClient(timeout=10.0, headers=headers, verify=False) as client:
             resp = await client.get(f"{key}/object_info")
             if resp.status_code == 200:
                 info = safe_parse_json(resp)
@@ -729,7 +734,11 @@ def build_comfyui_img2img_workflow(
     return prompt_nodes
 
 
-async def upload_image_to_comfyui(img_source: Union[bytes, str, Path], base_url: str) -> str:
+async def upload_image_to_comfyui(
+    img_source: Union[bytes, str, Path],
+    base_url: str,
+    apikey: str = "",
+) -> str:
     """
     将图片上传至 ComfyUI 服务端的 /upload/image 接口，返回已上传的图片名称。
     支持输入本地路径、URL 或原始 bytes。
@@ -756,6 +765,8 @@ async def upload_image_to_comfyui(img_source: Union[bytes, str, Path], base_url:
     client_headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
     }
+    if apikey:
+        client_headers["Authorization"] = f"Bearer {apikey}"
 
     async with httpx.AsyncClient(timeout=30.0, headers=client_headers, verify=False) as client:
         resp = await client.post(upload_url, files=files, data=data)
@@ -784,7 +795,8 @@ async def comfyui_draw(
     draw_cfg = config.ai_generated_art.config.get("ai绘画", {})
     comfy_cfg = config.ai_generated_art.config.get("comfyui", {})
 
-    base_url = (comfy_cfg.get("url") or "http://127.0.0.1:7860").rstrip("/")
+    base_url = (comfy_cfg.get("base_url") or comfy_cfg.get("url") or "http://127.0.0.1:7860").rstrip("/")
+    apikey = str(comfy_cfg.get("apikey") or "").strip()
     timeout = float(comfy_cfg.get("timeout", 300))
     llm_control = comfy_cfg.get("主模型控制生图", False)
 
@@ -994,7 +1006,7 @@ async def comfyui_draw(
     is_anima = _is_anima_model(ckpt)
     enable_cache = comfy_cfg.get("enable_teacache", False) and is_anima
     teacache_thresh = float(comfy_cfg.get("teacache_thresh", 0.35))
-    caps = await get_server_capabilities(base_url)
+    caps = await get_server_capabilities(base_url, apikey=apikey)
 
     cache_type = None
     if enable_cache:
@@ -1061,6 +1073,9 @@ async def _execute_comfyui_workflow(
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8"
     }
+    apikey = str(comfy_cfg.get("apikey") or "").strip()
+    if apikey:
+        client_headers["Authorization"] = f"Bearer {apikey}"
     audit_required = requires_nsfw_audit(draw_cfg, groupid)
 
     try:
@@ -1184,10 +1199,11 @@ async def comfyui_img2img(
     draw_cfg = config.ai_generated_art.config.get("ai绘画", {})
     comfy_cfg = config.ai_generated_art.config.get("comfyui", {})
 
-    base_url = (comfy_cfg.get("url") or "http://127.0.0.1:7860").rstrip("/")
+    base_url = (comfy_cfg.get("base_url") or comfy_cfg.get("url") or "http://127.0.0.1:7860").rstrip("/")
+    apikey = str(comfy_cfg.get("apikey") or "").strip()
     timeout = float(comfy_cfg.get("timeout", 300))
 
-    uploaded_image_name = await upload_image_to_comfyui(image_source, base_url)
+    uploaded_image_name = await upload_image_to_comfyui(image_source, base_url, apikey=apikey)
 
     if denoise is None:
         denoise = float(comfy_cfg.get("default_img2img_denoise", 0.65))
