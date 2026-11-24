@@ -16,6 +16,8 @@ from typing import List, Dict, Optional, Any, AsyncGenerator, Tuple, Callable, A
 
 import httpx
 
+from run.core_reply.service.exceptions import RejectedResponseModelError
+
 from framework_common.utils.system_logger import get_logger
 from framework_common.framework_util.yamlLoader import YAMLManager  # 【新增】引入框架配置管理器
 
@@ -98,10 +100,16 @@ class LLMClient:
         """
         should_stream = self.use_stream if stream is None else stream
 
-        if should_stream:
-            return await self._chat_stream_with_retries(messages, system_prompt, tools, retries, bot, event, model, on_intermediate_text)
-        else:
-            return await self._chat_non_stream_with_retries(messages, system_prompt, tools, retries, bot, event, model, on_intermediate_text)
+        for model_attempt in range(2):
+            try:
+                if should_stream:
+                    return await self._chat_stream_with_retries(messages, system_prompt, tools, retries, bot, event, model, on_intermediate_text)
+                else:
+                    return await self._chat_non_stream_with_retries(messages, system_prompt, tools, retries, bot, event, model, on_intermediate_text)
+            except RejectedResponseModelError:
+                if model_attempt == 1:
+                    raise
+                logger.warning("Upstream returned ministral-3-3b; treating as failure and retrying once")
 
     # ==================================================================
     # 流式 (Stream) 执行引擎 (内部消费生成器，合并后返回)
@@ -118,6 +126,8 @@ class LLMClient:
                         full_text += chunk
 
                 return full_text.strip() if full_text else None
+            except RejectedResponseModelError:
+                raise
             except Exception as e:
                 if attempt < retries - 1:
                     await asyncio.sleep(1.5 * (attempt + 1))
@@ -175,6 +185,7 @@ class LLMClient:
                     if data_str == "[DONE]": break
                     try:
                         data = json.loads(data_str)
+                        self._validate_openai_response_model(data)
                         choices = data.get("choices", [])
                         if not choices:
                             continue
@@ -302,6 +313,8 @@ class LLMClient:
                     return await self._chat_gemini_non_stream(messages, system_prompt, tools, bot, event, model, on_intermediate_text)
                 else:
                     return await self._chat_openai_non_stream(messages, system_prompt, tools, bot, event, model, on_intermediate_text)
+            except RejectedResponseModelError:
+                raise
             except Exception as e:
                 if attempt < retries - 1:
                     await asyncio.sleep(1.5 * (attempt + 1))
@@ -337,6 +350,7 @@ class LLMClient:
             resp = await http.post(url, json=payload, headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},timeout=360)
             resp.raise_for_status()
             data = resp.json()
+            self._validate_openai_response_model(data)
 
             choice = data["choices"][0]
             message = choice["message"]
@@ -410,6 +424,11 @@ class LLMClient:
     # ==================================================================
     # 辅助构建与执行方法
     # ==================================================================
+    @staticmethod
+    def _validate_openai_response_model(data):
+        if data.get("model") == "ministral-3-3b":
+            raise RejectedResponseModelError("Upstream returned rejected model: ministral-3-3b")
+
     @staticmethod
     def _nonempty_content(content):
         """Fill empty transport content without removing messages or media."""
