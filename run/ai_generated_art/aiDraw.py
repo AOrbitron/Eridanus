@@ -35,6 +35,7 @@ n4re = {}
 n3re = {}
 mask = {}
 UserGetm = {}
+UserGet_cf = {}
 default_prompt = {}
 from framework_common.framework_util.yamlLoader import YAMLManager
 
@@ -44,22 +45,54 @@ aiDrawController = config.ai_generated_art.config.get("ai绘画")
 ckpt = aiDrawController.get("sd默认启动模型") if aiDrawController else None
 
 
+async def call_comfyui(bot, event, config, prompt):
+    user_info = await get_user(event.user_id)
+    if user_info.permission < config.ai_generated_art.config.get("ai绘画", {}).get("ai绘画所需权限等级", 0):
+        return
+    if not config.ai_generated_art.config.get("ai绘画", {}).get("comfyui画图", True):
+        return
+
+    from run.ai_generated_art.service.comfyui_drawer import comfyui_draw
+    bot.logger.info(f"收到 ComfyUI 绘图请求: {prompt}")
+    group_id = getattr(event, "group_id", getattr(event, "user_id", None))
+    try:
+        img_path = await comfyui_draw(prompt, config, groupid=group_id)
+        if img_path:
+            if img_path.startswith("审核api"):
+                msg = await bot.send(event, img_path, True)
+                await delay_recall(bot, msg)
+            else:
+                await bot.send(event, [Text("ComfyUI："), Image(file=img_path)], True)
+                return img_path
+    except Exception as e:
+        bot.logger.error(f"ComfyUI 绘图失败: {e}")
+
+
 async def call_text2img(bot, event, config, prompt):
     tag = prompt
+    draw_cfg = config.ai_generated_art.config.get("ai绘画", {})
 
     async def run_tasks():
-        tasks = [
-            asyncio.create_task(func)
-            for func in [
-                call_text2img1(bot, event, config, tag),
-                call_text2img2(bot, event, config, tag),
-                nai4(bot, event, config, tag),
-                call_text2img3(bot, event, config, tag),
-                call_text2img4(bot, event, config, tag),
-                #gptimage2_text2img(bot,event,config,tag)
-                # nai3(bot, event, config, tag),
-            ]
-        ]
+        tasks = []
+        if draw_cfg.get("comfyui画图", True):
+            tasks.append(asyncio.create_task(call_comfyui(bot, event, config, tag)))
+        if draw_cfg.get("sd画图", False):
+            tasks.append(asyncio.create_task(call_text2img1(bot, event, config, tag)))
+        if draw_cfg.get("novel_ai画图", False):
+            tasks.append(asyncio.create_task(nai4(bot, event, config, tag)))
+        if draw_cfg.get("内置ai绘画1开关", True):
+            tasks.append(asyncio.create_task(call_text2img2(bot, event, config, tag)))
+        if draw_cfg.get("内置ai绘画2开关", True):
+            tasks.append(asyncio.create_task(call_text2img3(bot, event, config, tag)))
+        if draw_cfg.get("内置ai绘画3开关", False):
+            tasks.append(asyncio.create_task(call_text2img4(bot, event, config, tag)))
+
+        if not tasks:
+            bot.logger.warning("所有绘图后端开关均已关闭，未执行任何生图任务")
+            msg = await bot.send(event, "当前所有绘图后端开关均已关闭，请联系管理员开启至少一个绘图接口~", True)
+            await delay_recall(bot, msg)
+            return
+
         r = None
         for future in asyncio.as_completed(tasks):
             try:
@@ -89,8 +122,9 @@ async def call_text2img4(bot, event, config, prompt):
     if config.common_config.basic_config:
         try:
             user: User = await get_user(event.user_id)
-            if user.permission >= config.ai_generated_art.config["ai绘画"]["内置ai绘画2所需权限等级"] and \
-                    config.ai_generated_art.config["ai绘画"]["内置ai绘画2开关"]:
+            perm_need = config.ai_generated_art.config.get("ai绘画", {}).get("内置ai绘画3所需权限等级", 0)
+            switch_on = config.ai_generated_art.config.get("ai绘画", {}).get("内置ai绘画3开关", False)
+            if user.permission >= perm_need and switch_on:
                 bot.logger.info(f"Received text2img prompt: {prompt}")
                 img = await hf_drawer(prompt, config.common_config.basic_config["proxy"]["http_proxy"],
                                       sd_user_args.get(event.sender.user_id, {}))
@@ -665,6 +699,64 @@ def main(bot, config):
                     turn = max(0, turn - 1)
 
     @bot.on(GroupMessageEvent)
+    async def comfyui_reDrawRun(event):
+        global UserGet_cf
+        text = str(event.pure_text or "").strip()
+        cf_prefixes = ["cf重绘", "comfy重绘", "cf以图生图", "comfy以图生图", "以图生图", "图生图"]
+        backend = str(config.ai_generated_art.config.get("文生图function_calling后端", "comfyui")).strip().lower()
+        if backend == "comfyui":
+            cf_prefixes.extend(["重绘", "垫图"])
+
+        is_cf_cmd = any(text == p or text.startswith(f"{p} ") for p in cf_prefixes)
+
+        if is_cf_cmd:
+            user_info = await get_user(event.user_id)
+            if user_info.permission < config.ai_generated_art.config.get("ai绘画", {}).get("ai绘画所需权限等级", 0):
+                msg = await bot.send(event, "无绘图功能使用权限", True)
+                await delay_recall(bot, msg)
+                return
+
+            prompt = text
+            for p in sorted(cf_prefixes, key=lambda x: len(x), reverse=True):
+                if prompt.startswith(p):
+                    prompt = prompt[len(p):].strip()
+                    break
+
+            img_url = await get_img(event, bot)
+            if not img_url:
+                UserGet_cf[event.sender.user_id] = prompt
+                msg = await bot.send(event, "请发送要进行 ComfyUI 以图生图的参考图片喵~", True)
+                await delay_recall(bot, msg)
+                return
+            else:
+                prompt_to_use = prompt
+        elif event.sender.user_id in UserGet_cf:
+            img_url = await get_img(event, bot)
+            if not img_url:
+                return
+            prompt_to_use = UserGet_cf.pop(event.sender.user_id)
+        else:
+            return
+
+        from run.ai_generated_art.service.comfyui_drawer import comfyui_img2img
+        try:
+            wait_msg = await bot.send(event, "已接收 ComfyUI 以图生图任务，正在进行重绘处理喵...", True)
+            await delay_recall(bot, wait_msg)
+            res_path = await comfyui_img2img(img_url, prompt_to_use, config, groupid=event.group_id)
+            if res_path:
+                if res_path.startswith("审核api"):
+                    m = await bot.send(event, res_path, True)
+                    await delay_recall(bot, m)
+                else:
+                    await bot.send(event, [Text("ComfyUI 以图生图结果："), Image(file=res_path)], True)
+            else:
+                await bot.send(event, "ComfyUI 以图生图未生成有效图片", True)
+        except Exception as e:
+            bot.logger.error(f"ComfyUI 以图生图失败: {e}\n{traceback.format_exc()}")
+            err_msg = await bot.send(event, f"ComfyUI 以图生图执行失败: {e}", True)
+            await delay_recall(bot, err_msg)
+
+    @bot.on(GroupMessageEvent)
     async def AiSdDraw(event):
         global turn
         global sd_user_args
@@ -969,7 +1061,6 @@ def main(bot, config):
                     await delay_recall(bot, msg, 20)
                 finally:
                     turn = max(0, turn - 1)
-                return
 
     @bot.on(GroupMessageEvent)
     async def end_re(event):

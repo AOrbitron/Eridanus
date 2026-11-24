@@ -579,7 +579,7 @@ def main(bot: ExtendBot, config: YAMLManager):
 
 
     # ---------------------------------------------------------
-    # Stable Diffusion 绘画服务端调用 (针对 SDXL 模型调优)
+    # Stable Diffusion / ComfyUI 绘画服务端调用 (支持衣橱联动与多后端路由)
     # ---------------------------------------------------------
     async def call_sd_generate(prompt: str) -> Optional[str]:
         from run.wardrobe.sd_prompt import ensure_art_anchor
@@ -588,6 +588,32 @@ def main(bot: ExtendBot, config: YAMLManager):
             return None
         prompt = ensure_art_anchor(prompt)
         sd_cfg = config.qq_zone.config.get("sd绘画设置", {})
+        manager = get_wardrobe_manager() if get_wardrobe_manager else None
+        neg_prompt = manager.get_negative_prompt() if manager else FIXED_NEGATIVE_PROMPT
+
+        # 检查生图后端（优先根据 qq_zone.sd绘画设置.backend，未配置时遵循 ai_generated_art.文生图function_calling后端）
+        backend = str(
+            sd_cfg.get("backend") or
+            config.ai_generated_art.config.get("文生图function_calling后端", "comfyui")
+        ).strip().lower()
+
+        # 若配置为 comfyui 或 sdUrl 未配置且开启了 comfyui，优先调用 ComfyUI
+        if backend == "comfyui" or (not sd_cfg.get("sdUrl") and config.ai_generated_art.config.get("ai绘画", {}).get("comfyui画图", True)):
+            try:
+                from run.ai_generated_art.service.comfyui_drawer import comfyui_draw
+                logger.info(f"[Qzone Image] 使用 ComfyUI 生成空间动态配图: {prompt[:80]}...")
+                # prompt 已在 build_sd_prompt_for_post 中结合了 base_anchor、outfit、art_anchor
+                # 传入 is_about_bot=False 避免二次重复拼装前缀
+                img_path = await comfyui_draw(prompt, config, is_about_bot=False)
+                if img_path and not img_path.startswith("审核api"):
+                    logger.info(f"[Qzone Image] ComfyUI 生图成功并保存至: {img_path}")
+                    return img_path
+                elif img_path and img_path.startswith("审核api"):
+                    logger.warning(f"[Qzone Image] ComfyUI 生图被审核拦截: {img_path}")
+                    return None
+            except Exception as ce:
+                logger.warning(f"[Qzone Image] ComfyUI 生图失败，尝试回退 SD WebUI: {ce}")
+
         base_url = sd_cfg.get("sdUrl", "http://api.apollodorus.xyz")
         if not base_url:
             base_url = "http://api.apollodorus.xyz"
@@ -603,7 +629,7 @@ def main(bot: ExtendBot, config: YAMLManager):
 
         payload = {
             "prompt": prompt,
-            "negative_prompt": FIXED_NEGATIVE_PROMPT,
+            "negative_prompt": neg_prompt,
             "steps": steps,
             "cfg_scale": cfg_scale,
             "width": width,

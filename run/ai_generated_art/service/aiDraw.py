@@ -453,7 +453,7 @@ async def SdreDraw(prompt, path, config, groupid, b64_in, args):
         if isinstance(args, dict) else 
         (default_args.get('d', 0.7) if isinstance(default_args, dict) else 0.7)
     )
-    steps = min(int(args.get('steps', default_args.get('steps', 15)) if isinstance(args, dict) else default_args.get('steps', 15)) if isinstance(default_args, dict) else 15, 35)
+    steps = min(int(args.get('steps', default_args.get('steps', 28)) if isinstance(args, dict) else default_args.get('steps', 28)) if isinstance(default_args, dict) else 28, 60)
 
     if "方" in prompt:
         prompt = prompt.replace("方", "")
@@ -563,7 +563,7 @@ async def SdDraw0(prompt, path, config, groupid, args):
         if isinstance(args, dict) else 
         (default_args.get('d', 0.7) if isinstance(default_args, dict) else 0.7)
     )
-    steps = min(int(args.get('steps', default_args.get('steps', 15)) if isinstance(args, dict) else default_args.get('steps', 15)) if isinstance(default_args, dict) else 15, 35)
+    steps = min(int(args.get('steps', default_args.get('steps', 28)) if isinstance(args, dict) else default_args.get('steps', 28)) if isinstance(default_args, dict) else 28, 60)
 
     if "方" in prompt:
         prompt = prompt.replace("方", "")
@@ -1012,7 +1012,7 @@ async def SdmaskDraw(prompt, path, config, groupid, b64_in, args, mask_base64):
         if isinstance(args, dict) else 
         (default_args.get('d', 0.7) if isinstance(default_args, dict) else 0.7)
     )
-    steps = min(int(args.get('steps', default_args.get('steps', 15)) if isinstance(args, dict) else default_args.get('steps', 15)) if isinstance(default_args, dict) else 15, 35)
+    steps = min(int(args.get('steps', default_args.get('steps', 28)) if isinstance(args, dict) else default_args.get('steps', 28)) if isinstance(default_args, dict) else 28, 60)
 
     if "方" in prompt:
         prompt = prompt.replace("方", "")
@@ -1267,7 +1267,7 @@ async def SdOutpaint(prompt, path, config, groupid, b64_in, args):
 
     # 参数配置
     denoising_strength = float(args.get('d', 0.75) if isinstance(args, dict) else 0.75)
-    steps = min(int(args.get('steps', default_args.get('steps', 15)) if isinstance(args, dict) else default_args.get('steps', 15)) if isinstance(default_args, dict) else 15, 35)
+    steps = min(int(args.get('steps', default_args.get('steps', 28)) if isinstance(args, dict) else default_args.get('steps', 28)) if isinstance(default_args, dict) else 28, 60)
     positive = str(args.get('p', default_args.get('p', positives)) if isinstance(args, dict) and isinstance(default_args, dict) else args.get('p', positives) if isinstance(args, dict) else default_args.get('p', positives) if isinstance(default_args, dict) else positives)
     negative = str(args.get('n', default_args.get('n', negatives)) if isinstance(args, dict) and isinstance(default_args, dict) else args.get('n', negatives) if isinstance(args, dict) else default_args.get('n', negatives) if isinstance(default_args, dict) else negatives)
     positive = (("{}," + positive) if "{}" not in positive else positive).replace("{}", cleaned_prompt) if isinstance(positive, str) else str(cleaned_prompt)
