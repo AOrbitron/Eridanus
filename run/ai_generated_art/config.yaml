@@ -54,9 +54,9 @@ gptimage2:
   output_format: "png" # 输出格式（png / jpeg / webp）
   timeout: 180 # 请求超时时间（秒）
   sticker_style_ref: "data/system/sticker_template_3x3.png" # 表情包画风参考图片路径
-  sticker_resolution: "1K" # 表情包生成分辨率
+  sticker_resolution: "2K" # 表情包生成分辨率
   aspect_ratio: '1:1'  # 生成图像的宽高比
-  resolution: "1K"  # 1K 或 2K
+  resolution: "2K"  # 1K 或 2K
   max_retry: 5 #最大重试次数
   接管sd: false  #开启后将接管sd画图功能（含 画/重绘/空间配图等）
   bot_oc: "data/system/bot_oc.png" # bot的形象设定png
