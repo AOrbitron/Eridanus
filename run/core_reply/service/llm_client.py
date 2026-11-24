@@ -16,7 +16,7 @@ from typing import List, Dict, Optional, Any, AsyncGenerator, Tuple, Callable, A
 
 import httpx
 
-from run.core_reply.service.exceptions import RejectedResponseModelError
+from run.core_reply.service.exceptions import RejectedResponseModelError, validate_response_model
 
 from framework_common.utils.system_logger import get_logger
 from framework_common.framework_util.yamlLoader import YAMLManager  # 【新增】引入框架配置管理器
@@ -100,16 +100,15 @@ class LLMClient:
         """
         should_stream = self.use_stream if stream is None else stream
 
-        for model_attempt in range(2):
+        while True:
             try:
                 if should_stream:
                     return await self._chat_stream_with_retries(messages, system_prompt, tools, retries, bot, event, model, on_intermediate_text)
                 else:
                     return await self._chat_non_stream_with_retries(messages, system_prompt, tools, retries, bot, event, model, on_intermediate_text)
             except RejectedResponseModelError:
-                if model_attempt == 1:
-                    raise
-                logger.warning("Upstream returned ministral-3-3b; treating as failure and retrying once")
+                logger.warning("Discarded ministral-3-3b response; retrying in 1 second")
+                await asyncio.sleep(1)
 
     # ==================================================================
     # 流式 (Stream) 执行引擎 (内部消费生成器，合并后返回)
@@ -178,7 +177,7 @@ class LLMClient:
                 tool_calls_dict = {}
                 round_text = ""
 
-                async for line in resp.aiter_lines():
+                async for line in self._openai_response_lines(resp):
                     line = line.strip()
                     if not line or not line.startswith("data: "): continue
                     data_str = line[6:]
@@ -193,7 +192,6 @@ class LLMClient:
 
                         if "content" in delta and delta["content"]:
                             round_text += delta["content"]
-                            yield delta["content"]
 
                         if "tool_calls" in delta and delta["tool_calls"]:
                             is_tool_call = True
@@ -220,6 +218,9 @@ class LLMClient:
                                     tool_calls_dict[idx]["function"]["arguments"] += func["arguments"]
                     except json.JSONDecodeError:
                         pass
+
+                if round_text:
+                    yield round_text
 
                 if not is_tool_call:
                     return
@@ -425,9 +426,22 @@ class LLMClient:
     # 辅助构建与执行方法
     # ==================================================================
     @staticmethod
+    async def _openai_response_lines(response):
+        # Some gateways ignore stream=True and return a JSON response body.
+        if "application/json" in response.headers.get("content-type", ""):
+            await response.aread()
+            data = response.json()
+            validate_response_model(data)
+            for choice in data.get("choices", []):
+                choice["delta"] = choice.get("message") or choice.get("delta") or dict(choice)
+            yield "data: " + json.dumps(data)
+        else:
+            async for line in response.aiter_lines():
+                yield line
+
+    @staticmethod
     def _validate_openai_response_model(data):
-        if data.get("model") == "ministral-3-3b":
-            raise RejectedResponseModelError("Upstream returned rejected model: ministral-3-3b")
+        validate_response_model(data)
 
     @staticmethod
     def _nonempty_content(content):
