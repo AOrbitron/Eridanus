@@ -32,28 +32,50 @@ async def download_img_from_url(url: str) -> str:
 # --- 核心 3x3 稳健网格切分逻辑 ---
 def split_grid_3x3(image_bytes: bytes, output_folder: str) -> list:
     """
-    最稳健的 3x3 网格切分逻辑：基于统计投影的区域划分与贴纸轮廓精修
-    完美保留每个表情贴纸的白色粗描边边框与特效元素
+    稳健 3x3 网格切分逻辑：
+    1. 优先识别 RGBA 透明通道（alpha > 20 视为前景），切分后完整保留透明底 PNG；
+    2. 非透明图自动探测边界底色（纯白/纯黑/渐变底），避免暗底或灰底误判导致切坏相邻贴纸。
     """
     nparr = np.frombuffer(image_bytes, np.uint8)
-    img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+    img = cv2.imdecode(nparr, cv2.IMREAD_UNCHANGED)
     if img is None:
         return []
 
-    h, w = img.shape[:2]
-    # 背景为白色 (>252 为背景 0，彩色角色和线条为 255)
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    _, binary = cv2.threshold(gray, 252, 255, cv2.THRESH_BINARY_INV)
+    has_alpha = img.ndim == 3 and img.shape[2] == 4
+    if has_alpha:
+        alpha = img[:, :, 3]
+        bg_transparent_ratio = float(np.mean(alpha < 20))
+        if bg_transparent_ratio > 0.05:
+            binary = np.where(alpha > 20, 255, 0).astype(np.uint8)
+        else:
+            has_alpha = False
 
-    row_sum = np.sum(binary, axis=1)
+    if not has_alpha:
+        bgr = img[:, :, :3] if (img.ndim == 3 and img.shape[2] >= 3) else cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
+        gray = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)
+        border_vals = np.concatenate([gray[0, :], gray[-1, :], gray[:, 0], gray[:, -1]])
+        bg_med = float(np.median(border_vals))
+        if bg_med >= 220:
+            _, binary = cv2.threshold(gray, 248, 255, cv2.THRESH_BINARY_INV)
+        elif bg_med <= 45:
+            _, binary = cv2.threshold(gray, 25, 255, cv2.THRESH_BINARY)
+        else:
+            # 渐变/灰底兜底：计算相对局部平滑背景的差异
+            bg_blur = cv2.GaussianBlur(gray, (51, 51), 0)
+            diff = cv2.absdiff(gray, bg_blur)
+            _, binary = cv2.threshold(diff, 14, 255, cv2.THRESH_BINARY)
+        img = bgr
+
+    row_sum = np.sum(binary > 0, axis=1)
 
     def get_split_points(projection, count=3):
         points = [0]
         step = len(projection) // count
         for i in range(1, count):
-            search_start = max(0, i * step - step // 2)
-            search_end = min(len(projection), i * step + step // 2)
-            valley = search_start + int(np.argmin(projection[search_start:search_end]))
+            search_start = max(0, i * step - step // 3)
+            search_end = min(len(projection), i * step + step // 3)
+            window = projection[search_start:search_end]
+            valley = search_start + int(np.argmin(window))
             points.append(valley)
         points.append(len(projection))
         return points
@@ -70,7 +92,7 @@ def split_grid_3x3(image_bytes: bytes, output_folder: str) -> list:
         row_img = img[r_s:r_e, :]
         row_bin = binary[r_s:r_e, :]
 
-        col_sum = np.sum(row_bin, axis=0)
+        col_sum = np.sum(row_bin > 0, axis=0)
         col_points = get_split_points(col_sum, 3)
 
         for j in range(3):
@@ -106,24 +128,24 @@ split_stickers = split_grid_3x3
 
 
 def build_sticker_prompt(has_style_ref: bool, user_prompt: str = "") -> str:
-    """构建对齐 sticker_style_ref_16 灵动瘦脸漫画风的纯白底 3x3 贴纸表情包提示词"""
+    """构建对齐 sticker_style_ref_16 灵动瘦脸漫画风的极净平涂 3x3 贴纸表情包提示词"""
     user_extra = f"\n附加需求与偏好：{user_prompt.strip()}" if user_prompt and user_prompt.strip() else ""
     if has_style_ref:
         style_ref_clause = (
             "【严格分图参考规则】：\n"
-            "- 图1是目标角色设定图：角色外貌、发型、发色、渐变、呆毛、发饰、瞳色与服装特征必须 100% 严格遵循图1（绝对不要把图2的猫耳、黑发夹或深色衣服套给图1角色！）。\n"
-            "- 图2仅作为画风与漫画表现力参考：请学习图2那种**清秀灵动、漫画感极强的日系 Q 版表情包画风**。\n\n"
+            "- 图1是目标角色设定图：角色外貌、发型、发色、渐变、呆毛、发饰、瞳色与服装特征遵循图1（绝对不要把图2的猫耳、黑发夹或深色衣服套给图1角色！），同时请将图1服饰上的繁复绒毛质感、细碎褶皱与素描排线**大幅简化为干净平滑的纯色块**。\n"
+            "- 图2仅作为画风与漫画表现力参考：请学习图2那种**清秀灵动、漫画感极强、极其干净平滑的日系 Q 版表情包画风**。\n\n"
             "【必须精准复刻的视觉特征】：\n"
         )
     else:
         style_ref_clause = (
-            "将图1中的角色绘制为 3×3 矩阵排列的 9 张“漫画夸张表现力极强”的日系 Q 版贴纸表情包（外貌特征严格遵循图1）：\n"
+            "将图1中的角色绘制为 3×3 矩阵排列的 9 张“漫画夸张表现力极强”的日系 Q 版贴纸表情包（外貌特征严格遵循图1，服饰细节大幅简化为干净平涂）：\n"
         )
     return (
         f"{style_ref_clause}"
         "1. 体型与脸型（极端重要）：采用**纤细灵动的日系 Q 版比例**——保留清秀小巧的瓜子/鹅蛋下巴与瘦削脸颊，**严禁把脸画得圆鼓鼓或把身材画得臃肿肥胖**！四肢与肩颈纤细灵活，富有动感。\n"
-        "2. 线条与色彩对比：采用**清晰有力、略带漫画笔锋的深紫灰/深蓝黑动漫描线**（crisp expressive anime ink outline），搭配色彩明快清亮、对比鲜明的干净平涂赛璐璐色块（不要发灰发白，也不要任何鱼鳞纹、噪点、网点或油画肌理）。\n"
-        "3. 漫画式夸张颜艺与小道具（核心灵魂）：不要画千篇一律的乖巧微笑！必须画出像图2那样戏剧化、情绪拉满的夸张动作与搞笑道具，9 格分别为：\n"
+        "2. 线条与上色（极端重要·去鱼鳞纹）：采用**清晰有力、极度光滑均匀的深紫灰/深蓝黑动漫描线**，搭配**极其平滑纯净的矢量平涂赛璐璐色块**（ultra-smooth flat cel-shading，颜色过渡干净利落）。**严禁保留图1的素描/毛绒笔触，严禁任何鱼鳞纹、噪点、颗粒、网点、水彩晕染或高光杂色**！\n"
+        "3. 漫画式夸张颜艺与小道具（核心灵魂）：不要画千篇一律的乖巧微笑！9 格分别为：\n"
         "   - (1) 黑化阴沉：额头压下大块紫黑阴影，面无表情掏出亮晶晶小刀（气泡 `...`）\n"
         "   - (2) 哭成水滩：委屈到整个人瘫扁融化在一滩浅蓝眼泪水洼里\n"
         "   - (3) 狂喜欢呼：`> <` 闭眼张大嘴高举双臂欢呼，飘红心与红色手写 `Suki!!`\n"
@@ -133,7 +155,7 @@ def build_sticker_prompt(has_style_ref: bool, user_prompt: str = "") -> str:
         "   - (7) 死鱼眼无语：半睁冷漠死鱼眼放空，旁带蓝色省略号气泡\n"
         "   - (8) 元气大笑：开心眨眼或张嘴大笑，双手比耶/比心，旁带音符或闪光\n"
         "   - (9) 墙角暗中观察：从左侧竖直门框边缘探出半个脑袋和一只小手偷偷张望\n"
-        "4. 纯白底与贴纸白边：背景必须为纯白色（#FFFFFF，不要黑底！），3×3 整齐排列 9 个贴纸，每个贴纸外围带有粗细均匀的白色剪纸轮廓与清晰浅灰外框，贴纸之间保留宽阔干净的纯白间隔。"
+        "4. 纯白底与贴纸白边：整张画布背景必须是**100% 均匀纯白色（#FFFFFF，无任何灰黑渐变或阴影！）**，3×3 整齐排列 9 个贴纸，每个贴纸外围带有粗细均匀的白色剪纸轮廓与极细浅灰外框，贴纸之间保留宽阔干净的纯白间隔。"
         f"{user_extra}"
     )
 

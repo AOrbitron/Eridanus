@@ -200,6 +200,7 @@ async def gptimage2_edit(
     aspect_ratio: Optional[str] = None,
     resolution: Optional[str] = None,
     max_retries: Optional[int] = None,
+    background: Optional[str] = None,
 ) -> str:
     """
     调用遵循 OpenAI `/v1/images/edits` 标准的 gptimage2 图像编辑接口，
@@ -233,6 +234,8 @@ async def gptimage2_edit(
         "output_format": params["output_format"],
         "n": "1",
     }
+    if background:
+        form_data["background"] = str(background).strip().lower()
 
     last_err: Optional[Exception] = None
     for attempt in range(1, max(1, retries) + 1):
