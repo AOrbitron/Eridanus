@@ -231,6 +231,24 @@ def decrypt_pixel_shuffle(img_bytes: bytes, password: str = "1234") -> bytes:
         return img_bytes
 
 
+def safe_parse_json(resp: httpx.Response) -> Any:
+    """安全解析 HTTP 响应为 JSON，兼容 UTF-8、GBK、GB18030、CP936 等多编码，并防止服务端报错时抛出 UnicodeDecodeError"""
+    content = resp.content
+    try:
+        return json.loads(content.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        pass
+
+    for enc in ("gb18030", "gbk", "cp936", "latin1"):
+        try:
+            return json.loads(content.decode(enc))
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            continue
+
+    preview = content[:250].decode("utf-8", errors="replace")
+    raise RuntimeError(f"服务端响应不是有效 JSON (状态码 {resp.status_code}): {preview}")
+
+
 async def optimize_prompt_with_llm(user_prompt: str, config) -> Dict[str, Any]:
     """
     实验性功能：调用主回复模型 (gemini-3.8-flash 或 core_reply) 对生图节点和提示词进行智能控制。
@@ -711,7 +729,7 @@ async def upload_image_to_comfyui(img_source: Union[bytes, str, Path], base_url:
     async with httpx.AsyncClient(timeout=30.0, headers=client_headers, verify=False) as client:
         resp = await client.post(upload_url, files=files, data=data)
         if resp.status_code == 200:
-            res_data = resp.json()
+            res_data = safe_parse_json(resp)
             return res_data.get("name", filename)
         else:
             raise RuntimeError(f"上传图片至 ComfyUI 失败 ({resp.status_code}): {resp.text}")
@@ -968,10 +986,27 @@ async def comfyui_draw(
             # 1. 提交任务到 /prompt
             prompt_resp = await http_client.post(f"{base_url}/prompt", json=payload)
             if prompt_resp.status_code != 200:
-                raise RuntimeError(f"ComfyUI /prompt 响应错误 ({prompt_resp.status_code}): {prompt_resp.text}")
+                err_text = ""
+                for enc in ("utf-8", "gb18030", "gbk", "cp936"):
+                    try:
+                        err_text = prompt_resp.content.decode(enc)
+                        break
+                    except UnicodeDecodeError:
+                        pass
+                if not err_text:
+                    err_text = prompt_resp.content[:300].decode("utf-8", errors="replace")
+                raise RuntimeError(f"ComfyUI /prompt 响应错误 ({prompt_resp.status_code}): {err_text}")
 
-            prompt_data = prompt_resp.json()
-            prompt_id = prompt_data.get("prompt_id")
+            prompt_data = safe_parse_json(prompt_resp)
+            if isinstance(prompt_data, dict):
+                if "error" in prompt_data:
+                    err_val = prompt_data["error"]
+                    err_msg = err_val.get("message") or str(err_val) if isinstance(err_val, dict) else str(err_val)
+                    raise RuntimeError(f"ComfyUI /prompt 报错: {err_msg}")
+                if "node_errors" in prompt_data and prompt_data["node_errors"]:
+                    raise RuntimeError(f"ComfyUI 节点验证失败: {prompt_data['node_errors']}")
+
+            prompt_id = prompt_data.get("prompt_id") if prompt_data else None
             if not prompt_id:
                 raise RuntimeError(f"ComfyUI 未返回 prompt_id: {prompt_data}")
 
@@ -986,7 +1021,7 @@ async def comfyui_draw(
                 try:
                     history_resp = await http_client.get(f"{base_url}/history/{prompt_id}")
                     if history_resp.status_code == 200:
-                        history_data = history_resp.json()
+                        history_data = safe_parse_json(history_resp)
                         if prompt_id in history_data:
                             task_history = history_data[prompt_id]
                             outputs = task_history.get("outputs", {})
@@ -1169,10 +1204,27 @@ async def comfyui_img2img(
         async with httpx.AsyncClient(timeout=timeout, headers=client_headers, follow_redirects=True, verify=False) as http_client:
             prompt_resp = await http_client.post(f"{base_url}/prompt", json=payload)
             if prompt_resp.status_code != 200:
-                raise RuntimeError(f"ComfyUI /prompt 响应错误 ({prompt_resp.status_code}): {prompt_resp.text}")
+                err_text = ""
+                for enc in ("utf-8", "gb18030", "gbk", "cp936"):
+                    try:
+                        err_text = prompt_resp.content.decode(enc)
+                        break
+                    except UnicodeDecodeError:
+                        pass
+                if not err_text:
+                    err_text = prompt_resp.content[:300].decode("utf-8", errors="replace")
+                raise RuntimeError(f"ComfyUI /prompt 响应错误 ({prompt_resp.status_code}): {err_text}")
 
-            prompt_data = prompt_resp.json()
-            prompt_id = prompt_data.get("prompt_id")
+            prompt_data = safe_parse_json(prompt_resp)
+            if isinstance(prompt_data, dict):
+                if "error" in prompt_data:
+                    err_val = prompt_data["error"]
+                    err_msg = err_val.get("message") or str(err_val) if isinstance(err_val, dict) else str(err_val)
+                    raise RuntimeError(f"ComfyUI /prompt 报错: {err_msg}")
+                if "node_errors" in prompt_data and prompt_data["node_errors"]:
+                    raise RuntimeError(f"ComfyUI 节点验证失败: {prompt_data['node_errors']}")
+
+            prompt_id = prompt_data.get("prompt_id") if prompt_data else None
             if not prompt_id:
                 raise RuntimeError(f"ComfyUI 未返回 prompt_id: {prompt_data}")
 
@@ -1186,7 +1238,7 @@ async def comfyui_img2img(
                 try:
                     history_resp = await http_client.get(f"{base_url}/history/{prompt_id}")
                     if history_resp.status_code == 200:
-                        history_data = history_resp.json()
+                        history_data = safe_parse_json(history_resp)
                         if prompt_id in history_data:
                             task_history = history_data[prompt_id]
                             outputs = task_history.get("outputs", {})
