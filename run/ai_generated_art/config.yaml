@@ -53,7 +53,7 @@ gptimage2:
   quality: "medium" # OpenAI 标准质量（low / medium / high / standard / hd）
   output_format: "png" # 输出格式（png / jpeg / webp）
   timeout: 180 # 请求超时时间（秒）
-  sticker_style_ref: "data/system/sticker_template_3x3.png" # 表情包画风参考图片路径
+  sticker_style_ref: "data/system/sticker_style_ref_16.png" # 表情包画风参考图片路径（默认使用软萌团子贴纸风格参考）
   sticker_resolution: "2K" # 表情包生成分辨率
   aspect_ratio: '1:1'  # 生成图像的宽高比
   resolution: "2K"  # 1K 或 2K

@@ -105,6 +105,39 @@ def split_grid_3x3(image_bytes: bytes, output_folder: str) -> list:
 split_stickers = split_grid_3x3
 
 
+def build_sticker_prompt(has_style_ref: bool, user_prompt: str = "") -> str:
+    """构建对齐 sticker_style_ref_16 灵动瘦脸漫画风的纯白底 3x3 贴纸表情包提示词"""
+    user_extra = f"\n附加需求与偏好：{user_prompt.strip()}" if user_prompt and user_prompt.strip() else ""
+    if has_style_ref:
+        style_ref_clause = (
+            "【严格分图参考规则】：\n"
+            "- 图1是目标角色设定图：角色外貌、发型、发色、渐变、呆毛、发饰、瞳色与服装特征必须 100% 严格遵循图1（绝对不要把图2的猫耳、黑发夹或深色衣服套给图1角色！）。\n"
+            "- 图2仅作为画风与漫画表现力参考：请学习图2那种**清秀灵动、漫画感极强的日系 Q 版表情包画风**。\n\n"
+            "【必须精准复刻的视觉特征】：\n"
+        )
+    else:
+        style_ref_clause = (
+            "将图1中的角色绘制为 3×3 矩阵排列的 9 张“漫画夸张表现力极强”的日系 Q 版贴纸表情包（外貌特征严格遵循图1）：\n"
+        )
+    return (
+        f"{style_ref_clause}"
+        "1. 体型与脸型（极端重要）：采用**纤细灵动的日系 Q 版比例**——保留清秀小巧的瓜子/鹅蛋下巴与瘦削脸颊，**严禁把脸画得圆鼓鼓或把身材画得臃肿肥胖**！四肢与肩颈纤细灵活，富有动感。\n"
+        "2. 线条与色彩对比：采用**清晰有力、略带漫画笔锋的深紫灰/深蓝黑动漫描线**（crisp expressive anime ink outline），搭配色彩明快清亮、对比鲜明的干净平涂赛璐璐色块（不要发灰发白，也不要任何鱼鳞纹、噪点、网点或油画肌理）。\n"
+        "3. 漫画式夸张颜艺与小道具（核心灵魂）：不要画千篇一律的乖巧微笑！必须画出像图2那样戏剧化、情绪拉满的夸张动作与搞笑道具，9 格分别为：\n"
+        "   - (1) 黑化阴沉：额头压下大块紫黑阴影，面无表情掏出亮晶晶小刀（气泡 `...`）\n"
+        "   - (2) 哭成水滩：委屈到整个人瘫扁融化在一滩浅蓝眼泪水洼里\n"
+        "   - (3) 狂喜欢呼：`> <` 闭眼张大嘴高举双臂欢呼，飘红心与红色手写 `Suki!!`\n"
+        "   - (4) 呆萌吃瓜：双手捧着一大块红西瓜，`w` 嘴圆眼专心啃\n"
+        "   - (5) 羞耻/气急喷蒸汽：脸颊爆红，双手捂脸或抱拳，头顶左右喷出漫画白气\n"
+        "   - (6) 晕头转向：两眼变成 `@ @` 螺旋蚊香眼，头发乱翘冒小星星\n"
+        "   - (7) 死鱼眼无语：半睁冷漠死鱼眼放空，旁带蓝色省略号气泡\n"
+        "   - (8) 元气大笑：开心眨眼或张嘴大笑，双手比耶/比心，旁带音符或闪光\n"
+        "   - (9) 墙角暗中观察：从左侧竖直门框边缘探出半个脑袋和一只小手偷偷张望\n"
+        "4. 纯白底与贴纸白边：背景必须为纯白色（#FFFFFF，不要黑底！），3×3 整齐排列 9 个贴纸，每个贴纸外围带有粗细均匀的白色剪纸轮廓与清晰浅灰外框，贴纸之间保留宽阔干净的纯白间隔。"
+        f"{user_extra}"
+    )
+
+
 # --- 插件主类 ---
 def main(bot: ExtendBot, config: YAMLManager):
     # 存储格式: {user_id: {"image": [path1], "text": [prompt1]}}
@@ -147,25 +180,26 @@ def main(bot: ExtendBot, config: YAMLManager):
             base_url = api_config.get("base_url", "http://api.apollodorus.xyz/v1")
             apikey = api_config.get("apikey", "")
             model = api_config.get("model", "gpt-image-2.5-flare")
-            resolution = api_config.get("sticker_resolution") or api_config.get("resolution") or "2K"
-            style_ref_path = api_config.get("sticker_style_ref") or "data/system/sticker_style_ref.png"
+            resolution = api_config.get("sticker_resolution") or "1K"
+            style_ref_path = api_config.get("sticker_style_ref") or "data/system/sticker_style_ref_16.png"
             max_retry = api_config.get("max_retry", 5)
 
-            # 兼容不同相对路径解析风格参考图
-            if style_ref_path and not os.path.exists(style_ref_path):
+            # 兼容不同相对路径解析风格参考图（优先使用 sticker_style_ref_16.png 作为软萌团子风参考）
+            if not style_ref_path or not os.path.exists(style_ref_path):
                 candidates = [
-                    os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), style_ref_path),
+                    os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), style_ref_path) if style_ref_path else "",
+                    os.path.join("data", "system", "sticker_style_ref_16.png"),
+                    os.path.join(os.path.dirname(__file__), "assets", "test_result_1.png"),
+                    os.path.join("data", "system", os.path.basename(style_ref_path)) if style_ref_path else "",
                     os.path.join(os.path.dirname(__file__), "assets", "sticker_style_ref.png"),
-                    os.path.join("data", "system", os.path.basename(style_ref_path)),
                 ]
                 for c in candidates:
-                    if os.path.exists(c):
+                    if c and os.path.exists(c):
                         style_ref_path = c
                         break
 
-            # 构造 Prompt（完全对齐 test_result_1.png 核心提示词与画风）
+            # 构造 Prompt（对齐 test_result_1.png 干净平涂半身大头贴纸风格，消除鱼鳞纹）
             user_prompt = " ".join(data_store["text"]).strip() if data_store["text"] else ""
-            user_extra = f"\n附加需求与偏好：{user_prompt}" if user_prompt else ""
 
             # 准备图片
             img_path = data_store["image"][0]
@@ -176,27 +210,7 @@ def main(bot: ExtendBot, config: YAMLManager):
                     src_images.append(style_ref_path)
                     has_style_ref = True
 
-                if has_style_ref:
-                    final_prompt = (
-                        "角色严格参考图1中的人物外貌特征（发型发色、眼睛、服装等要素）。\n"
-                        "艺术风格完全参考图2：\n"
-                        "1. 风格特点：极简萌系Q版（Chibi / SD）、可爱二头身动漫贴纸表情包、大头小身体。\n"
-                        "2. 边框质感：每个表情角色周围均带有白色粗贴纸轮廓（die-cut white sticker border），纯白色背景。\n"
-                        "3. 线条色彩：柔和清晰的描线，简约平涂赛璐璐色块，清新柔和的色调，可爱腮红。\n"
-                        "4. 排版构图：生成 3x3 矩阵排列的 9 个不同动作与神态的表情包贴纸，排列整齐，贴纸之间必须有清晰的白色空白间隔（wide white gaps）。\n"
-                        "5. 包含丰富的日常表情（如无语发呆带省略号气泡、开心大笑、生气气鼓鼓、委屈大哭、打瞌睡、傲娇斜眼、比心可爱、疑惑问号、震惊目瞪口呆等）。"
-                        f"{user_extra}"
-                    )
-                else:
-                    final_prompt = (
-                        "将参考图中的角色绘制为 3x3 矩阵排列的 9 张日系萌系Q版表情包贴纸：\n"
-                        "1. 风格特点：极简萌系二头身Q版（Chibi / SD）、可爱二头身动漫贴纸表情包、大头小身体。\n"
-                        "2. 边框质感：每个表情角色周围均带有白色粗贴纸轮廓（die-cut white sticker border），纯白色背景。\n"
-                        "3. 线条色彩：柔和清晰的描线，简约平涂赛璐璐色块，清新柔和的色调，可爱腮红。\n"
-                        "4. 排版构图：生成 3x3 矩阵排列的 9 个不同动作与神态的表情包贴纸，排列整齐，贴纸之间必须有清晰的白色空白间隔（wide white gaps）。\n"
-                        "5. 包含丰富的日常表情（如无语发呆带省略号气泡、开心大笑、生气气鼓鼓、委屈大哭、打瞌睡、傲娇斜眼、比心可爱、疑惑问号、震惊目瞪口呆等）。\n"
-                        f"{user_extra}"
-                    )
+                final_prompt = build_sticker_prompt(has_style_ref=has_style_ref, user_prompt=user_prompt)
 
                 # 提交后清理当前用户状态
                 saved_images = list(sticker_user_dict[uid]["image"])
