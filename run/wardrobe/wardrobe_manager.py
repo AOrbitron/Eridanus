@@ -38,25 +38,19 @@ RECENT_QZONE_OUTFIT_LIMIT = 3
 RETIRED_DAILY_FIELDS = ("today_default_outfit", "today_default_tags", "today_default_no_hat", "last_daily_date")
 
 DEFAULT_CHARACTER_ANCHOR = (
-    "1girl, teenager, solo, virtual youtuber, silver-white hair, grey hair, subtle pale blue hair tips, gradient hair, "
-    "long hair, very long hair, wispy parted bangs, single ahoge, soft sidelocks framing face, single side bun, "
-    "one side up, white flower hair ornament, (dusty blue and pale pink gradient eyes:1.25), "
-    "(light blue eyes with pink highlights:1.2), (delicate long eyelashes:1.2), (detailed expressive eyes:1.2), "
-    "cute round face, normal human ears"
+    "1girl, teenager, solo, grey hair, gradient hair, multicolored hair, blue hair, "
+    "light purple-light blue mixed eyes, (Side swept hair:1.6), ahoge, bangs, middle long hair, (round face:1.2)"
 )
 
 DEFAULT_ART_ANCHOR = (
-    "masterpiece, best quality, safe, (lineart:1.45), (hand-drawn:1.5), (sketch:1.3), "
-    "(anime coloring:1.45), (cel shading:1.35), clean ink lines, japanese anime style, "
-    "@shu, (Rella:1.05), (@4x0style:0.75), <lora:re-000180:0.35>, <lora:chen-bin_v4.0:0.20>"
+    "(Rella:1.2), (chen bin:1.3), virtual youtuber, (starshadowmagician:1.2), "
+    "masterpiece, extremely detailed, lineart, (hand-drawn:1.3), (sketch:1.2), "
+    "Picasso style, Van Gogh's almond blossoms, <lora:DeniaV1-Nuclear1811-IL:0.3>"
 )
 
 DEFAULT_NEGATIVE_PROMPT = (
-    "worst quality, low quality, score_1, score_2, score_3, lowres, bad anatomy, bad hands, text, error, "
-    "missing fingers, extra digit, fewer digits, cropped, normal quality, jpeg artifacts, signature, watermark, "
-    "username, blurry, animal ears, cat ears, fox ears, head wings, hair wings, wing ears, feathered ears, "
-    "elf ears, horns, antlers, protruding side tufts, sharp spiky side hair, multiple ahoge, teeth, showing teeth, "
-    "messy hair, tangled hair, split ends, rough sketch, rough lines, nsfw"
+    "lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, "
+    "cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry, nsfw"
 )
 
 
@@ -416,7 +410,7 @@ Prompt 公式：
 ⚠️ 绘图原则与换装规则：
 - 构图要有变化（不要全是正面大头照，可以尝试不同视角）。
 - 穿搭以当前完整套装为准；睡衣不混入外出毛衣、围巾或靴子；裙装不叠加无关长裤。
-- 保留手绘日漫风格 (lineart:1.45), (hand-drawn:1.5), (sketch:1.3), (anime coloring:1.45), (cel shading:1.35)。
+- 保留手绘风格 lineart, (hand-drawn:1.3), (sketch:1.2)。
 - 调用绘图必须严格遵守函数调用规则，不要直接把提示词丢到正文。
 - 【重点·换装联动】：当用户明确要求换装、换衣服、穿上特定服饰，或者在请求自拍/合照时指定了新服装，你在调用绘图工具（call_text2img）生成图片的同时，必须同时调用 call_change_outfit 工具更新衣橱穿着！这样你之后的日常状态和后续照片就会一直保持这套新穿搭。"""
         return section

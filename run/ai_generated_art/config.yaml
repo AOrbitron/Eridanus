@@ -10,39 +10,33 @@ llm_config:
   model: ""
   temperature: 0.7
 
-# ComfyUI 绘图配置 (支持 Anima DiT 架构及实验性主回复模型控制节点)
+# ComfyUI 绘图配置 (默认 Illustrious / WAI-NSFW-Illustrious v17.0 SDXL 架构)
 comfyui:
   url: "" # ComfyUI 服务地址（Cloudflare Tunnel 穿透URL）
   comfyui画图: true # 是否开启 ComfyUI 后端
   主模型控制生图: false # 实验性功能：是否调用主回复模型/配置的LLM来智能解析提示词、匹配LoRA及生成节点
-  default_unet: "anima-base-v1.0.safetensors" # 默认UNet底模
-  default_clip: "qwen_3_06b_base.safetensors" # 默认CLIP
-  default_vae: "qwen_image_vae.safetensors" # 默认VAE
-  default_lora: "lily_wuthering_waves_v1.0_Anima.safetensors" # 默认/首选LoRA模型
-  default_lora_strength: 0.9 # 默认LoRA权重
-  # 固定链式加载的 LoRA 列表（轻量化配置：仅保留轻度 Rella 与低权重鬼针草，避免过重叠加扭曲角色原本五官）
-  fixed_loras:
-    - name: "re-000180.safetensors"
-      strength: 0.35
-      trigger: "@shu, (Rella:1.05)"
-    - name: "chen-bin_v4.0.safetensors"
-      strength: 0.20
-      trigger: "(@4x0style:0.75)"
-  default_steps: 30 # 默认采样步数 (28-60)
-  default_cfg: 5.0 # 默认CFG
-  default_sampler: "er_sde" # 默认采样器
-  default_scheduler: "beta" # 默认调度算法（服务端若安装 RES4LYF 则支持 beta57，否则自动使用 beta）
+  default_ckpt: "waiIllustriousSDXL_v170.safetensors" # 默认 Illustrious/SDXL 一体化 Checkpoint 底模
+  default_unet: "waiIllustriousSDXL_v170.safetensors" # 兼容字段：指向默认底模文件名
+  clip_skip: -2 # Illustrious/SDXL 推荐 Clip Skip 2 (-2)
+  default_lora: "DeniaV1-Nuclear1811-IL.safetensors" # 默认/兜底 LoRA 模型
+  default_lora_strength: 0.3 # 默认 LoRA 权重
+  # 固定链式加载的 LoRA 列表（默认留空，由衣橱 art_anchor 中的 <lora:DeniaV1-Nuclear1811-IL:0.3> 自动提取串联，避免重复叠加）
+  fixed_loras: []
+  default_steps: 28 # 默认采样步数 (28-60)
+  default_cfg: 5.5 # 默认CFG (Illustrious 推荐 5.0~7.0)
+  default_sampler: "euler_ancestral" # 默认采样器 (Illustrious 推荐 euler_ancestral)
+  default_scheduler: "normal" # 默认调度算法 (normal / karras)
   default_width: 1280 # 默认出图宽度 (1200-1800)
   default_height: 1728 # 默认出图高度 (1200-1800)
   timeout: 300 # 超时时间(秒)
   decrypt_encrypted_image: true # 是否对 pixel_shuffle 加密图片自动还原解密
   decrypt_password: "1234" # 解密密码
-  enable_teacache: true # 是否开启推理缓存加速（优先使用 AnimaTeaCache，未安装则自动使用 ComfyUI 原生 EasyCache）
-  teacache_thresh: 0.35 # TeaCache 缓存阈值（参考工作流推荐 0.35）
-  enable_hires_fix: false # 默认关闭耗时的两阶段 Hires Fix（单阶段高速直出，避免耗时翻倍与面部偏移）
-  hires_scale: 1.333 # 高清精修放大倍数（仅当手动开启 enable_hires_fix 时生效）
-  hires_denoise: 0.38 # 高清精修第二阶段重绘幅度
-  hires_steps: 15 # 高清精修第二阶段采样步数
+  enable_teacache: false # Illustrious SDXL 无需 DiT TeaCache
+  teacache_thresh: 0.35
+  enable_hires_fix: false # 默认关闭耗时的两阶段 Hires Fix
+  hires_scale: 1.333
+  hires_denoise: 0.38
+  hires_steps: 15
   default_img2img_denoise: 0.65 # 以图生图默认重绘幅度 (0.2~0.85)
 
 # OpenAI 官方 DALL-E 接口配置 (或兼容 OpenAI images/generations 的第三方中转)

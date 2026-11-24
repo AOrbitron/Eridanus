@@ -1,4 +1,5 @@
 ﻿# QQ空间插件配置
+# 说明：角色绘图提示词配置已统一读取 run/wardrobe/config.yaml；绘画后端及参数配置已统一读取 run/ai_generated_art/config.yaml
 cookie设置:
   保活: true               # 是否开启保活探测
   保活间隔_秒: 1800        # 保活探测间隔（建议>=1800秒，温和低频，防止风控）
@@ -9,11 +10,11 @@ cookie设置:
   早安:
     enable: true
     time: 8/30           # 推送时间 (时/分)
-    绘制图片: true         # 是否通过SD绘制配图
+    绘制图片: true         # 是否通过绘图后端绘制配图
   晚安:
     enable: true
     time: 22/30          # 推送时间 (时/分)
-    绘制图片: true         # 是否通过SD绘制配图
+    绘制图片: true         # 是否通过绘图后端绘制配图
 
 vtuber日常互动:
   enable: true             # 是否开启活人感/Vtuber风格日常动态
@@ -23,27 +24,8 @@ vtuber日常互动:
   活跃时间段: 10-21      # 仅在白天活跃时段判断触发
   绘制图片概率: 0.7        # 是否配图的概率
 
-sd绘画设置:
-  backend: "sd"     # 绘画后端：comfyui 或 sd (留空则默认遵循 ai_generated_art 的文生图function_calling后端)
-  sdUrl: "" # Stable Diffusion API 地址 (若使用 SD 后端)
-  apikey: "" #sd apikey，如果需要的话
-  steps: 34              # 采样步数
-  cfg_scale: 7.0         # 提示词引导系数(对齐SDXL)
-  width: 1024            # 图片宽度
-  height: 1024           # 图片高度
-  timeout: 120           # 绘画接口超时时间(秒)
-  max_retries: 3         # 绘画接口失败重试次数(默认3次)
-  retry_delay_seconds: 600   # 重试等待间隔时间(秒)，默认600秒(10分钟)，支持自定义
-
 动态互动:
   enable_comment_reply: true  # 是否自动回复空间好友在Bot动态下的评论
   check_interval_秒: 180      # 评论巡检轮询间隔(秒)
   # 评论回复个性化优化引导词（可自由补充期望回复风格、语气或人设禁忌）
   reply_guidance: "口吻生动鲜活，像关系很好的朋友或Vtuber在自己动态下神回复！严禁车轱辘复读相同的借口或固定句式，针对不同好友的评论给出不同角度的吐槽、反问、接梗、求饶或傲娇反击；严禁在回复中使用任何括号动作描写如(气呼呼)。"
-
-# 角色绘图提示词设置（由用户自定义不同Bot角色的外貌与画风，不依赖角色卡格式，留空则使用默认形象）
-角色绘图设置:
-  基础形象设定: "1girl, teenager, solo, virtual youtuber, silver-white hair, grey hair, subtle pale blue hair tips, gradient hair, long hair, very long hair, wispy parted bangs, single ahoge, soft sidelocks framing face, single side bun, one side up, white flower hair ornament, (dusty blue and pale pink gradient eyes:1.25), (light blue eyes with pink highlights:1.2), (delicate long eyelashes:1.2), cute round face, normal human ears"
-  画风与模型设定: "masterpiece, best quality, (lineart:1.45), (hand-drawn:1.5), (sketch:1.3), (anime coloring:1.45), (cel shading:1.35), clean ink lines, japanese anime style, @shu, (Rella:1.05), (@4x0style:0.75), <lora:re-000180:0.35>, <lora:chen-bin_v4.0:0.20>"
-  默认服装设定: "(cream oversized cable knit cardigan:1.1), off-white camisole, ribbed top, brown pleated wool skirt, beige knee-high socks, retro loafer shoes, casual daily wear"
-  负面提示词: "worst quality, low quality, score_1, score_2, score_3, lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, normal quality, jpeg artifacts, signature, watermark, username, blurry, animal ears, head wings, hair wings, horns, multiple ahoge, teeth, showing teeth, rough sketch, nsfw"

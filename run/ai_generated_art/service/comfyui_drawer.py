@@ -32,78 +32,57 @@ from run.ai_generated_art.service.prompt_optimizer import (
     map_aspect_ratio_to_resolution,
 )
 
-# 预设已知常用 LoRA 与底模映射列表（供 LLM 智能选取与触发词自动注入）
+# 预设已知 Illustrious LoRA 映射列表（供 LLM 智能选取、提取与触发词自动注入）
 KNOWN_LORAS = [
     {
-        "name": "chen-bin_v4.0.safetensors",
-        "keywords": ["chen bin", "chenbin", "鬼针草", "细致丝袜", "网袜", "华丽质感", "二次元插画", "质感丝袜"],
-        "trigger": "@4x0style",
+        "name": "DeniaV1-Nuclear1811-IL.safetensors",
+        "keywords": ["deniav1", "nuclear1811", "bot", "自设", "默认画风"],
+        "trigger": "",
+        "default_strength": 0.3,
+        "description": "Illustrious 默认角色/画风平衡 LoRA，推荐权重 0.3"
+    },
+    {
+        "name": "Denia-10.safetensors",
+        "keywords": ["denia", "达妮娅", "wuthering waves"],
+        "trigger": "Denia",
         "default_strength": 0.8,
-        "description": "Chen bin(鬼针草)画风，精湛细腻的面料与丝袜编织网纹，高光阴影层次"
+        "description": "鸣潮达妮娅 Illustrious 角色 LoRA"
     },
     {
-        "name": "re-000180.safetensors",
-        "keywords": ["rella", "透明感", "水彩少女", "通透光感", "高饱和细腻发丝", "水彩插画"],
-        "trigger": "@shu, (Rella:1.2)",
-        "default_strength": 0.8,
-        "description": "Rella画师风格，标志性通透光感、精致水彩质感与细腻发丝"
-    },
-    {
-        "name": "starshadowmagician_style_v2.safetensors",
-        "keywords": ["starshadowmagician", "影法师", "厚涂", "星空", "华丽厚涂", "梦幻魔幻", "大场景厚涂"],
-        "trigger": "(starshadowmagician:1.2), (hand-drawn:1.3)",
-        "default_strength": 1.2,
-        "description": "影法师画风，华丽厚涂与梦幻星空魔幻氛围，推荐权重1.2~1.5"
-    },
-    {
-        "name": "saltystyle_v1_epoch20.safetensors",
-        "keywords": ["saltywww", "咸鱼", "潮酷平涂", "日系平涂", "清新线条", "现代少女", "街头潮服"],
-        "trigger": "@saltywww",
+        "name": "lily_illustrious_xl_v2.safetensors",
+        "keywords": ["lily", "莉莉", "wuwa_lily", "wuthering waves", "鸣潮"],
+        "trigger": "wuwa_lily",
         "default_strength": 0.85,
-        "description": "saltywww画风，日系清新潮酷平涂、干净干练的现代少女感"
+        "description": "鸣潮莉莉 Illustrious v2.0 角色 LoRA"
     },
     {
-        "name": "onineko_v2.2_epoch40.safetensors",
-        "keywords": ["onineko", "おにねこ", "鬼猫", "糖果色", "萌系萝莉", "梦幻繁复", "华丽多饰品", "甜美洛丽塔"],
-        "trigger": "@4x0style, onineko style",
+        "name": "Chibi.safetensors",
+        "keywords": ["chibi", "q版", "Q版", "二头身", "nunyu3", "萌版", "无边框"],
+        "trigger": "Chibi, no lineart",
         "default_strength": 0.85,
-        "description": "おにねこ(Onineko)画风，极其梦幻华丽的糖果色、繁复蕾丝与萌系萝莉少女"
+        "description": "Artist @nunyu3 Q版/Chibi 萌系平涂无描边画风 LoRA"
     },
     {
-        "name": "umeharasei_v1_epoch30.safetensors",
-        "keywords": ["umehara_sei", "umeharasei", "梅原晴", "水润肤色", "柔和插画", "清爽少女", "治愈系"],
-        "trigger": "@umehava",
+        "name": "odyk.safetensors",
+        "keywords": ["odyk", "jaggy lines", "粗粝线条", "笔触", "手绘粗糙感"],
+        "trigger": "odyk, jaggy lines",
         "default_strength": 0.8,
-        "description": "梅原晴(umehara_sei)画风，清爽透明感、柔和水润肤色与治愈系二次元插画"
+        "description": "Odyk 独特锯齿手绘线条表现力画风 LoRA"
     },
     {
-        "name": "lily_20.safetensors",
-        "keywords": ["lily", "莉莉", "wuthering waves", "鸣潮", "粉瞳", "白发粉瞳", "花朵发饰"],
-        "trigger": "lily (wuthering waves), 1girl, pink eyes, gradient hair, flower hair ornament",
-        "default_strength": 0.95,
-        "description": "鸣潮莉莉专属角色外观与服饰"
+        "name": "detailed hand focus style illustriousXL v1.1.safetensors",
+        "keywords": ["hand", "hands", "手部", "牵手", "手指细节", "持物"],
+        "trigger": "",
+        "default_strength": 0.65,
+        "description": "Illustrious XL 精细手部与手指结构增强 LoRA"
     },
     {
-        "name": "garter_belt_anima_v1.0.safetensors",
-        "keywords": ["吊带袜", "garter belt", "garter", "大腿袜", "过膝袜", "蕾丝袜", "thighhighs"],
-        "trigger": "garter belt, thighhighs",
+        "name": "newPSG_v1.safetensors",
+        "keywords": ["吊带袜天使", "panty", "stocking", "psg", "美式卡通", "粗线条", "gradient hair"],
+        "trigger": "panty & stocking with garterbelt, gradient hair",
         "default_strength": 0.85,
-        "description": "精细吊带袜与过膝蕾丝袜细节强化"
+        "description": "吊带袜天使 v3.0 粗线条复古美式卡通风格 LoRA"
     },
-    {
-        "name": "newPSG_A3P_v1.safetensors",
-        "keywords": ["吊带袜天使", "panty", "stocking", "psg", "美式卡通", "粗线条", "复古画风"],
-        "trigger": "panty and stocking style, retro cartoon",
-        "default_strength": 0.9,
-        "description": "吊带袜天使粗线条美式复古卡通画风"
-    },
-    {
-        "name": "miaomiao_3d_harem_v1.0.safetensors",
-        "keywords": ["3d", "三维", "精细3d", "3d动漫", "3d渲染", "miaomiao", "手办质感"],
-        "trigger": "3d anime style, exquisite rendering, soft shadow",
-        "default_strength": 0.8,
-        "description": "MiaoMiao 3D 二次元高精手办与三维立体渲染感"
-    }
 ]
 
 # 屏蔽词列表
@@ -272,34 +251,32 @@ async def optimize_prompt_with_llm(user_prompt: str, config) -> Dict[str, Any]:
         for item in KNOWN_LORAS
     ])
 
-    system_instruction = f"""你是一个顶级的二次元动漫绘图与 ComfyUI 参数调控专家。你的任务是根据用户的中文或英文绘图要求，控制生成最完美的二次元日漫手绘风图片节点参数。
-服务端搭载 Anima DiT 动漫大模型（使用 Qwen3-0.6B 文本编码器）。请遵循以下专业规则：
-1. positive_prompt 必须转化为高质量 Danbooru 风格小写逗号分隔英文 tags，可辅以简短准确的英文视觉补充说明，绝不可包含任何中文。
-   【核心规范·角色与着装保护】：若输入的提示词中已包含角色外貌锚点（如 silver-white hair, grey hair, ahoge, single side bun, white flower hair ornament, dusty blue and pale pink gradient eyes, delicate long eyelashes 等）或服装穿搭（如开衫、百褶裙、吊带礼裙、睡裙等），必须完整严密保留这些核心设定标签，绝不可丢弃、改写或替换为不相关的发型！
-   【Anima 日漫手绘激活规则】：Anima 对权重敏感度与 SDXL 不同，常规权重 `1.2` 较弱；如需激活手绘日漫线稿感，需使用 `(lineart:1.45), (hand-drawn:1.5), (sketch:1.3), (anime coloring:1.45), (cel shading:1.35)`。
-   【严禁幻觉词条】：禁止使用 `feathered`（极易在头顶或耳侧生出羽毛角/兽耳翅）以及 `(side-swept hair:...)`！
-2. negative_prompt 必须包含基础画质保护与防兽耳/防头角保护（worst quality, low quality, lowres, score_1, score_2, score_3, 3d, realistic, animal ears, head wings, hair wings, horns, teeth, showing teeth, bad anatomy, bad hands 等）。
+    system_instruction = f"""你是一个顶级的二次元动漫绘图与 ComfyUI 参数调控专家。你的任务是根据用户的中文或英文绘图要求，控制生成最完美的二次元插画节点参数。
+服务端当前搭载 **WAI-NSFW-Illustrious v17.0 (SDXL Illustrious)** 大模型。请遵循以下专业规则：
+1. positive_prompt 必须完全转化为纯正、流畅的 **Danbooru 风格英文逗号分隔 tags**（例如 masterpiece, best quality, extremely detailed, 1girl, ...），绝不可包含任何中文或自然语言长段落。
+   【核心规范·角色与着装保护】：若输入的提示词中已包含角色外貌锚点（如 grey hair, gradient hair, blue hair, light purple-light blue mixed eyes, (Side swept hair:1.6), ahoge, bangs, middle long hair, (round face:1.2) 等）或画风与服装设定（如 (Rella:1.2), (chen bin:1.3), virtual youtuber, (starshadowmagician:1.2), lineart, (hand-drawn:1.3), (sketch:1.2), Picasso style, Van Gogh's almond blossoms, 开衫、百褶裙、吊带裙、睡裙等），必须完整严密保留这些核心设定标签，绝不可丢弃或改写！
+2. negative_prompt 给出标准 SDXL/Illustrious 负面标签（如 lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry）。
 3. 比例与尺寸推荐（所有宽高比必须严格在 1200 到 1800 之间，且为 64 的倍数）：
    - 竖图/全身/立绘：width=1280, height=1728 或 width=1216, height=1792
    - 横图/场景/壁纸：width=1728, height=1280 或 width=1792, height=1216
    - 正方形/头像：width=1536, height=1536
-4. 采样步数 steps 必须自主选在 28~60 之间（推荐 30），cfg 推荐 4.0~5.0。
-5. 采样器推荐 sampler_name="er_sde", scheduler="simple"（清透日漫平涂风）或 "beta"（细腻光影插画风）。
-6. 检查是否匹配到以下可用 LoRA：
+4. 采样步数 steps 必须自主选在 28~60 之间（推荐 28~35），cfg 推荐 5.0~7.0。
+5. 采样器推荐 sampler_name="euler_ancestral", scheduler="normal" 或 "karras"。
+6. 检查是否匹配到以下可用 Illustrious LoRA：
 {lora_desc}
-   - 如果用户需求明确匹配某种风格或角色（例如画莉莉、吊带袜、salty平涂、3D画风），请在 lora_name 中填入对应文件名，lora_strength 填 0.6~0.9，并在 positive_prompt 中加入其专属触发词。
+   - 如果用户需求明确匹配某种风格或角色（例如画莉莉、达妮娅、Q版、Odyk线条、精细手部、吊带袜天使画风），请在 lora_name 中填入对应文件名，lora_strength 填 0.6~0.9，并在 positive_prompt 中加入其专属触发词。
    - 若不匹配任何可用 LoRA，则 lora_name 设为 null，lora_strength 设为 0。
 
 你必须仅输出合法可解析的 JSON 对象，不得输出 markdown 代码块外多余文字：
 {{
-  "positive_prompt": "masterpiece, best quality, safe, (lineart:1.45), (hand-drawn:1.5), (sketch:1.3), ...",
-  "negative_prompt": "worst quality, low quality, lowres, ...",
+  "positive_prompt": "masterpiece, extremely detailed, ...",
+  "negative_prompt": "lowres, bad anatomy, bad hands, worst quality, low quality, ...",
   "width": 1280,
   "height": 1728,
-  "steps": 30,
-  "cfg": 4.5,
-  "sampler_name": "er_sde",
-  "scheduler": "simple",
+  "steps": 28,
+  "cfg": 5.5,
+  "sampler_name": "euler_ancestral",
+  "scheduler": "normal",
   "lora_name": null,
   "lora_strength": 0.0
 }}"""
@@ -413,23 +390,83 @@ async def get_server_capabilities(base_url: str) -> Dict[str, Any]:
     return caps
 
 
-def build_anima_workflow(
+def _is_anima_model(model_name: str) -> bool:
+    """判断目标模型是否为 Anima 拆分 UNet 架构（否则默认视为 Illustrious/SDXL 一体化 Checkpoint）"""
+    low = (model_name or "").lower()
+    return "anima" in low or "silvermoonmix" in low or "miaomiao" in low
+
+
+def _attach_lora_nodes(
+    prompt_nodes: Dict[str, Any],
+    cur_model_ref: List[Any],
+    cur_clip_ref: List[Any],
+    active_lora_list: List[Dict[str, Any]],
+    use_remap_lora: bool = False,
+    is_29b: bool = False,
+) -> Tuple[List[Any], List[Any]]:
+    """在 ComfyUI 工作流节点图中链式串联一个或多个 LoraLoader（兼容 2.9B AnimaLoRARemapTagLoader）"""
+    if use_remap_lora and is_29b and active_lora_list:
+        tag_text = " ".join(
+            f"<lora:{l_item['name'].replace('.safetensors', '')}:{float(l_item.get('strength', 0.8))}>,"
+            for l_item in active_lora_list if l_item.get("name")
+        )
+        prompt_nodes["92"] = {
+            "inputs": {
+                "text": tag_text,
+                "default_weight": 1,
+                "weight_multiplier": 1,
+                "auto_remap": True,
+                "save_remapped": False,
+                "extend_to_new_layers": False,
+                "extend_strength": 0.5,
+                "manifest": "Auto (Recommended)",
+                "model": cur_model_ref,
+                "clip": cur_clip_ref
+            },
+            "class_type": "AnimaLoRARemapTagLoader"
+        }
+        return ["92", 0], ["92", 1]
+
+    for idx, l_item in enumerate(active_lora_list):
+        ln = l_item.get("name")
+        ls = float(l_item.get("strength", 0.8))
+        if not ln:
+            continue
+        node_key = "5" if idx == 0 else str(50 + idx)
+        prompt_nodes[node_key] = {
+            "inputs": {
+                "model": cur_model_ref,
+                "clip": cur_clip_ref,
+                "lora_name": ln,
+                "strength_model": ls,
+                "strength_clip": ls
+            },
+            "class_type": "LoraLoader"
+        }
+        cur_model_ref = [node_key, 0]
+        cur_clip_ref = [node_key, 1]
+    return cur_model_ref, cur_clip_ref
+
+
+def build_illustrious_workflow(
     positive_prompt: str,
     negative_prompt: str,
     width: int = 1280,
     height: int = 1728,
     seed: int = -1,
-    steps: int = 30,
-    cfg: float = 5.0,
-    sampler_name: str = "er_sde",
-    scheduler: str = "beta",
-    unet_name: str = "anima-base-v1.0.safetensors",
+    steps: int = 28,
+    cfg: float = 5.5,
+    sampler_name: str = "euler_ancestral",
+    scheduler: str = "normal",
+    ckpt_name: Optional[str] = None,
+    unet_name: str = "waiIllustriousSDXL_v170.safetensors",
     clip_name: str = "qwen_3_06b_base.safetensors",
     vae_name: str = "qwen_image_vae.safetensors",
+    clip_skip: int = -2,
     lora_name: Optional[str] = None,
-    lora_strength: float = 0.9,
+    lora_strength: float = 0.8,
     loras: Optional[List[Dict[str, Any]]] = None,
-    filename_prefix: str = "ComfyUI_Anima",
+    filename_prefix: str = "ComfyUI_Illustrious",
     hires_fix: bool = False,
     hires_scale: float = 1.333,
     hires_denoise: float = 0.38,
@@ -438,51 +475,53 @@ def build_anima_workflow(
     teacache_thresh: float = 0.35,
     use_remap_lora: bool = False,
 ) -> Dict[str, Any]:
-    """构建标准 Anima DiT 架构的 ComfyUI API Prompt 节点图（支持 TeaCache/EasyCache 加速与 2.9B LoRA 重映射）"""
+    """
+    构建 ComfyUI API Prompt 节点图（默认 Illustrious/SDXL CheckpointLoaderSimple 架构；
+    若传入 Anima 系列模型名则自动兼容切换 UNETLoader 架构）。
+    """
     if seed == -1:
         seed = random.randint(1, 10**14)
 
-    is_29b = "29b" in unet_name.lower() or "2.9b" in unet_name.lower()
+    target_model = ckpt_name or unet_name
+    is_anima = _is_anima_model(target_model)
+    is_29b = is_anima and ("29b" in target_model.lower() or "2.9b" in target_model.lower())
 
-    prompt_nodes = {
-        "1": {
-            "inputs": {
-                "unet_name": unet_name,
-                "weight_dtype": "default"
-            },
+    prompt_nodes: Dict[str, Any] = {}
+    if is_anima:
+        prompt_nodes["1"] = {
+            "inputs": {"unet_name": target_model, "weight_dtype": "default"},
             "class_type": "UNETLoader"
-        },
-        "2": {
-            "inputs": {
-                "clip_name": clip_name,
-                "type": "stable_diffusion",
-                "device": "default"
-            },
+        }
+        prompt_nodes["2"] = {
+            "inputs": {"clip_name": clip_name, "type": "stable_diffusion", "device": "default"},
             "class_type": "CLIPLoader"
-        },
-        "3": {
-            "inputs": {
-                "vae_name": vae_name
-            },
+        }
+        prompt_nodes["3"] = {
+            "inputs": {"vae_name": vae_name},
             "class_type": "VAELoader"
         }
-    }
-
-    cur_model_ref = ["1", 0]
-    cur_clip_ref = ["2", 0]
-
-    # 2B 模型保留 ModelSamplingAuraFlow(shift=3.0)；2.9B 模型遵循最新工作流直连
-    if not is_29b:
-        prompt_nodes["4"] = {
-            "inputs": {
-                "model": cur_model_ref,
-                "shift": 3.0
-            },
-            "class_type": "ModelSamplingAuraFlow"
+        cur_model_ref = ["1", 0]
+        cur_clip_ref = ["2", 0]
+        vae_ref = ["3", 0]
+        if not is_29b:
+            prompt_nodes["4"] = {
+                "inputs": {"model": cur_model_ref, "shift": 3.0},
+                "class_type": "ModelSamplingAuraFlow"
+            }
+            cur_model_ref = ["4", 0]
+    else:
+        prompt_nodes["1"] = {
+            "inputs": {"ckpt_name": target_model},
+            "class_type": "CheckpointLoaderSimple"
         }
-        cur_model_ref = ["4", 0]
+        prompt_nodes["4"] = {
+            "inputs": {"clip": ["1", 1], "stop_at_clip_layer": int(clip_skip)},
+            "class_type": "CLIPSetLastLayer"
+        }
+        cur_model_ref = ["1", 0]
+        cur_clip_ref = ["4", 0]
+        vae_ref = ["1", 2]
 
-    # 可选缓存加速节点（AnimaTeaCache 或 ComfyUI 原生 EasyCache）
     if cache_type == "AnimaTeaCache":
         prompt_nodes["88"] = {
             "inputs": {
@@ -508,173 +547,87 @@ def build_anima_workflow(
         }
         cur_model_ref = ["88", 0]
 
-    # 链式串联加载一个或多个 LoRA
     active_lora_list = []
     if loras:
         active_lora_list.extend(loras)
     elif lora_name:
         active_lora_list.append({"name": lora_name, "strength": float(lora_strength)})
 
-    if use_remap_lora and is_29b and active_lora_list:
-        tag_text = " ".join(
-            f"<lora:{l_item['name'].replace('.safetensors', '')}:{float(l_item.get('strength', 0.8))}>,"
-            for l_item in active_lora_list if l_item.get("name")
-        )
-        prompt_nodes["92"] = {
-            "inputs": {
-                "text": tag_text,
-                "default_weight": 1,
-                "weight_multiplier": 1,
-                "auto_remap": True,
-                "save_remapped": False,
-                "extend_to_new_layers": False,
-                "extend_strength": 0.5,
-                "manifest": "Auto (Recommended)",
-                "model": cur_model_ref,
-                "clip": cur_clip_ref
-            },
-            "class_type": "AnimaLoRARemapTagLoader"
-        }
-        cur_model_ref = ["92", 0]
-        cur_clip_ref = ["92", 1]
-    else:
-        for idx, l_item in enumerate(active_lora_list):
-            ln = l_item.get("name")
-            ls = float(l_item.get("strength", 0.9))
-            if not ln:
-                continue
-            node_key = "5" if idx == 0 else str(50 + idx)
-            prompt_nodes[node_key] = {
-                "inputs": {
-                    "model": cur_model_ref,
-                    "clip": cur_clip_ref,
-                    "lora_name": ln,
-                    "strength_model": ls,
-                    "strength_clip": ls
-                },
-                "class_type": "LoraLoader"
-            }
-            cur_model_ref = [node_key, 0]
-            cur_clip_ref = [node_key, 1]
-
-    model_ref = cur_model_ref
-    clip_ref = cur_clip_ref
+    model_ref, clip_ref = _attach_lora_nodes(
+        prompt_nodes, cur_model_ref, cur_clip_ref, active_lora_list, use_remap_lora=use_remap_lora, is_29b=is_29b
+    )
 
     prompt_nodes["6"] = {
-        "inputs": {
-            "text": positive_prompt,
-            "clip": clip_ref
-        },
+        "inputs": {"text": positive_prompt, "clip": clip_ref},
         "class_type": "CLIPTextEncode"
     }
-
     prompt_nodes["7"] = {
-        "inputs": {
-            "text": negative_prompt,
-            "clip": clip_ref
-        },
+        "inputs": {"text": negative_prompt, "clip": clip_ref},
         "class_type": "CLIPTextEncode"
     }
 
     if hires_fix:
-        # 两阶段二次元经典高清精修工作流：阶段1生成基底构图，阶段2重采样抚平发丝毛躁
         base_w = int(round(width / hires_scale / 64) * 64)
         base_h = int(round(height / hires_scale / 64) * 64)
         prompt_nodes["8"] = {
-            "inputs": {
-                "width": base_w,
-                "height": base_h,
-                "batch_size": 1
-            },
+            "inputs": {"width": base_w, "height": base_h, "batch_size": 1},
             "class_type": "EmptyLatentImage"
         }
         prompt_nodes["9"] = {
             "inputs": {
-                "seed": seed,
-                "steps": int(steps),
-                "cfg": float(cfg),
-                "sampler_name": sampler_name,
-                "scheduler": scheduler,
-                "denoise": 1.0,
-                "model": model_ref,
-                "positive": ["6", 0],
-                "negative": ["7", 0],
-                "latent_image": ["8", 0]
+                "seed": seed, "steps": int(steps), "cfg": float(cfg),
+                "sampler_name": sampler_name, "scheduler": scheduler, "denoise": 1.0,
+                "model": model_ref, "positive": ["6", 0], "negative": ["7", 0], "latent_image": ["8", 0]
             },
             "class_type": "KSampler"
         }
         prompt_nodes["85"] = {
             "inputs": {
-                "samples": ["9", 0],
-                "upscale_method": "bicubic",
-                "width": int(width),
-                "height": int(height),
-                "crop": "disabled"
+                "samples": ["9", 0], "upscale_method": "bicubic",
+                "width": int(width), "height": int(height), "crop": "disabled"
             },
             "class_type": "LatentUpscale"
         }
         prompt_nodes["95"] = {
             "inputs": {
-                "seed": seed + 1,
-                "steps": int(hires_steps),
-                "cfg": float(cfg),
-                "sampler_name": sampler_name,
-                "scheduler": scheduler,
-                "denoise": float(hires_denoise),
-                "model": model_ref,
-                "positive": ["6", 0],
-                "negative": ["7", 0],
-                "latent_image": ["85", 0]
+                "seed": seed + 1, "steps": int(hires_steps), "cfg": float(cfg),
+                "sampler_name": sampler_name, "scheduler": scheduler, "denoise": float(hires_denoise),
+                "model": model_ref, "positive": ["6", 0], "negative": ["7", 0], "latent_image": ["85", 0]
             },
             "class_type": "KSampler"
         }
         prompt_nodes["10"] = {
-            "inputs": {
-                "samples": ["95", 0],
-                "vae": ["3", 0]
-            },
+            "inputs": {"samples": ["95", 0], "vae": vae_ref},
             "class_type": "VAEDecode"
         }
     else:
         prompt_nodes["8"] = {
-            "inputs": {
-                "width": int(width),
-                "height": int(height),
-                "batch_size": 1
-            },
+            "inputs": {"width": int(width), "height": int(height), "batch_size": 1},
             "class_type": "EmptyLatentImage"
         }
         prompt_nodes["9"] = {
             "inputs": {
-                "seed": seed,
-                "steps": int(steps),
-                "cfg": float(cfg),
-                "sampler_name": sampler_name,
-                "scheduler": scheduler,
-                "denoise": 1.0,
-                "model": model_ref,
-                "positive": ["6", 0],
-                "negative": ["7", 0],
-                "latent_image": ["8", 0]
+                "seed": seed, "steps": int(steps), "cfg": float(cfg),
+                "sampler_name": sampler_name, "scheduler": scheduler, "denoise": 1.0,
+                "model": model_ref, "positive": ["6", 0], "negative": ["7", 0], "latent_image": ["8", 0]
             },
             "class_type": "KSampler"
         }
         prompt_nodes["10"] = {
-            "inputs": {
-                "samples": ["9", 0],
-                "vae": ["3", 0]
-            },
+            "inputs": {"samples": ["9", 0], "vae": vae_ref},
             "class_type": "VAEDecode"
         }
 
     prompt_nodes["11"] = {
-        "inputs": {
-            "images": ["10", 0]
-        },
+        "inputs": {"images": ["10", 0]},
         "class_type": "PreviewImage"
     }
 
     return prompt_nodes
+
+
+# 向后兼容旧导入名称
+build_anima_workflow = build_illustrious_workflow
 
 
 def build_comfyui_img2img_workflow(
@@ -683,133 +636,93 @@ def build_comfyui_img2img_workflow(
     negative_prompt: str,
     denoise: float = 0.65,
     seed: int = -1,
-    steps: int = 30,
-    cfg: float = 4.5,
-    sampler_name: str = "er_sde",
-    scheduler: str = "simple",
-    unet_name: str = "anima-base-v1.0.safetensors",
+    steps: int = 28,
+    cfg: float = 5.5,
+    sampler_name: str = "euler_ancestral",
+    scheduler: str = "normal",
+    ckpt_name: Optional[str] = None,
+    unet_name: str = "waiIllustriousSDXL_v170.safetensors",
     clip_name: str = "qwen_3_06b_base.safetensors",
     vae_name: str = "qwen_image_vae.safetensors",
+    clip_skip: int = -2,
     loras: Optional[List[Dict[str, Any]]] = None,
     filename_prefix: str = "ComfyUI_Img2Img"
 ) -> Dict[str, Any]:
-    """构建标准 ComfyUI 以图生图 (img2img) 节点工作流 (LoadImage + VAEEncode -> KSampler)"""
+    """构建标准 ComfyUI 以图生图 (img2img) 节点工作流（兼容 Illustrious Checkpoint 与 Anima 架构）"""
     if seed == -1:
         seed = random.randint(1, 10**14)
 
-    prompt_nodes = {
-        "1": {
-            "inputs": {
-                "unet_name": unet_name,
-                "weight_dtype": "default"
-            },
+    target_model = ckpt_name or unet_name
+    is_anima = _is_anima_model(target_model)
+
+    prompt_nodes: Dict[str, Any] = {}
+    if is_anima:
+        prompt_nodes["1"] = {
+            "inputs": {"unet_name": target_model, "weight_dtype": "default"},
             "class_type": "UNETLoader"
-        },
-        "2": {
-            "inputs": {
-                "clip_name": clip_name,
-                "type": "stable_diffusion",
-                "device": "default"
-            },
+        }
+        prompt_nodes["2"] = {
+            "inputs": {"clip_name": clip_name, "type": "stable_diffusion", "device": "default"},
             "class_type": "CLIPLoader"
-        },
-        "3": {
-            "inputs": {
-                "vae_name": vae_name
-            },
+        }
+        prompt_nodes["3"] = {
+            "inputs": {"vae_name": vae_name},
             "class_type": "VAELoader"
-        },
-        "4": {
-            "inputs": {
-                "model": ["1", 0],
-                "shift": 3.0
-            },
+        }
+        prompt_nodes["4"] = {
+            "inputs": {"model": ["1", 0], "shift": 3.0},
             "class_type": "ModelSamplingAuraFlow"
         }
-    }
-
-    cur_model_ref = ["4", 0]
-    cur_clip_ref = ["2", 0]
-
-    for idx, l_item in enumerate(loras or []):
-        ln = l_item.get("name")
-        ls = float(l_item.get("strength", 0.8))
-        if not ln:
-            continue
-        node_key = "5" if idx == 0 else str(50 + idx)
-        prompt_nodes[node_key] = {
-            "inputs": {
-                "model": cur_model_ref,
-                "clip": cur_clip_ref,
-                "lora_name": ln,
-                "strength_model": ls,
-                "strength_clip": ls
-            },
-            "class_type": "LoraLoader"
+        cur_model_ref = ["4", 0]
+        cur_clip_ref = ["2", 0]
+        vae_ref = ["3", 0]
+    else:
+        prompt_nodes["1"] = {
+            "inputs": {"ckpt_name": target_model},
+            "class_type": "CheckpointLoaderSimple"
         }
-        cur_model_ref = [node_key, 0]
-        cur_clip_ref = [node_key, 1]
+        prompt_nodes["4"] = {
+            "inputs": {"clip": ["1", 1], "stop_at_clip_layer": int(clip_skip)},
+            "class_type": "CLIPSetLastLayer"
+        }
+        cur_model_ref = ["1", 0]
+        cur_clip_ref = ["4", 0]
+        vae_ref = ["1", 2]
+
+    cur_model_ref, cur_clip_ref = _attach_lora_nodes(
+        prompt_nodes, cur_model_ref, cur_clip_ref, loras or []
+    )
 
     prompt_nodes["6"] = {
-        "inputs": {
-            "text": positive_prompt,
-            "clip": cur_clip_ref
-        },
+        "inputs": {"text": positive_prompt, "clip": cur_clip_ref},
         "class_type": "CLIPTextEncode"
     }
-
     prompt_nodes["7"] = {
-        "inputs": {
-            "text": negative_prompt,
-            "clip": cur_clip_ref
-        },
+        "inputs": {"text": negative_prompt, "clip": cur_clip_ref},
         "class_type": "CLIPTextEncode"
     }
-
-    # 以图生图关键输入节点：加载服务端图片并进行 VAE 编码
     prompt_nodes["8"] = {
-        "inputs": {
-            "image": image_name
-        },
+        "inputs": {"image": image_name},
         "class_type": "LoadImage"
     }
-
     prompt_nodes["81"] = {
-        "inputs": {
-            "pixels": ["8", 0],
-            "vae": ["3", 0]
-        },
+        "inputs": {"pixels": ["8", 0], "vae": vae_ref},
         "class_type": "VAEEncode"
     }
-
     prompt_nodes["9"] = {
         "inputs": {
-            "seed": seed,
-            "steps": int(steps),
-            "cfg": float(cfg),
-            "sampler_name": sampler_name,
-            "scheduler": scheduler,
-            "denoise": float(denoise),
-            "model": cur_model_ref,
-            "positive": ["6", 0],
-            "negative": ["7", 0],
-            "latent_image": ["81", 0]
+            "seed": seed, "steps": int(steps), "cfg": float(cfg),
+            "sampler_name": sampler_name, "scheduler": scheduler, "denoise": float(denoise),
+            "model": cur_model_ref, "positive": ["6", 0], "negative": ["7", 0], "latent_image": ["81", 0]
         },
         "class_type": "KSampler"
     }
-
     prompt_nodes["10"] = {
-        "inputs": {
-            "samples": ["9", 0],
-            "vae": ["3", 0]
-        },
+        "inputs": {"samples": ["9", 0], "vae": vae_ref},
         "class_type": "VAEDecode"
     }
-
     prompt_nodes["11"] = {
-        "inputs": {
-            "images": ["10", 0]
-        },
+        "inputs": {"images": ["10", 0]},
         "class_type": "PreviewImage"
     }
 
@@ -889,15 +802,16 @@ async def comfyui_draw(
     if ar:
         width, height = map_aspect_ratio_to_resolution(ar, default_w=width, default_h=height)
 
-    steps = comfy_cfg.get("default_steps", 30)
-    cfg_val = comfy_cfg.get("default_cfg", 5.0)
-    sampler = comfy_cfg.get("default_sampler", "er_sde")
-    scheduler = comfy_cfg.get("default_scheduler", "beta")
-    unet = comfy_cfg.get("default_unet", "anima-base-v1.0.safetensors")
+    steps = comfy_cfg.get("default_steps", 28)
+    cfg_val = comfy_cfg.get("default_cfg", 5.5)
+    sampler = comfy_cfg.get("default_sampler", "euler_ancestral")
+    scheduler = comfy_cfg.get("default_scheduler", "normal")
+    ckpt = comfy_cfg.get("default_ckpt") or comfy_cfg.get("default_unet", "waiIllustriousSDXL_v170.safetensors")
+    clip_skip = int(comfy_cfg.get("clip_skip", -2))
     clip = comfy_cfg.get("default_clip", "qwen_3_06b_base.safetensors")
     vae = comfy_cfg.get("default_vae", "qwen_image_vae.safetensors")
     lora = comfy_cfg.get("default_lora", None)
-    lora_strength = comfy_cfg.get("default_lora_strength", 0.9)
+    lora_strength = comfy_cfg.get("default_lora_strength", 0.3)
 
     if args and isinstance(args, dict):
         if args.get("width"):
@@ -908,8 +822,10 @@ async def comfyui_draw(
             steps = int(args["steps"])
         if args.get("cfg"):
             cfg_val = float(args["cfg"])
-        if args.get("unet"):
-            unet = str(args["unet"])
+        if args.get("ckpt") or args.get("unet"):
+            ckpt = str(args.get("ckpt") or args.get("unet"))
+        if args.get("clip_skip") is not None:
+            clip_skip = int(args["clip_skip"])
         if args.get("sampler"):
             sampler = str(args["sampler"])
         if args.get("scheduler"):
@@ -1074,8 +990,9 @@ async def comfyui_draw(
     hires_denoise = float(comfy_cfg.get("hires_denoise", 0.38))
     hires_steps = int(comfy_cfg.get("hires_steps", 15))
 
-    # 探测服务端能力：自动启用 AnimaTeaCache / EasyCache、2.9B LoRA 重映射、beta57 -> beta 兼容回退
-    enable_cache = comfy_cfg.get("enable_teacache", True)
+    # 探测服务端能力：仅当加载 Anima 模型时按需启用 TeaCache / 2.9B LoRA 重映射与 beta57 兼容回退
+    is_anima = _is_anima_model(ckpt)
+    enable_cache = comfy_cfg.get("enable_teacache", False) and is_anima
     teacache_thresh = float(comfy_cfg.get("teacache_thresh", 0.35))
     caps = await get_server_capabilities(base_url)
 
@@ -1089,9 +1006,9 @@ async def comfyui_draw(
     if scheduler == "beta57" and not caps.get("has_beta57"):
         scheduler = "beta"
 
-    use_remap_lora = bool(caps.get("has_remap_lora") and ("29b" in unet.lower() or "2.9b" in unet.lower()))
+    use_remap_lora = bool(is_anima and caps.get("has_remap_lora") and ("29b" in ckpt.lower() or "2.9b" in ckpt.lower()))
 
-    workflow = build_anima_workflow(
+    workflow = build_illustrious_workflow(
         positive_prompt=positive_prompt,
         negative_prompt=negative_prompt,
         width=width,
@@ -1100,11 +1017,12 @@ async def comfyui_draw(
         cfg=cfg_val,
         sampler_name=sampler,
         scheduler=scheduler,
-        unet_name=unet,
+        ckpt_name=ckpt,
         clip_name=clip,
         vae_name=vae,
+        clip_skip=clip_skip,
         loras=active_loras,
-        filename_prefix="ComfyUI_Anima",
+        filename_prefix="ComfyUI_Illustrious",
         hires_fix=hires_fix,
         hires_scale=hires_scale,
         hires_denoise=hires_denoise,
@@ -1114,20 +1032,39 @@ async def comfyui_draw(
         use_remap_lora=use_remap_lora,
     )
 
-    client_id = f"eridanus_{random_str(8)}"
-    payload = {
-        "prompt": workflow,
-        "client_id": client_id
-    }
+    return await _execute_comfyui_workflow(
+        workflow=workflow,
+        base_url=base_url,
+        timeout=timeout,
+        comfy_cfg=comfy_cfg,
+        draw_cfg=draw_cfg,
+        groupid=groupid,
+        config=config,
+        client_prefix="eridanus",
+    )
 
+
+async def _execute_comfyui_workflow(
+    workflow: Dict[str, Any],
+    base_url: str,
+    timeout: float,
+    comfy_cfg: Dict[str, Any],
+    draw_cfg: Dict[str, Any],
+    groupid: Optional[int],
+    config: Any = None,
+    client_prefix: str = "eridanus",
+) -> Union[str, bool, None]:
+    """统一提交 ComfyUI API 工作流、轮询完成状态、下载并无损解密图像，返回缓存文件路径"""
+    client_id = f"{client_prefix}_{random_str(8)}"
+    payload = {"prompt": workflow, "client_id": client_id}
     client_headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8"
     }
+    audit_required = requires_nsfw_audit(draw_cfg, groupid)
 
     try:
         async with httpx.AsyncClient(timeout=timeout, headers=client_headers, follow_redirects=True, verify=False) as http_client:
-            # 1. 提交任务到 /prompt
             prompt_resp = await http_client.post(f"{base_url}/prompt", json=payload)
             if prompt_resp.status_code != 200:
                 err_text = ""
@@ -1154,7 +1091,6 @@ async def comfyui_draw(
             if not prompt_id:
                 raise RuntimeError(f"ComfyUI 未返回 prompt_id: {prompt_data}")
 
-            # 2. 轮询 /history/{prompt_id}
             elapsed = 0.0
             poll_interval = 2.0
             image_info = None
@@ -1169,7 +1105,6 @@ async def comfyui_draw(
                         if prompt_id in history_data:
                             task_history = history_data[prompt_id]
                             outputs = task_history.get("outputs", {})
-                            # 查找 SaveImage 节点的输出
                             for node_id, node_out in outputs.items():
                                 images = node_out.get("images", [])
                                 if images:
@@ -1178,17 +1113,14 @@ async def comfyui_draw(
                             if image_info:
                                 break
                 except Exception:
-                    # 忽略长轮询中的瞬时网络抖动或代理断开，下个周期自动重试
                     continue
 
             if not image_info:
                 raise TimeoutError(f"ComfyUI 生图超时或未找到输出图像 (已等待 {elapsed} 秒)")
 
-            # 3. 下载图像 /view (支持多轮重试防抖)
             filename = image_info.get("filename")
             subfolder = image_info.get("subfolder", "")
             img_type = image_info.get("type", "output")
-
             view_params = {"filename": filename, "type": img_type}
             if subfolder:
                 view_params["subfolder"] = subfolder
@@ -1209,19 +1141,16 @@ async def comfyui_draw(
             if not raw_bytes:
                 raise RuntimeError(f"下载 ComfyUI 图像失败: {last_err}")
 
-            # 4. 如果启用了解密，处理像素混淆
             if comfy_cfg.get("decrypt_encrypted_image", True):
                 pwd = str(comfy_cfg.get("decrypt_password", "1234"))
                 raw_bytes = decrypt_pixel_shuffle(raw_bytes, pwd)
 
-            # 5. 保存到本地缓存
             save_dir = Path("data/pictures/cache")
             save_dir.mkdir(parents=True, exist_ok=True)
             save_path = save_dir / f"{random_str()}.png"
             with open(save_path, "wb") as f:
                 f.write(raw_bytes)
 
-            # 6. 后续图片审核
             if audit_required:
                 try:
                     audit_res = await pic_audit_standalone(str(save_path), config)
@@ -1231,8 +1160,7 @@ async def comfyui_draw(
                     pass
 
             return str(save_path)
-
-    except Exception as e:
+    except Exception:
         print(f"[ComfyUI Drawer Error] {traceback.format_exc()}")
         raise
 
@@ -1250,7 +1178,7 @@ async def comfyui_img2img(
     ComfyUI 以图生图 (img2img) 核心入口：
     1. 上传参考图片至 ComfyUI 服务端 (/upload/image)
     2. 支持以图生图提示词指导优化 (optimize_prompt_for_img2img)
-    3. 构建以图生图工作流 (LoadImage -> VAEEncode -> KSampler with denoise)
+    3. 构建以图生图工作流 (Illustrious Checkpoint / Anima 兼容)
     4. 执行生成、自动无损解密并返回图片路径
     """
     draw_cfg = config.ai_generated_art.config.get("ai绘画", {})
@@ -1259,24 +1187,22 @@ async def comfyui_img2img(
     base_url = (comfy_cfg.get("url") or "http://127.0.0.1:7860").rstrip("/")
     timeout = float(comfy_cfg.get("timeout", 300))
 
-    # 1. 上传图片至 ComfyUI
     uploaded_image_name = await upload_image_to_comfyui(image_source, base_url)
 
-    # 2. 提示词装配与参数解析
     if denoise is None:
         denoise = float(comfy_cfg.get("default_img2img_denoise", 0.65))
     if args and isinstance(args, dict) and "denoise" in args:
         denoise = float(args["denoise"])
 
-    steps = int(args.get("steps", comfy_cfg.get("default_steps", 32))) if args and isinstance(args, dict) else comfy_cfg.get("default_steps", 32)
-    cfg_val = float(args.get("cfg", comfy_cfg.get("default_cfg", 4.5))) if args and isinstance(args, dict) else comfy_cfg.get("default_cfg", 4.5)
-    sampler = comfy_cfg.get("default_sampler", "er_sde")
-    scheduler = comfy_cfg.get("default_scheduler", "simple")
-    unet = comfy_cfg.get("default_unet", "anima-base-v1.0.safetensors")
+    steps = int(args.get("steps", comfy_cfg.get("default_steps", 28))) if args and isinstance(args, dict) else comfy_cfg.get("default_steps", 28)
+    cfg_val = float(args.get("cfg", comfy_cfg.get("default_cfg", 5.5))) if args and isinstance(args, dict) else comfy_cfg.get("default_cfg", 5.5)
+    sampler = comfy_cfg.get("default_sampler", "euler_ancestral")
+    scheduler = comfy_cfg.get("default_scheduler", "normal")
+    ckpt = comfy_cfg.get("default_ckpt") or comfy_cfg.get("default_unet", "waiIllustriousSDXL_v170.safetensors")
+    clip_skip = int(comfy_cfg.get("clip_skip", -2))
     clip = comfy_cfg.get("default_clip", "qwen_3_06b_base.safetensors")
     vae = comfy_cfg.get("default_vae", "qwen_image_vae.safetensors")
 
-    # 接入以图生图提示词指导优化器
     from run.ai_generated_art.service.prompt_optimizer import optimize_prompt_for_img2img
     try:
         opt_info = await optimize_prompt_for_img2img(prompt, config, is_about_bot=is_about_bot, denoise=denoise)
@@ -1289,14 +1215,12 @@ async def comfyui_img2img(
         positive_prompt = prompt
         negative_prompt = "lowres, bad anatomy, bad hands, blurry, messy hair"
 
-    # 衣橱负面提示词补充
     wm = get_wardrobe_manager() if get_wardrobe_manager else None
     if wm:
         wm_neg = wm.get_negative_prompt()
         if wm_neg and wm_neg not in negative_prompt:
             negative_prompt = f"{negative_prompt}, {wm_neg}"
 
-    # 链式 LoRAs
     active_loras: List[Dict[str, Any]] = []
     fixed_loras = comfy_cfg.get("fixed_loras", [])
     if isinstance(fixed_loras, list):
@@ -1312,15 +1236,14 @@ async def comfyui_img2img(
 
     positive_prompt, extracted_loras = extract_and_strip_loras(positive_prompt)
     for l_item in extracted_loras:
-        if not any(a["name"] == l_item["name"] for a in active_loras):
-            active_loras.append(l_item)
+        cand_name = l_item["name"] if l_item["name"].endswith(".safetensors") else f"{l_item['name']}.safetensors"
+        if not any(a["name"] == cand_name for a in active_loras):
+            active_loras.append({"name": cand_name, "strength": l_item["strength"]})
 
-    # NSFW 敏感词检查
     audit_required = requires_nsfw_audit(draw_cfg, groupid)
     if audit_required and check_censored(positive_prompt):
         return "审核api: 提示词包含受限内容，已被拦截"
 
-    # 构建以图生图 workflow
     workflow = build_comfyui_img2img_workflow(
         image_name=uploaded_image_name,
         positive_prompt=positive_prompt,
@@ -1330,118 +1253,21 @@ async def comfyui_img2img(
         cfg=cfg_val,
         sampler_name=sampler,
         scheduler=scheduler,
-        unet_name=unet,
+        ckpt_name=ckpt,
         clip_name=clip,
         vae_name=vae,
+        clip_skip=clip_skip,
         loras=active_loras,
         filename_prefix="ComfyUI_Img2Img"
     )
 
-    client_id = f"eridanus_img2img_{random_str(8)}"
-    payload = {"prompt": workflow, "client_id": client_id}
-    client_headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8"
-    }
-
-    try:
-        async with httpx.AsyncClient(timeout=timeout, headers=client_headers, follow_redirects=True, verify=False) as http_client:
-            prompt_resp = await http_client.post(f"{base_url}/prompt", json=payload)
-            if prompt_resp.status_code != 200:
-                err_text = ""
-                for enc in ("utf-8", "gb18030", "gbk", "cp936"):
-                    try:
-                        err_text = prompt_resp.content.decode(enc)
-                        break
-                    except UnicodeDecodeError:
-                        pass
-                if not err_text:
-                    err_text = prompt_resp.content[:300].decode("utf-8", errors="replace")
-                raise RuntimeError(f"ComfyUI /prompt 响应错误 ({prompt_resp.status_code}): {err_text}")
-
-            prompt_data = safe_parse_json(prompt_resp)
-            if isinstance(prompt_data, dict):
-                if "error" in prompt_data:
-                    err_val = prompt_data["error"]
-                    err_msg = err_val.get("message") or str(err_val) if isinstance(err_val, dict) else str(err_val)
-                    raise RuntimeError(f"ComfyUI /prompt 报错: {err_msg}")
-                if "node_errors" in prompt_data and prompt_data["node_errors"]:
-                    raise RuntimeError(f"ComfyUI 节点验证失败: {prompt_data['node_errors']}")
-
-            prompt_id = prompt_data.get("prompt_id") if prompt_data else None
-            if not prompt_id:
-                raise RuntimeError(f"ComfyUI 未返回 prompt_id: {prompt_data}")
-
-            elapsed = 0.0
-            poll_interval = 2.0
-            image_info = None
-
-            while elapsed < timeout:
-                await asyncio.sleep(poll_interval)
-                elapsed += poll_interval
-                try:
-                    history_resp = await http_client.get(f"{base_url}/history/{prompt_id}")
-                    if history_resp.status_code == 200:
-                        history_data = safe_parse_json(history_resp)
-                        if prompt_id in history_data:
-                            task_history = history_data[prompt_id]
-                            outputs = task_history.get("outputs", {})
-                            for node_id, node_out in outputs.items():
-                                images = node_out.get("images", [])
-                                if images:
-                                    image_info = images[0]
-                                    break
-                            if image_info:
-                                break
-                except Exception:
-                    continue
-
-            if not image_info:
-                raise TimeoutError(f"ComfyUI 生图超时或未找到输出图像 (已等待 {elapsed} 秒)")
-
-            filename = image_info.get("filename")
-            subfolder = image_info.get("subfolder", "")
-            img_type = image_info.get("type", "output")
-
-            view_params = {"filename": filename, "type": img_type}
-            if subfolder:
-                view_params["subfolder"] = subfolder
-
-            raw_bytes = None
-            last_err = None
-            for retry in range(3):
-                try:
-                    view_resp = await http_client.get(f"{base_url}/view", params=view_params)
-                    if view_resp.status_code == 200 and len(view_resp.content) > 0:
-                        raw_bytes = view_resp.content
-                        break
-                    last_err = f"HTTP {view_resp.status_code}"
-                except Exception as e:
-                    last_err = str(e)
-                await asyncio.sleep(1.5)
-
-            if not raw_bytes:
-                raise RuntimeError(f"下载 ComfyUI 图像失败: {last_err}")
-
-            if comfy_cfg.get("decrypt_encrypted_image", True):
-                pwd = str(comfy_cfg.get("decrypt_password", "1234"))
-                raw_bytes = decrypt_pixel_shuffle(raw_bytes, pwd)
-
-            save_dir = Path("data/pictures/cache")
-            save_dir.mkdir(parents=True, exist_ok=True)
-            save_path = save_dir / f"{random_str()}.png"
-            with open(save_path, "wb") as f:
-                f.write(raw_bytes)
-
-            if audit_required:
-                try:
-                    audit_res = await pic_audit_standalone(str(save_path), config)
-                    if not audit_res:
-                        return False
-                except Exception:
-                    pass
-
-            return str(save_path)
-    except Exception as e:
-        print(f"[ComfyUI Img2Img Error] {traceback.format_exc()}")
-        raise
+    return await _execute_comfyui_workflow(
+        workflow=workflow,
+        base_url=base_url,
+        timeout=timeout,
+        comfy_cfg=comfy_cfg,
+        draw_cfg=draw_cfg,
+        groupid=groupid,
+        config=config,
+        client_prefix="eridanus_img2img",
+    )

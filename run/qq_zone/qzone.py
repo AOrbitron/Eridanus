@@ -579,7 +579,7 @@ def main(bot: ExtendBot, config: YAMLManager):
 
 
     # ---------------------------------------------------------
-    # Stable Diffusion / ComfyUI 绘画服务端调用 (支持衣橱联动与多后端路由)
+    # Stable Diffusion / ComfyUI 绘画服务端调用 (统一读取 ai_generated_art 配置与 wardrobe 衣橱锚点)
     # ---------------------------------------------------------
     async def call_sd_generate(prompt: str) -> Optional[str]:
         from run.wardrobe.sd_prompt import ensure_art_anchor
@@ -587,45 +587,70 @@ def main(bot: ExtendBot, config: YAMLManager):
         if not prompt:
             return None
         prompt = ensure_art_anchor(prompt)
-        sd_cfg = config.qq_zone.config.get("sd绘画设置", {})
         manager = get_wardrobe_manager() if get_wardrobe_manager else None
         neg_prompt = manager.get_negative_prompt() if manager else FIXED_NEGATIVE_PROMPT
 
-        # 检查生图后端（优先根据 qq_zone.sd绘画设置.backend，未配置时遵循 ai_generated_art.文生图function_calling后端）
-        backend = str(
-            sd_cfg.get("backend") or
-            config.ai_generated_art.config.get("文生图function_calling后端", "comfyui")
-        ).strip().lower()
+        # 统一从 ai_generated_art 模块读取绘画后端与参数配置，不再依赖 qq_zone 冗余配置
+        ai_art_wrapper = getattr(config, "ai_generated_art", None)
+        ai_art_cfg = (getattr(ai_art_wrapper, "config", None) or {}) if ai_art_wrapper else {}
+        draw_cfg = ai_art_cfg.get("ai绘画", {})
+        comfy_cfg = ai_art_cfg.get("comfyui", {})
 
-        # 若配置为 comfyui 或 sdUrl 未配置且开启了 comfyui，优先调用 ComfyUI
-        if backend == "comfyui" or (not sd_cfg.get("sdUrl") and config.ai_generated_art.config.get("ai绘画", {}).get("comfyui画图", True)):
+        backend = str(ai_art_cfg.get("文生图function_calling后端", "comfyui")).strip().lower()
+
+        raw_sd_urls = draw_cfg.get("sdUrl", [])
+        if isinstance(raw_sd_urls, list):
+            sd_url_val = next((str(u).strip() for u in raw_sd_urls if str(u).strip()), "")
+        else:
+            sd_url_val = str(raw_sd_urls or "").strip()
+
+        # 若后端为 comfyui，或未配置 sdUrl 且开启了 comfyui 开关，优先使用 ComfyUI
+        if backend == "comfyui" or (not sd_url_val and draw_cfg.get("comfyui画图", True)):
             try:
                 from run.ai_generated_art.service.comfyui_drawer import comfyui_draw
                 logger.info(f"[Qzone Image] 使用 ComfyUI 生成空间动态配图: {prompt[:80]}...")
-                # prompt 已在 build_sd_prompt_for_post 中结合了 base_anchor、outfit、art_anchor
-                # 传入 is_about_bot=False 避免二次重复拼装前缀
                 img_path = await comfyui_draw(prompt, config, is_about_bot=False)
-                if img_path and not img_path.startswith("审核api"):
+                if img_path and not str(img_path).startswith("审核api"):
                     logger.info(f"[Qzone Image] ComfyUI 生图成功并保存至: {img_path}")
                     return img_path
-                elif img_path and img_path.startswith("审核api"):
+                elif img_path and str(img_path).startswith("审核api"):
                     logger.warning(f"[Qzone Image] ComfyUI 生图被审核拦截: {img_path}")
                     return None
             except Exception as ce:
                 logger.warning(f"[Qzone Image] ComfyUI 生图失败，尝试回退 SD WebUI: {ce}")
 
-        base_url = sd_cfg.get("sdUrl", "http://api.apollodorus.xyz")
-        if not base_url:
-            base_url = "http://api.apollodorus.xyz"
-        base_url = base_url.rstrip("/")
+        base_url = (sd_url_val or "http://api.apollodorus.xyz").rstrip("/")
         txt2img_url = f"{base_url}/sdapi/v1/txt2img"
 
-        steps = int(sd_cfg.get("steps", 28))
-        cfg_scale = float(sd_cfg.get("cfg_scale", 4.5))
-        width = int(sd_cfg.get("width", 1024))
-        height = int(sd_cfg.get("height", 1024))
-        sampler_name = sd_cfg.get("sampler_name", "Euler a")
-        scheduler = sd_cfg.get("scheduler", "Automatic")
+        # 从 ai_generated_art 解析分辨率与默认采样参数
+        default_res = str(draw_cfg.get("sd画图默认分辨率", "1024,1024"))
+        try:
+            res_parts = [int(p.strip()) for p in default_res.replace("x", ",").split(",")]
+            width, height = res_parts[0], res_parts[1]
+        except Exception:
+            width = int(comfy_cfg.get("default_width", 1024))
+            height = int(comfy_cfg.get("default_height", 1024))
+
+        steps = int(comfy_cfg.get("default_steps", 28))
+        cfg_scale = float(comfy_cfg.get("default_cfg", 5.5))
+        sampler_name = "Euler a"
+        scheduler = "Automatic"
+        for param in draw_cfg.get("其他默认绘图参数", []):
+            p_str = str(param).strip()
+            if p_str.startswith("--steps "):
+                try:
+                    steps = int(p_str.split("--steps ", 1)[1].strip())
+                except Exception:
+                    pass
+            elif p_str.startswith("--cfg "):
+                try:
+                    cfg_scale = float(p_str.split("--cfg ", 1)[1].strip())
+                except Exception:
+                    pass
+            elif p_str.startswith("--sampler "):
+                sampler_name = p_str.split("--sampler ", 1)[1].strip()
+            elif p_str.startswith("--scheduler "):
+                scheduler = p_str.split("--scheduler ", 1)[1].strip()
 
         payload = {
             "prompt": prompt,
@@ -645,21 +670,14 @@ def main(bot: ExtendBot, config: YAMLManager):
             "Accept-Encoding": "identity",
             "Content-Type": "application/json",
         }
-        apikey = str(sd_cfg.get("apikey", "") or "").strip()
+        apikey = str(draw_cfg.get("apikey", "") or "").strip()
         if apikey:
             headers["Authorization"] = f"Bearer {apikey}"
-        timeout_val = int(sd_cfg.get("timeout", 120))
+        timeout_val = int(draw_cfg.get("sd超时时间", comfy_cfg.get("timeout", 120)))
 
-        # 重试机制：支持配置重试次数与间隔延迟（支持 retry_delay_seconds / retry_delay_minutes / retry_delay，默认10分钟即600秒）
-        max_retries = int(sd_cfg.get("max_retries", 3))
-        if "retry_delay_seconds" in sd_cfg:
-            retry_delay = float(sd_cfg.get("retry_delay_seconds", 600))
-        elif "retry_delay_minutes" in sd_cfg:
-            retry_delay = float(sd_cfg.get("retry_delay_minutes", 10)) * 60.0
-        elif "retry_delay" in sd_cfg:
-            retry_delay = float(sd_cfg.get("retry_delay", 600))
-        else:
-            retry_delay = 600.0  # 默认 10 分钟 (600秒)
+        # 重试机制（默认最多重试3次，间隔600秒）
+        max_retries = 3
+        retry_delay = 600.0
         total_attempts = 1 + max(0, max_retries)
 
         for attempt in range(1, total_attempts + 1):
@@ -797,24 +815,30 @@ def main(bot: ExtendBot, config: YAMLManager):
     async def start_keepalive_monitor():
         pass
     def get_chara_drawing_rules() -> dict:
-        """从 run/qq_zone/config.yaml 读取用户配置的角色绘图规则与外观设定，留空时使用默认形象提示词"""
-        default_base = (
-            "1girl, teenager, solo, virtual youtuber, silver-white hair, grey hair, subtle pale blue hair tips, gradient hair, "
-            "long hair, very long hair, wispy parted bangs, single ahoge, soft sidelocks framing face, single side bun, "
-            "one side up, white flower hair ornament, (dusty blue and pale pink gradient eyes:1.25), "
-            "(light blue eyes with pink highlights:1.2), (delicate long eyelashes:1.2), cute round face, normal human ears"
+        """统一从衣橱 (wardrobe) 读取角色绘图基础形象、画风、当前服装与负面提示词，避免重复配置"""
+        from run.wardrobe.wardrobe_manager import (
+            DEFAULT_CHARACTER_ANCHOR,
+            DEFAULT_ART_ANCHOR,
+            DEFAULT_NEGATIVE_PROMPT,
         )
-        default_art = (
-            "masterpiece, best quality, safe, (lineart:1.45), (hand-drawn:1.5), (sketch:1.3), "
-            "(anime coloring:1.45), (cel shading:1.35), clean ink lines, japanese anime style, "
-            "@shu, (Rella:1.05), (@4x0style:0.75), <lora:re-000180:0.35>, <lora:chen-bin_v4.0:0.20>"
-        )
-        default_outfit = "hair ornament,detached sleeves, hair bow, flower, off shoulder,layered dress, virtual youtuber,lace rim, ornaments sleeves, lolita sleeves,white pantyhose"
+        manager = get_wardrobe_manager() if get_wardrobe_manager else None
+        if manager:
+            base_prompt = (manager.get_character_anchor() or "").strip() or DEFAULT_CHARACTER_ANCHOR
+            art_prompt = (manager.get_art_anchor() or "").strip() or DEFAULT_ART_ANCHOR
+            neg_prompt = (manager.get_negative_prompt() or "").strip() or FIXED_NEGATIVE_PROMPT
+            cur_outfit = manager.get_current_outfit() or {}
+            outfit_prompt = str(cur_outfit.get("clothing_tags", "") or "").strip()
+            if not outfit_prompt:
+                default_out = manager.get_outfit("默认常服") or {}
+                outfit_prompt = str(default_out.get("clothing_tags", "") or "").strip()
+        else:
+            base_prompt = DEFAULT_CHARACTER_ANCHOR
+            art_prompt = DEFAULT_ART_ANCHOR
+            neg_prompt = DEFAULT_NEGATIVE_PROMPT or FIXED_NEGATIVE_PROMPT
+            outfit_prompt = ""
 
-        chara_draw_cfg = config.qq_zone.config.get("角色绘图设置", {})
-        base_prompt = str(chara_draw_cfg.get("基础形象设定", "") or "").strip() or default_base
-        art_prompt = str(chara_draw_cfg.get("画风与模型设定", "") or "").strip() or default_art
-        outfit_prompt = str(chara_draw_cfg.get("默认服装设定", "") or "").strip() or default_outfit
+        if not outfit_prompt:
+            outfit_prompt = "(cream oversized cable knit cardigan:1.1), off-white camisole, ribbed top, brown pleated wool skirt, beige knee-high socks, retro loafer shoes, casual daily wear"
 
         # 组合成说明段落，供 LLM 提取场景变体 tags 时参考
         full_section = (
@@ -827,7 +851,7 @@ def main(bot: ExtendBot, config: YAMLManager):
             "base": base_prompt,
             "art": art_prompt,
             "outfit": outfit_prompt,
-            "negative": FIXED_NEGATIVE_PROMPT,
+            "negative": neg_prompt,
             "full_section": full_section
         }
 

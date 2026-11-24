@@ -283,7 +283,7 @@ async def optimize_prompt_for_img2img(
   "negative_prompt": "lowres, bad anatomy, bad hands, blurry, messy hair, ...",
   "denoise": 0.65,
   "steps": 32,
-  "cfg": 4.5
+  "cfg": 5.5
 }}"""
 
     try:
@@ -315,15 +315,15 @@ async def optimize_prompt_for_img2img(
                     "negative_prompt": parsed.get("negative_prompt", "lowres, bad anatomy, bad hands, blurry, messy hair"),
                     "denoise": max(0.2, min(0.85, parsed_denoise)),
                     "steps": max(28, min(60, parsed_steps)),
-                    "cfg": float(parsed.get("cfg", 4.5))
+                    "cfg": float(parsed.get("cfg", 5.5))
                 }
     except Exception as e:
         logger.warning(f"[Img2Img Optimizer] LLM 提示词指导失败，使用默认规则: {e}")
 
     return {
         "positive_prompt": f"masterpiece, best quality, aesthetic, {user_prompt}",
-        "negative_prompt": "lowres, bad anatomy, bad hands, blurry, messy hair, rough sketch",
+        "negative_prompt": "lowres, bad anatomy, bad hands, blurry, messy hair",
         "denoise": denoise,
         "steps": 32,
-        "cfg": 4.5
+        "cfg": 5.5
     }
