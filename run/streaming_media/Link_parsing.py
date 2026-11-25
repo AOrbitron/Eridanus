@@ -17,10 +17,12 @@ from run.streaming_media.service.Link_parsing import *
 import traceback
 from collections import defaultdict
 from time import time
+
 teamlist = defaultdict(lambda: {'data': None, 'expire_at': 0})
 global Cachecleaner
-Cachecleaner=False
+Cachecleaner = False
 linking_prising_list = {}
+
 
 async def _download_link_image(image_url, result, config):
     """单条与批量解析共用图片下载方式。"""
@@ -53,8 +55,14 @@ async def _recall_message_if_available(bot, send_result):
         bot.logger.warning(f'撤回链接解析提示消息失败: {e}')
 
 
+async def _send_file_if_valid(bot, event, file_path):
+    """校验文件存在且非空后以 File 格式发送，便于跨平台保存原图/原GIF。"""
+    if not file_path or not os.path.isfile(file_path) or os.path.getsize(file_path) <= 0:
+        raise FileNotFoundError(f'媒体文件无效或不存在: {file_path!r}')
+    await bot.send(event, File(file=file_path))
 
-async def call_bili_download_video(bot, event, config,type_download='video'):
+
+async def call_bili_download_video(bot, event, config, type_download='video'):
     if event.group_id in teamlist:
         json_linking = teamlist[event.group_id]['data']
         teamlist.pop(event.group_id)
@@ -68,8 +76,10 @@ async def call_bili_download_video(bot, event, config,type_download='video'):
     audio_url = json_linking.get('audio_url')
     is_use_api = manshuo_api.should_use_manshuo_api(json_linking.get('url'))
 
-    if json_linking['soft_type'] in {'x'}: proxy = config.common_config.basic_config["proxy"]["http_proxy"]
-    else: proxy = None
+    if json_linking['soft_type'] in {'x'}:
+        proxy = config.common_config.basic_config["proxy"]["http_proxy"]
+    else:
+        proxy = None
 
     if type_download == 'video':
         video_options = get_video_options(json_linking)
@@ -94,10 +104,11 @@ async def call_bili_download_video(bot, event, config,type_download='video'):
 
             if len(video_options) == 1:
                 video_json = await download_option(video_options[0])
-                #首先检测是否为gif
+                # 首先检测是否为gif
                 if video_json['video_path'].endswith('.gif'):
                     await bot.send(event, [Image(file=video_json['video_path'])])
-                #非gif走下面逻辑
+                    await _send_file_if_valid(bot, event, video_json['video_path'])
+                # 非gif走下面逻辑
                 elif 'video' in video_json['type']:
                     recall_id = None
                     if video_json['type'] == 'video_bigger':
@@ -113,6 +124,7 @@ async def call_bili_download_video(bot, event, config,type_download='video'):
                     await bot.send(event, f'太大了，罢工！')
             else:
                 node_list = [Node(content=[Text("小的找的视频如下，请君过目喵")])]
+                gif_file_paths = []
                 for item in video_options:
                     video_json = await download_option(item)
                     if video_json['type'] == 'too_big':
@@ -121,10 +133,13 @@ async def call_bili_download_video(bot, event, config,type_download='video'):
                         component = File(file=video_json['video_path'])
                     elif video_json['video_path'].endswith('.gif'):
                         component = Image(file=video_json['video_path'])
+                        gif_file_paths.append(video_json['video_path'])
                     else:
                         component = Video(file=video_json['video_path'])
                     node_list.append(Node(content=[component]))
                 await bot.send(event, node_list)
+                for gif_path in gif_file_paths:
+                    await _send_file_if_valid(bot, event, gif_path)
         except Exception as e:
             traceback.print_exc()
             await bot.send(event, f'下载失败\n {e}')
@@ -134,9 +149,12 @@ async def call_bili_download_video(bot, event, config,type_download='video'):
             return
         try:
             if is_use_api:
-                audio_path = (await manshuo_api.download_media(audio_url, 'audio', filepath='data/pictures/cache/', soft_type=json_linking.get('soft_type')))['audio_path']
-            else: audio_path = await download_audio(
-                audio_url, path='data/pictures/cache/', proxy=proxy, convert2mp3=True, download_type=json_linking.get('soft_type'))
+                audio_path = (await manshuo_api.download_media(audio_url, 'audio', filepath='data/pictures/cache/',
+                                                               soft_type=json_linking.get('soft_type')))['audio_path']
+            else:
+                audio_path = await download_audio(
+                    audio_url, path='data/pictures/cache/', proxy=proxy, convert2mp3=True,
+                    download_type=json_linking.get('soft_type'))
             if not audio_path or not os.path.isfile(audio_path) or os.path.getsize(audio_path) <= 0:
                 raise FileNotFoundError(f'音频下载未生成有效文件: {audio_path!r}')
             await bot.send(event, File(file=audio_path))
@@ -155,6 +173,9 @@ async def call_bili_download_video(bot, event, config,type_download='video'):
             for pic_path in image_paths_list:
                 node_list.append(Node(content=[Image(file=pic_path)]))
             await bot.send(event, node_list)
+        if json_linking.get('soft_type') == 'x':
+            for pic_path in image_paths_list:
+                await _send_file_if_valid(bot, event, pic_path)
 
 
 def main(bot, config):
@@ -164,7 +185,7 @@ def main(bot, config):
         bot.logger.info('✅ 链接解析功能已上线！')
     else:
         if not bili_login_check:
-            #bot.logger.warning('⚠️ B站session未能成功获取')
+            # bot.logger.warning('⚠️ B站session未能成功获取')
             pass
         else:
             bot.logger.warning('✅ B站session成功获取')
@@ -189,7 +210,7 @@ def main(bot, config):
 
     proxy = config.common_config.basic_config["proxy"]["http_proxy"]
 
-    #初始化漫朔api网关
+    # 初始化漫朔api网关
     api_config = config.streaming_media.config["bili_dynamic"].get('manshuo_api', {})
     manshuo_api.enable = api_config.get('enable', False)
     manshuo_api.base_url = api_config.get('base_url', '')
@@ -198,16 +219,16 @@ def main(bot, config):
 
     @bot.on(GroupMessageEvent)
     async def Link_Prising_search(event: GroupMessageEvent):
-        global Cachecleaner,linking_prising_list
+        global Cachecleaner, linking_prising_list
         if event.sender.user_id in linking_prising_list:
             return
-        
+
         type_link = None
         if not Cachecleaner:
             asyncio.create_task(cleanup_teamlist(bot))
-            
+
         if event.message_chain.has(Json):
-            url=event.message_chain.get(Json)[0].data
+            url = event.message_chain.get(Json)[0].data
             event_context = json_handle.loads(url)
             if 'meta' in event_context:
                 try:
@@ -218,24 +239,28 @@ def main(bot, config):
                     pass
 
         elif event.message_chain.has(Text):
-            url=""
+            url = ""
             for i in event.message_chain.get(Text):
-                url+=i.text
+                url += i.text
         else:
             return
         if url.strip().startswith(('下载视频', '下载图片', '下载音频', '/bili ')): return
         link_prising_json = await link_prising(url, filepath='data/pictures/cache/', proxy=proxy, type=type_link,
-                                               absorb_color=config.streaming_media.config["bili_dynamic"]["is_absorb_color"],
-                                               up_info_get=config.streaming_media.config["bili_dynamic"]["is_fetch_up_info"],
-                                               credential_bili=config.streaming_media.config["bili_dynamic"]["is_download_high_quality"])
+                                               absorb_color=config.streaming_media.config["bili_dynamic"][
+                                                   "is_absorb_color"],
+                                               up_info_get=config.streaming_media.config["bili_dynamic"][
+                                                   "is_fetch_up_info"],
+                                               credential_bili=config.streaming_media.config["bili_dynamic"][
+                                                   "is_download_high_quality"])
         send_context = f'{botname}识别结果：'
         if link_prising_json['status']:
             bot.logger.info('链接解析成功，开始推送~~')
             has_video_url = bool(get_video_options(link_prising_json))
-            has_audio_url = isinstance(link_prising_json.get('audio_url'), str) and bool(link_prising_json['audio_url'].strip())
+            has_audio_url = isinstance(link_prising_json.get('audio_url'), str) and bool(
+                link_prising_json['audio_url'].strip())
             if has_video_url or has_audio_url:
                 teamlist[event.group_id] = {'data': link_prising_json, 'expire_at': time() + 600}
-                #send_context = f'可“下载视频”喵'
+                # send_context = f'可“下载视频”喵'
                 if has_video_url:
                     send_context = config.streaming_media.config["bili_dynamic"]["linking_prising_video_text"]
                 elif has_audio_url:
@@ -244,7 +269,7 @@ def main(bot, config):
                     teamlist[f'{event.group_id}_recall'] = await bot.send(event, [f'{send_context}'])
                     return
             elif link_prising_json['pic_url_list'] != []:
-                #send_context = f'{botname}发现了图片哟，发送‘下载图片’来推送喵'
+                # send_context = f'{botname}发现了图片哟，发送‘下载图片’来推送喵'
                 send_context = config.streaming_media.config["bili_dynamic"]["linking_prising_picture_text"]
                 teamlist[event.group_id] = {'data': link_prising_json, 'expire_at': time() + 300}
             send_message = [f'{send_context}\n']
@@ -253,10 +278,10 @@ def main(bot, config):
             teamlist[f'{event.group_id}_recall'] = await bot.send(event, send_message)
         else:
             if link_prising_json['reason']:
-                #print(link_prising_json)
+                # print(link_prising_json)
                 bot.logger.error(str('bili_link_error ') + link_prising_json['reason'])
 
-    #这里专门用来下载图片、视频或音频
+    # 这里专门用来下载图片、视频或音频
     @bot.on(GroupMessageEvent)
     async def Linking_prising_download(event):
         if event.get("reply"): return
@@ -270,32 +295,37 @@ def main(bot, config):
                 await call_bili_download_video(bot, event, config)
             elif context.strip() in ["下载图片"]:
                 bot.logger.info('图片下载ing')
-                await call_bili_download_video(bot, event, config,'img')
+                await call_bili_download_video(bot, event, config, 'img')
             elif context.strip() in ["下载音频"]:
                 bot.logger.info('音频下载ing')
                 await call_bili_download_video(bot, event, config, 'audio')
 
-    #写一个方法专门用来引用开始下载、
-    #这里专门用来下载图片、视频或音频
+    # 写一个方法专门用来引用开始下载、
+    # 这里专门用来下载图片、视频或音频
     @bot.on(GroupMessageEvent)
     async def Linking_prising_download_without_send(event):
         if event.get("reply") and event.get("text"):
             context = event.get("text")[0].strip()
             if not context.startswith(('下载视频', '下载图片', '下载音频')): return
             event_obj = await bot.get_msg(int(event.get("reply")[0]["id"]))
-            #if event_obj.message[0]['type'] == 'forward': return
+            # if event_obj.message[0]['type'] == 'forward': return
             if event_obj.message_chain.has(Json):
                 url = event_obj.message_chain.get(Json)[0].data
             elif event_obj.message_chain.has(Text):
                 url = "".join(i.text for i in event_obj.message_chain.get(Text))
-            else: return
+            else:
+                return
         elif not event.get("reply") and event.get("text"):
             context = event.get("text")[0].strip()
             if not context.startswith(('下载视频', '下载图片', '下载音频')): return
-            if 'http' in context: url = context
-            else: return
-        else: return
-        info = await link_prising(url, type='no_draw',credential_bili=config.streaming_media.config["bili_dynamic"]["is_download_high_quality"])
+            if 'http' in context:
+                url = context
+            else:
+                return
+        else:
+            return
+        info = await link_prising(url, type='no_draw', credential_bili=config.streaming_media.config["bili_dynamic"][
+            "is_download_high_quality"])
         if info['status']:
             teamlist[event.group_id] = {'data': info, 'expire_at': time() + 600}
             if context.startswith('下载视频'):
@@ -308,13 +338,11 @@ def main(bot, config):
                 bot.logger.info('音频下载ing')
                 await call_bili_download_video(bot, event, config, 'audio')
 
-
-
     @bot.on(GroupMessageEvent)
     async def img_collect_download(event):
         context, userid, nickname, group_id = event.pure_text.strip(), event.sender.user_id, event.sender.nickname, event.group_id
         global linking_prising_list
-        if context in ['开始链接解析','开启链接解析'] or userid in linking_prising_list:
+        if context in ['开始链接解析', '开启链接解析'] or userid in linking_prising_list:
             if userid not in linking_prising_list:
                 await bot.send(event, '请发送需要解析的链接，完成请发送 “end” 喵')
                 linking_prising_list[userid] = []
@@ -329,13 +357,14 @@ def main(bot, config):
                 await bot.send(event, '开始下载图片ing，请耐心等待喵')
                 node_list = [Node(content=[Text("解析结果如下，请君过目喵")])]
                 for prising_result in prising_list:
-                    #pprint.pprint(prising_result)
+                    # pprint.pprint(prising_result)
                     if prising_result['status']:
                         msg = f"链接：{prising_result['url']}\n状态：解析成功喵"
                         node_list.append(Node(content=[Text(msg)]))
                         for img_url in prising_result['pic_url_list']:
                             try:
-                                node_list.append(Node(content=[Image(file=await _download_link_image(img_url, prising_result, config))]))
+                                node_list.append(Node(
+                                    content=[Image(file=await _download_link_image(img_url, prising_result, config))]))
                             except:
                                 node_list.append(Node(content=[Text('此图片下载失败喵')]))
                     else:
@@ -346,18 +375,19 @@ def main(bot, config):
             else:
                 linking_prising_list[userid].append(context)
 
+
 async def cleanup_teamlist(bot):
     global Cachecleaner
     if Cachecleaner:
-        #bot.logger.info("不再重复启动清理程序。")
+        # bot.logger.info("不再重复启动清理程序。")
         return
     while True:
         bot.logger.info('清理链接解析过期缓存')
-        Cachecleaner=True
+        Cachecleaner = True
         current_time = time()
         expired_keys = []
         for k, v in teamlist.items():
-            if isinstance(k,str) and k.endswith('_recall'):
+            if isinstance(k, str) and k.endswith('_recall'):
                 continue
             if isinstance(v, dict) and 'expire_at' in v:
                 if v['expire_at'] < current_time:
