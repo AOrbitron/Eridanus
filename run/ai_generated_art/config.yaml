@@ -67,7 +67,7 @@ gptimage2:
 
 ai绘画:
   # 并发指令触发绘图开关（同一级别独立控制）
-  sd画图: false # SD接口开关 (目前暂无服务端，保留配置以便配置后使用)
+  sd画图: true # SD接口开关 (目前暂无服务端，保留配置以便配置后使用)
   comfyui画图: true # ComfyUI绘图开关
   novel_ai画图: false # NovelAI (nai4) 绘图开关
   内置ai绘画1开关: true  # 聚合接口 (bing, flux, doubao)
