@@ -28,8 +28,10 @@ except ImportError:
     ensure_art_anchor = None
 
 from run.ai_generated_art.service.prompt_optimizer import (
+    clamp_resolution_to_bounds,
     get_llm_config,
     map_aspect_ratio_to_resolution,
+    normalize_resolution_bounds,
 )
 
 # 预设已知 Illustrious LoRA 映射列表（供 LLM 智能选取、提取与触发词自动注入）
@@ -240,6 +242,18 @@ async def optimize_prompt_with_llm(user_prompt: str, config) -> Dict[str, Any]:
     """
     comfy_cfg = config.ai_generated_art.config.get("comfyui", {})
     llm_cfg = get_llm_config(config)
+    min_dim = int(comfy_cfg.get("resolution_min", 1100))
+    max_dim = int(comfy_cfg.get("resolution_max", 1600))
+    min_aligned, max_aligned = normalize_resolution_bounds(min_dim, max_dim)
+    rec_v_w, rec_v_h = map_aspect_ratio_to_resolution("3:4", min_dim=min_dim, max_dim=max_dim)
+    rec_h_w, rec_h_h = map_aspect_ratio_to_resolution("4:3", min_dim=min_dim, max_dim=max_dim)
+    rec_s_w, rec_s_h = map_aspect_ratio_to_resolution("1:1", min_dim=min_dim, max_dim=max_dim)
+    def_w, def_h = clamp_resolution_to_bounds(
+        int(comfy_cfg.get("default_width", rec_v_w)),
+        int(comfy_cfg.get("default_height", rec_v_h)),
+        min_dim=min_dim,
+        max_dim=max_dim,
+    )
 
     api_key = llm_cfg["apikey"]
     base_url = llm_cfg["base_url"]
@@ -256,10 +270,10 @@ async def optimize_prompt_with_llm(user_prompt: str, config) -> Dict[str, Any]:
 1. positive_prompt 必须完全转化为纯正、流畅的 **Danbooru 风格英文逗号分隔 tags**（例如 masterpiece, best quality, extremely detailed, 1girl, ...），绝不可包含任何中文或自然语言长段落。
    【核心规范·角色与着装保护】：若输入的提示词中已包含角色外貌锚点（如 grey hair, gradient hair, blue hair, light purple-light blue mixed eyes, (Side swept hair:1.6), ahoge, bangs, middle long hair, (round face:1.2) 等）或画风与服装设定（如 (Rella:1.2), (chen bin:1.3), virtual youtuber, (starshadowmagician:1.2), lineart, (hand-drawn:1.3), (sketch:1.2), Picasso style, Van Gogh's almond blossoms, 开衫、百褶裙、吊带裙、睡裙等），必须完整严密保留这些核心设定标签，绝不可丢弃或改写！
 2. negative_prompt 给出标准 SDXL/Illustrious 负面标签（如 lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry）。
-3. 比例与尺寸推荐（所有宽高比必须严格在 1200 到 1800 之间，且为 64 的倍数）：
-   - 竖图/全身/立绘：width=1280, height=1728 或 width=1216, height=1792
-   - 横图/场景/壁纸：width=1728, height=1280 或 width=1792, height=1216
-   - 正方形/头像：width=1536, height=1536
+3. 比例与尺寸推荐（所有宽高比必须严格在 {min_aligned} 到 {max_aligned} 之间，且为 64 的倍数）：
+   - 竖图/全身/立绘：width={rec_v_w}, height={rec_v_h} 或 width={min_aligned}, height={max_aligned}
+   - 横图/场景/壁纸：width={rec_h_w}, height={rec_h_h} 或 width={max_aligned}, height={min_aligned}
+   - 正方形/头像：width={rec_s_w}, height={rec_s_h}
 4. 采样步数 steps 必须自主选在 28~60 之间（推荐 28~35），cfg 推荐 5.0~7.0。
 5. 采样器推荐 sampler_name="euler_ancestral", scheduler="normal" 或 "karras"。
 6. 检查是否匹配到以下可用 Illustrious LoRA：
@@ -271,8 +285,8 @@ async def optimize_prompt_with_llm(user_prompt: str, config) -> Dict[str, Any]:
 {{
   "positive_prompt": "masterpiece, extremely detailed, ...",
   "negative_prompt": "lowres, bad anatomy, bad hands, worst quality, low quality, ...",
-  "width": 1280,
-  "height": 1728,
+  "width": 1152,
+  "height": 1536,
   "steps": 28,
   "cfg": 5.5,
   "sampler_name": "euler_ancestral",
@@ -311,23 +325,25 @@ async def optimize_prompt_with_llm(user_prompt: str, config) -> Dict[str, Any]:
                 # 约束 steps 在 28 - 60
                 if "steps" in parsed:
                     parsed["steps"] = max(28, min(60, int(parsed["steps"])))
-                # 约束尺寸在 1200 - 1800 之间且为 64 倍数
+                # 约束尺寸在配置的分辨率区间内且为 64 倍数
                 if "width" in parsed and "height" in parsed:
-                    pw = max(1200, min(1800, int(parsed["width"])))
-                    ph = max(1200, min(1800, int(parsed["height"])))
-                    parsed["width"] = int(round(pw / 64) * 64)
-                    parsed["height"] = int(round(ph / 64) * 64)
+                    parsed["width"], parsed["height"] = clamp_resolution_to_bounds(
+                        int(parsed["width"]),
+                        int(parsed["height"]),
+                        min_dim=min_dim,
+                        max_dim=max_dim,
+                    )
 
                 return parsed
     except Exception as e:
         print(f"[ComfyUI LLM Control] LLM 智能优化参数失败，回退到默认参数: {e}")
 
-    # 回退到基础默认解析 (尺寸 1200-1800, 步数 28-60)
+    # 回退到基础默认解析 (尺寸受 resolution_min~resolution_max 约束, 步数 28-60)
     return {
         "positive_prompt": f"masterpiece, best quality, aesthetic, {user_prompt}",
         "negative_prompt": "worst quality, low quality, blurry, bad anatomy",
-        "width": comfy_cfg.get("default_width", 1280),
-        "height": comfy_cfg.get("default_height", 1728),
+        "width": def_w,
+        "height": def_h,
         "steps": comfy_cfg.get("default_steps", 32),
         "cfg": comfy_cfg.get("default_cfg", 4.5),
         "sampler_name": comfy_cfg.get("default_sampler", "er_sde"),
@@ -800,9 +816,15 @@ async def comfyui_draw(
     timeout = float(comfy_cfg.get("timeout", 300))
     llm_control = comfy_cfg.get("主模型控制生图", False)
 
-    # 尺寸与默认参数 (所有宽高比处于 1200 - 1800 区间)
-    width = comfy_cfg.get("default_width", 1280)
-    height = comfy_cfg.get("default_height", 1728)
+    # 尺寸与默认参数 (受 resolution_min ~ resolution_max 约束，按比例自适应)
+    min_dim = int(comfy_cfg.get("resolution_min", 1100))
+    max_dim = int(comfy_cfg.get("resolution_max", 1600))
+    width, height = clamp_resolution_to_bounds(
+        int(comfy_cfg.get("default_width", 1152)),
+        int(comfy_cfg.get("default_height", 1536)),
+        min_dim=min_dim,
+        max_dim=max_dim,
+    )
 
     # 动态解析画幅比例 (aspect_ratio)
     ar = None
@@ -812,7 +834,13 @@ async def comfyui_draw(
         ar = comfy_cfg.get("aspect_ratio")
 
     if ar:
-        width, height = map_aspect_ratio_to_resolution(ar, default_w=width, default_h=height)
+        width, height = map_aspect_ratio_to_resolution(
+            ar,
+            default_w=width,
+            default_h=height,
+            min_dim=min_dim,
+            max_dim=max_dim,
+        )
 
     steps = comfy_cfg.get("default_steps", 28)
     cfg_val = comfy_cfg.get("default_cfg", 5.5)
@@ -954,9 +982,9 @@ async def comfyui_draw(
             elif opt_neg:
                 negative_prompt = opt_neg
             if "width" in optimized:
-                width = max(1200, min(1800, int(round(int(optimized["width"]) / 64) * 64)))
+                width, _ = clamp_resolution_to_bounds(int(optimized["width"]), height, min_dim=min_dim, max_dim=max_dim)
             if "height" in optimized:
-                height = max(1200, min(1800, int(round(int(optimized["height"]) / 64) * 64)))
+                _, height = clamp_resolution_to_bounds(width, int(optimized["height"]), min_dim=min_dim, max_dim=max_dim)
             if "steps" in optimized:
                 steps = max(28, min(60, int(optimized["steps"])))
             cfg_val = optimized.get("cfg", cfg_val)

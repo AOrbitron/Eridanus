@@ -27,8 +27,10 @@ comfyui:
   default_cfg: 5.5 # 默认CFG (Illustrious 推荐 5.0~7.0)
   default_sampler: "euler_ancestral" # 默认采样器 (Illustrious 推荐 euler_ancestral)
   default_scheduler: "normal" # 默认调度算法 (normal / karras)
-  default_width: 1280 # 默认出图宽度 (1200-1800)
-  default_height: 1728 # 默认出图高度 (1200-1800)
+  default_width: 1152 # 默认出图宽度 (受 resolution_min ~ resolution_max 约束)
+  default_height: 1536 # 默认出图高度 (受 resolution_min ~ resolution_max 约束)
+  resolution_min: 1100 # ComfyUI 分辨率映射自适应最小边长限制（按 64 倍数向上对齐）
+  resolution_max: 1600 # ComfyUI 分辨率映射自适应最大边长限制（按 64 倍数向下对齐）
   timeout: 300 # 超时时间(秒)
   decrypt_encrypted_image: true # 是否对 pixel_shuffle 加密图片自动还原解密
   decrypt_password: "1234" # 解密密码
@@ -83,8 +85,10 @@ ai绘画:
   sd默认启动模型: 'waiIllustriousSDXL_v170.safetensors'
   反推和审核使用模型: 'wd14-vit-v2-git'
   sd图片是否保存到生图端: true
-  sd画图默认分辨率: '1280,1728' # 宽,高 (1200-1800 区间)
-  sd最大分辨率: '1800,1800'
+  sd画图默认分辨率: '1152,1536' # 宽,高 (受下面映射区间约束)
+  sd分辨率映射最小边长: 1100 # SD 比例映射自适应最小边长限制（按 64 倍数向上对齐）
+  sd分辨率映射最大边长: 1600 # SD 比例映射自适应最大边长限制（按 64 倍数向下对齐）
+  sd最大分辨率: '1600,1600'
   sd队列长度限制: 6
   sd超时时间: 600
   ai绘画所需权限等级: 0

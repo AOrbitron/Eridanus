@@ -1,5 +1,6 @@
 import json
 import logging
+import math
 import re
 from typing import Any, Dict, Optional, Tuple
 
@@ -31,56 +32,65 @@ def get_llm_config(config: Any) -> Dict[str, Any]:
     }
 
 
+def normalize_resolution_bounds(
+    min_dim: int = 1100,
+    max_dim: int = 1600
+) -> Tuple[int, int]:
+    """将配置的最小/最大边长对齐到 64 的整数倍，并保证 min_aligned <= max_aligned。"""
+    lo = max(256, int(min_dim))
+    hi = max(lo, int(max_dim))
+    min_aligned = int(math.ceil(lo / 64) * 64)
+    max_aligned = int(math.floor(hi / 64) * 64)
+    if max_aligned < 256:
+        max_aligned = int(round(hi / 64) * 64)
+    if min_aligned > max_aligned:
+        min_aligned = max_aligned
+    return (min_aligned, max_aligned)
+
+
+def clamp_resolution_to_bounds(
+    width: int,
+    height: int,
+    min_dim: int = 1100,
+    max_dim: int = 1600
+) -> Tuple[int, int]:
+    """将宽高对齐 64 倍数并限制在配置的映射区间内。"""
+    min_aligned, max_aligned = normalize_resolution_bounds(min_dim, max_dim)
+    w = max(min_aligned, min(max_aligned, int(round(int(width) / 64) * 64)))
+    h = max(min_aligned, min(max_aligned, int(round(int(height) / 64) * 64)))
+    return (w, h)
+
+
 def map_aspect_ratio_to_resolution(
     ar: Any,
-    default_w: int = 1280,
-    default_h: int = 1728
+    default_w: int = 1152,
+    default_h: int = 1536,
+    min_dim: int = 1100,
+    max_dim: int = 1600
 ) -> Tuple[int, int]:
     """
-    将宽高比 (aspect_ratio) 映射到分辨率。
-    所有尺寸严格约束在 1200 - 1800 之间，且向下/向上对齐 64 的整数倍（适配 DiT 及 SDXL 显存格点）。
+    将宽高比 (aspect_ratio) 自适应映射到分辨率。
+    根据 min_dim ~ max_dim 区间按目标像素面积自适应计算宽高，并对齐 64 的整数倍。
     """
+    min_aligned, max_aligned = normalize_resolution_bounds(min_dim, max_dim)
     if not ar:
-        return (default_w, default_h)
+        return clamp_resolution_to_bounds(default_w, default_h, min_dim, max_dim)
 
     ar_str = str(ar).strip().lower()
-
-    # 标准比例映射表 (宽, 高 均处于 1200 - 1800 区间，64倍数)
-    ar_map = {
-        "1:1":  (1536, 1536),
-        "3:4":  (1280, 1728),
-        "4:3":  (1728, 1280),
-        "2:3":  (1216, 1792),
-        "3:2":  (1792, 1216),
-        "4:5":  (1280, 1600),
-        "5:4":  (1600, 1280),
-        "5:7":  (1216, 1728),
-        "7:5":  (1728, 1216),
-        "9:16": (1216, 1792),
-        "16:9": (1792, 1216),
-        "9:21": (1216, 1792),
-        "21:9": (1792, 1216),
-    }
-
-    if ar_str in ar_map:
-        return ar_map[ar_str]
-
     if ":" in ar_str:
         try:
-            parts = ar_str.split(":")
+            parts = ar_str.split(":", 1)
             rw, rh = float(parts[0]), float(parts[1])
-            base_pixels = 1472 * 1472  # 约 2.16M 像素
-            calc_w = int(round((base_pixels * (rw / rh)) ** 0.5 / 64) * 64)
-            calc_h = int(round((base_pixels * (rh / rw)) ** 0.5 / 64) * 64)
-            w = max(1200, min(1800, calc_w))
-            h = max(1200, min(1800, calc_h))
-            w = int(round(w / 64) * 64)
-            h = int(round(h / 64) * 64)
-            return (w, h)
+            if rw > 0 and rh > 0:
+                mid = (min_aligned + max_aligned) / 2.0
+                base_pixels = mid * mid
+                calc_w = int(round((base_pixels * (rw / rh)) ** 0.5 / 64) * 64)
+                calc_h = int(round((base_pixels * (rh / rw)) ** 0.5 / 64) * 64)
+                return clamp_resolution_to_bounds(calc_w, calc_h, min_dim, max_dim)
         except Exception:
             pass
 
-    return (default_w, default_h)
+    return clamp_resolution_to_bounds(default_w, default_h, min_dim, max_dim)
 
 
 async def optimize_prompt_for_sd(
@@ -94,7 +104,7 @@ async def optimize_prompt_for_sd(
     针对 Stable Diffusion (SD/SDXL) 后端的提示词优化器：
     1. SD 无法识别中文或自然语言叙述，必须转换为纯英文逗号分隔的 Danbooru tag 词条；
     2. 自动载入衣橱管理系统的角色锚点、服装设定与负向提示词；
-    3. 严格将分辨率约束在 1200 - 1800 区间；
+    3. 严格将分辨率约束在 1100 - 1600 区间；
     4. 步数 steps 自主决定在 28 - 60 区间；
     5. 调用统一的顶层 `llm_config` 执行模型转换，附带完备的离线规则兜底。
     """
@@ -129,8 +139,32 @@ async def optimize_prompt_for_sd(
     except Exception as e:
         logger.debug(f"[SD Optimizer] 读取衣橱系统异常: {e}")
 
-    # 2. 分辨率对齐 (1200 - 1800)
-    width, height = map_aspect_ratio_to_resolution(aspect_ratio, default_w=1280, default_h=1728)
+    # 2. 从配置读取 SD 分辨率映射区间并自适应对齐
+    cfg_dict = {}
+    if hasattr(config, "ai_generated_art") and hasattr(config.ai_generated_art, "config"):
+        cfg_dict = config.ai_generated_art.config
+    elif isinstance(config, dict):
+        cfg_dict = config
+    ai_cfg = cfg_dict.get("ai绘画", {}) if isinstance(cfg_dict, dict) else {}
+
+    min_dim = int(ai_cfg.get("sd分辨率映射最小边长", 1100))
+    max_dim = int(ai_cfg.get("sd分辨率映射最大边长", 1600))
+    default_w, default_h = 1152, 1536
+    raw_default_res = str(ai_cfg.get("sd画图默认分辨率", "")).strip()
+    if "," in raw_default_res:
+        try:
+            dw_s, dh_s = raw_default_res.split(",", 1)
+            default_w, default_h = int(dw_s.strip()), int(dh_s.strip())
+        except Exception:
+            pass
+    min_aligned, max_aligned = normalize_resolution_bounds(min_dim, max_dim)
+    width, height = map_aspect_ratio_to_resolution(
+        aspect_ratio,
+        default_w=default_w,
+        default_h=default_h,
+        min_dim=min_dim,
+        max_dim=max_dim,
+    )
 
     # 3. 准备调用 LLM 转换为纯 Danbooru 词条
     llm = get_llm_config(config)
@@ -144,7 +178,7 @@ async def optimize_prompt_for_sd(
    - 角色核心外貌锚点（若有）："{char_anchor}"。必须原样保留在最前面并保持英文 tag 格式！
    - 当前着装设定（若有）："{outfit_tags}"。若用户未要求换装，请保留此服装 tags；若用户要求了特定服饰（如睡裙/泳装），将其转化为精准的 Danbooru 服装 tags！
 5. 【参数规范】：
-   - width 与 height 必须在 1200 到 1800 之间（已预设为 width={width}, height={height}，可根据构图微调至 1200~1800 内 64 的倍数）。
+   - width 与 height 必须在 {min_aligned} 到 {max_aligned} 之间（已预设为 width={width}, height={height}，可根据构图微调至 {min_aligned}~{max_aligned} 内 64 的倍数）。
    - 采样步数 steps 必须自主选在 28 到 60 之间（默认推荐 30~45）。
    - cfg 推荐 4.5 到 7.0。
    - negative_prompt 输出纯英文 Danbooru 负面 tags。
@@ -187,12 +221,12 @@ async def optimize_prompt_for_sd(
                 parsed = json.loads(clean_json)
 
                 # 约束校验
-                res_w = int(parsed.get("width", width))
-                res_h = int(parsed.get("height", height))
-                res_w = max(1200, min(1800, res_w))
-                res_h = max(1200, min(1800, res_h))
-                res_w = int(round(res_w / 64) * 64)
-                res_h = int(round(res_h / 64) * 64)
+                res_w, res_h = clamp_resolution_to_bounds(
+                    int(parsed.get("width", width)),
+                    int(parsed.get("height", height)),
+                    min_dim=min_dim,
+                    max_dim=max_dim,
+                )
 
                 res_steps = int(parsed.get("steps", 32))
                 res_steps = max(28, min(60, res_steps))

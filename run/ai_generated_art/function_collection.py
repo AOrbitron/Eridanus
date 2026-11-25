@@ -121,7 +121,7 @@ async def _call_comfyui(bot, event, config, prompt, is_about_bot=False, **kwargs
 
 
 async def _call_sd(bot, event, config, prompt, is_about_bot=False, **kwargs):
-    """调用 Stable Diffusion WebUI 后端生图（支持 LLM 纯 Danbooru 词条优化与 1200-1800 尺寸约束）"""
+    """调用 Stable Diffusion WebUI 后端生图（支持 LLM 纯 Danbooru 词条优化与 1100-1600 尺寸约束）"""
     from run.ai_generated_art.service.prompt_optimizer import optimize_prompt_for_sd
     from run.ai_generated_art.service.aiDraw import SdDraw0
     from framework_common.utils.random_str import random_str
@@ -129,7 +129,7 @@ async def _call_sd(bot, event, config, prompt, is_about_bot=False, **kwargs):
     group_id = getattr(event, "group_id", getattr(event, "user_id", None))
     path = f"data/pictures/cache/{random_str()}.png"
 
-    # 调用 SD 专用提示词优化器（将自然语言转为纯 Danbooru tags，对齐 1200-1800 宽高比及 28-60 步数）
+    # 调用 SD 专用提示词优化器（将自然语言转为纯 Danbooru tags，对齐 1100-1600 宽高比及 28-60 步数）
     ar = kwargs.get("aspect_ratio") or kwargs.get("ar")
     optimized = await optimize_prompt_for_sd(
         user_prompt=prompt,
@@ -140,8 +140,8 @@ async def _call_sd(bot, event, config, prompt, is_about_bot=False, **kwargs):
 
     opt_prompt = optimized.get("positive_prompt") or prompt
     sd_args = {
-        "w": optimized.get("width", 1280),
-        "h": optimized.get("height", 1728),
+        "w": optimized.get("width", 1152),
+        "h": optimized.get("height", 1536),
         "steps": optimized.get("steps", 32),
         "cfg": optimized.get("cfg", 5.0),
         "n": optimized.get("negative_prompt", "")
