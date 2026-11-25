@@ -37,7 +37,7 @@ from run.core_reply.service.proactive import build_proactive_prompt, should_proa
 from PIL import Image as PILImage
 
 from developTools.event.events import GroupMessageEvent, PrivateMessageEvent, LifecycleMetaEvent, Sender
-from developTools.message.message_components import Text, Image, Mface, At, Reply
+from developTools.message.message_components import Text, Image, Mface, At, Reply, Face
 from framework_common.framework_util.websocket_fix import ExtendBot
 from framework_common.framework_util.yamlLoader import YAMLManager
 from framework_common.utils.utils import download_img, get_img
@@ -59,6 +59,117 @@ def compress_image_to_b64(file_path: str, quality: int = 70) -> str:
         return base64.b64encode(buf.getvalue()).decode("utf-8")
 
 
+async def _download_and_encode_image(img_url: str) -> dict:
+    """下载图片并压缩为 OpenAI vision 格式的 image_url 字典。"""
+    q_path = f"data/pictures/cache/{uuid.uuid4()}.png"
+    await download_img(img_url, q_path)
+    b64 = compress_image_to_b64(q_path)
+    return {
+        "type": "image_url",
+        "image_url": {"url": f"data:image/jpeg;base64,{b64}"},
+    }
+
+
+def _extract_quoted_sender_label(quoted_msg) -> str:
+    """提取被引用消息发送者的展示名称。"""
+    sender = None
+    if isinstance(quoted_msg, dict):
+        data = quoted_msg.get("data") if isinstance(quoted_msg.get("data"), dict) else quoted_msg
+        sender = data.get("sender")
+    else:
+        sender = getattr(quoted_msg, "sender", None)
+    if not sender:
+        return ""
+    if isinstance(sender, dict):
+        return str(sender.get("card") or sender.get("nickname") or sender.get("user_id") or "").strip()
+    return str(
+        getattr(sender, "card", None)
+        or getattr(sender, "nickname", None)
+        or getattr(sender, "user_id", None)
+        or ""
+    ).strip()
+
+
+async def _extract_quoted_message(bot, reply_id) -> tuple:
+    """
+    通过 bot.get_msg() 拉取被引用消息，提取发送者、文本内容、图片直链与 base64 图片列表。
+    返回 (quoted_text_parts: list[str], quoted_image_items: list[dict])
+    """
+    try:
+        try:
+            msg_id_arg = int(reply_id)
+        except (TypeError, ValueError):
+            msg_id_arg = reply_id
+        quoted_msg = await bot.get_msg(msg_id_arg)
+    except Exception as exc:
+        if hasattr(bot, "logger"):
+            bot.logger.warning(f"[MaiReply] 拉取引用消息 get_msg({reply_id}) 失败: {exc}")
+        return [], []
+
+    if not quoted_msg:
+        return [], []
+
+    quoted_chain = None
+    if isinstance(quoted_msg, dict):
+        quoted_chain = quoted_msg.get("data", {}).get("message") or quoted_msg.get("message")
+    elif hasattr(quoted_msg, "message_chain"):
+        quoted_chain = quoted_msg.message_chain
+    elif hasattr(quoted_msg, "message"):
+        quoted_chain = quoted_msg.message
+
+    if not quoted_chain:
+        return [], []
+
+    q_text_parts = []
+    q_img_notes = []
+    q_images = []
+
+    for qmsg in quoted_chain:
+        if isinstance(qmsg, Text):
+            if qmsg.text:
+                q_text_parts.append(qmsg.text)
+        elif isinstance(qmsg, At):
+            uid = str(qmsg.qq)
+            q_text_parts.append("@全体成员" if uid == "0" else f"@{qmsg.name or uid}")
+        elif isinstance(qmsg, Face):
+            q_text_parts.append("[表情]")
+        elif isinstance(qmsg, (Image, Mface)) or (isinstance(qmsg, dict) and qmsg.get("type") in ("image", "mface")):
+            if isinstance(qmsg, (Image, Mface)):
+                img_url = getattr(qmsg, "url", None) or getattr(qmsg, "file", None)
+            else:
+                qdata = qmsg.get("data", {}) if isinstance(qmsg.get("data"), dict) else {}
+                img_url = qdata.get("url") or qdata.get("file")
+
+            if not img_url:
+                continue
+
+            try:
+                q_images.append(await _download_and_encode_image(img_url))
+                q_img_notes.append(f"[引用图片，url：{img_url}]")
+            except Exception as exc:
+                if hasattr(bot, "logger"):
+                    bot.logger.warning(f"[MaiReply] 下载引用图片失败 ({img_url}): {exc}")
+                q_img_notes.append(f"[引用图片获取失败，url：{img_url}]")
+        elif isinstance(qmsg, dict):
+            qtype = qmsg.get("type", "")
+            qdata = qmsg.get("data", {}) if isinstance(qmsg.get("data"), dict) else {}
+            if qtype == "text" and qdata.get("text"):
+                q_text_parts.append(str(qdata["text"]))
+            elif qtype == "at":
+                uid = str(qdata.get("qq", ""))
+                q_text_parts.append("@全体成员" if uid == "all" else f"@{qdata.get('name') or uid}")
+            elif qtype == "face":
+                q_text_parts.append("[表情]")
+
+    sender_label = _extract_quoted_sender_label(quoted_msg)
+    header = f"引用 {sender_label} 的消息" if sender_label else "引用消息"
+    q_text = "".join(q_text_parts).strip()
+    body_parts = [p for p in (q_text, " ".join(q_img_notes).strip()) if p]
+    if not body_parts:
+        return [], q_images
+    return [f"[{header}：{' | '.join(body_parts)}]"], q_images
+
+
 async def extract_message_content(event, bot, message_text=None) -> tuple:
     """
     从消息链中提取文本和图片，构建 OpenAI 多模态 content 列表。
@@ -66,86 +177,42 @@ async def extract_message_content(event, bot, message_text=None) -> tuple:
     - 若无图片，content 为纯字符串（与原逻辑兼容）
     - 若含图片，content 为 list[dict]，符合 OpenAI vision 格式
 
-    新增：自动检测消息链中的 Reply 组件，通过 bot.get_msg() 拉取被引用消息，
-    提取其中的图片一并注入 content，让 LLM 能"看到"用户引用的图。
+    自动检测消息链中的 Reply 组件，通过 bot.get_msg() 拉取被引用消息，
+    提取其中的文本、发送者与图片（含直链）一并注入上下文与 content。
     """
     resolved_text = message_text if message_text is not None else await resolve_message_text(event, bot)
+    quoted_parts = []
     text_parts = [resolved_text] if resolved_text else []
     image_items = []
 
-    # ── 第一步：检测 Reply 组件，拉取被引用消息中的图片 ──
+    # ── 第一步：检测 Reply 组件，拉取被引用消息中的文本与图片 ──
     for msg in event.message_chain:
         if isinstance(msg, Reply):
-            try:
-                quoted_msg = await bot.get_msg(int(msg.id))
-                # get_msg 通常返回 {"data": {"message": [...], ...}} 或直接返回事件对象
-                # 兼容两种结构
-                quoted_chain = None
-                if isinstance(quoted_msg, dict):
-                    quoted_chain = quoted_msg.get("data", {}).get("message") or quoted_msg.get("message")
-                elif hasattr(quoted_msg, "message_chain"):
-                    quoted_chain = quoted_msg.message_chain
-                elif hasattr(quoted_msg, "message"):
-                    quoted_chain = quoted_msg.message
-
-                if not quoted_chain:
-                    continue
-
-                # 遍历引用消息的组件，只摘取图片
-                for qmsg in quoted_chain:
-                    # 兼容组件对象和原始 dict 两种格式
-                    if isinstance(qmsg, (Image, Mface)):
-                        img_url = getattr(qmsg, "url", None) or getattr(qmsg, "file", None)
-                    elif isinstance(qmsg, dict):
-                        qtype = qmsg.get("type", "")
-                        if qtype in ("image", "mface"):
-                            data = qmsg.get("data", {})
-                            img_url = data.get("url") or data.get("file")
-                        else:
-                            continue
-                    else:
-                        continue
-
-                    if not img_url:
-                        continue
-
-                    try:
-                        q_path = f"data/pictures/cache/{uuid.uuid4()}.png"
-                        await download_img(img_url, q_path)
-                        b64 = compress_image_to_b64(q_path)
-                        image_items.append({
-                            "type": "image_url",
-                            "image_url": {"url": f"data:image/jpeg;base64,{b64}"}
-                        })
-                        #text_parts.append(f"[引用消息中包含图片，url：{img_url}]")
-                    except Exception:
-                        text_parts.append("[引用图片获取失败]")
-
-            except Exception:
-                # 拉取引用消息失败时静默跳过，不影响主流程
-                pass
+            q_texts, q_imgs = await _extract_quoted_message(bot, msg.id)
+            quoted_parts.extend(q_texts)
+            image_items.extend(q_imgs)
 
     # ── 第二步：处理当前消息本身的文本和图片 ──
     for msg in event.message_chain:
-        if isinstance(msg, Reply):
-            continue  # 已在上方处理
-        if isinstance(msg, (Text, At)):
-            continue  # 文本和艾特身份已统一解析，避免重复追加
+        if isinstance(msg, (Reply, Text, At)):
+            continue  # 引用已在上方处理；文本和艾特身份已统一解析，避免重复追加
         elif isinstance(msg, (Image, Mface)):
             try:
-                url = await get_img(event, bot)
-                path = f"data/pictures/cache/{uuid.uuid4()}.png"
-                await download_img(url, path)
-                b64 = compress_image_to_b64(path)
-                image_items.append({
-                    "type": "image_url",
-                    "image_url": {"url": f"data:image/jpeg;base64,{b64}"}
-                })
+                url = getattr(msg, "url", None) or getattr(msg, "file", None)
+                if not url and not event.message_chain.has(Reply):
+                    url = await get_img(event, bot)
+                if not url:
+                    text_parts.append("[图片获取失败]")
+                    continue
+                image_items.append(await _download_and_encode_image(url))
                 text_parts.append(f"图片url为{url}")
-            except Exception:
+            except Exception as exc:
+                if hasattr(bot, "logger"):
+                    bot.logger.warning(f"[MaiReply] 下载消息图片失败: {exc}")
                 text_parts.append("[图片获取失败]")
 
-    pure_text = "".join(text_parts).strip()
+    all_parts = quoted_parts + text_parts
+    pure_text = "\n".join(p for p in all_parts if p).strip()
 
     if not image_items:
         return pure_text, pure_text
@@ -479,6 +546,8 @@ def main(bot: ExtendBot, config: YAMLManager):
                 message_text=message_context_text,
             )
             pure_text, content = await extract_message_content(event, bot, message_text=message_context_text)
+            if pure_text:
+                clean_text = pure_text
             if should_reply:
                 triggered_by_llm = True  # ← 由 LLM 语义触发，需严格限制回复长度
 
