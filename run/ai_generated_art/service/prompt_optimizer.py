@@ -12,7 +12,8 @@ logger = logging.getLogger("prompt_optimizer")
 def get_llm_config(config: Any) -> Dict[str, Any]:
     """
     统一获取生图提示词优化与参数控制的 LLM 配置。
-    优先读取根级 `llm_config`，向后兼容 `comfyui.llm_config`，最后回退内置默认。
+    优先读取根级 `llm_config`，其次兼容 `comfyui.llm_config`，若均未填写则回退到 `core_reply` 主回复模型配置。
+    严禁在源码中硬编码任何 API Key 或服务端点。
     """
     cfg_dict = {}
     if hasattr(config, "ai_generated_art") and hasattr(config.ai_generated_art, "config"):
@@ -23,12 +24,31 @@ def get_llm_config(config: Any) -> Dict[str, Any]:
     llm_cfg = cfg_dict.get("llm_config")
     if not llm_cfg or not isinstance(llm_cfg, dict):
         llm_cfg = cfg_dict.get("comfyui", {}).get("llm_config", {})
+    if not isinstance(llm_cfg, dict):
+        llm_cfg = {}
+
+    base_url = (llm_cfg.get("base_url") or "").strip().rstrip("/")
+    apikey = (llm_cfg.get("apikey") or "").strip()
+    model = (llm_cfg.get("model") or "").strip()
+    temperature = llm_cfg.get("temperature", 0.7)
+
+    # 若 ai_generated_art 未单独配置，尝试回退读取 core_reply 主模型配置
+    if (not base_url or not apikey or not model) and hasattr(config, "core_reply"):
+        try:
+            cr_cfg = getattr(config.core_reply, "config", {}) or {}
+            cr_llm = cr_cfg.get("llm_config") or cr_cfg.get("api") or {}
+            if isinstance(cr_llm, dict):
+                base_url = base_url or (cr_llm.get("base_url") or cr_llm.get("api_base") or "").strip().rstrip("/")
+                apikey = apikey or (cr_llm.get("apikey") or cr_llm.get("api_key") or "").strip()
+                model = model or (cr_llm.get("model") or "").strip()
+        except Exception:
+            pass
 
     return {
-        "base_url": (llm_cfg.get("base_url") or "http://magpieapi.apollodorus.xyz/v1").rstrip("/"),
-        "apikey": llm_cfg.get("apikey") or "sk-magpie-key-26c4f8a10ac45417acb09cd303e920a8ada9c458670a4006",
-        "model": llm_cfg.get("model") or "gemini-3.8-flash",
-        "temperature": float(llm_cfg.get("temperature", 0.7)),
+        "base_url": base_url,
+        "apikey": apikey,
+        "model": model,
+        "temperature": float(temperature),
     }
 
 
@@ -246,6 +266,8 @@ async def optimize_prompt_for_sd(
     user_msg = f"用户原始绘图需求：{user_prompt}\n是否绘制Bot本人肖像：{is_about_bot}"
 
     try:
+        if not (llm["base_url"] and llm["apikey"] and llm["model"]):
+            raise ValueError("未配置生图 LLM base_url/apikey/model")
         async with httpx.AsyncClient(timeout=25.0) as client:
             resp = await client.post(
                 f"{llm['base_url']}/chat/completions",
@@ -384,6 +406,8 @@ async def optimize_prompt_for_img2img(
 }}"""
 
     try:
+        if not (llm["base_url"] and llm["apikey"] and llm["model"]):
+            raise ValueError("未配置生图 LLM base_url/apikey/model")
         async with httpx.AsyncClient(timeout=25.0) as client:
             resp = await client.post(
                 f"{llm['base_url']}/chat/completions",

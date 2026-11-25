@@ -316,6 +316,8 @@ async def optimize_prompt_with_llm(
     ]
 
     try:
+        if not (base_url and api_key and model):
+            raise ValueError("未配置 ComfyUI LLM base_url/apikey/model")
         async with httpx.AsyncClient(timeout=30.0) as client:
             resp = await client.post(
                 f"{base_url}/chat/completions",

@@ -83,6 +83,7 @@ ai绘画:
   nai_key:
     - ''
   sd默认启动模型: 'waiIllustriousSDXL_v170.safetensors'
+  sd提示词优化: false # 是否调用 LLM 将自然语言转为 Danbooru tags（默认 false，直连衣橱拼接并跳过额外 LLM 调用）
   反推和审核使用模型: 'wd14-vit-v2-git'
   sd图片是否保存到生图端: true
   sd画图默认分辨率: '1152,1536' # 宽,高 (受下面映射区间约束)

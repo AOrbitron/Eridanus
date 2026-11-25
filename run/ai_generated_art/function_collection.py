@@ -121,31 +121,79 @@ async def _call_comfyui(bot, event, config, prompt, is_about_bot=False, **kwargs
 
 
 async def _call_sd(bot, event, config, prompt, is_about_bot=False, **kwargs):
-    """调用 Stable Diffusion WebUI 后端生图（支持 LLM 纯 Danbooru 词条优化与 1100-1600 尺寸约束）"""
-    from run.ai_generated_art.service.prompt_optimizer import optimize_prompt_for_sd
+    """调用 Stable Diffusion WebUI 后端生图（可选 LLM 词条优化，默认直连衣橱与 1100-1600 尺寸约束）"""
+    from run.ai_generated_art.service.prompt_optimizer import (
+        DEFAULT_NEGATIVE_PROMPT_FALLBACK,
+        map_aspect_ratio_to_resolution,
+        optimize_prompt_for_sd,
+    )
     from run.ai_generated_art.service.aiDraw import SdDraw0
     from framework_common.utils.random_str import random_str
 
     group_id = getattr(event, "group_id", getattr(event, "user_id", None))
     path = f"data/pictures/cache/{random_str()}.png"
 
-    # 调用 SD 专用提示词优化器（将自然语言转为纯 Danbooru tags，对齐 1100-1600 宽高比及 28-60 步数）
+    ai_cfg = config.ai_generated_art.config.get("ai绘画", {})
     ar = kwargs.get("aspect_ratio") or kwargs.get("ar")
-    optimized = await optimize_prompt_for_sd(
-        user_prompt=prompt,
-        config=config,
-        is_about_bot=is_about_bot,
-        aspect_ratio=ar
-    )
 
-    opt_prompt = optimized.get("positive_prompt") or prompt
-    sd_args = {
-        "w": optimized.get("width", 1152),
-        "h": optimized.get("height", 1536),
-        "steps": optimized.get("steps", 32),
-        "cfg": optimized.get("cfg", 5.0),
-        "n": optimized.get("negative_prompt", "")
-    }
+    if ai_cfg.get("sd提示词优化", False):
+        optimized = await optimize_prompt_for_sd(
+            user_prompt=prompt,
+            config=config,
+            is_about_bot=is_about_bot,
+            aspect_ratio=ar,
+        )
+        opt_prompt = optimized.get("positive_prompt") or prompt
+        sd_args = {
+            "w": optimized.get("width", 1152),
+            "h": optimized.get("height", 1536),
+            "steps": optimized.get("steps", 32),
+            "cfg": optimized.get("cfg", 5.5),
+            "n": optimized.get("negative_prompt", DEFAULT_NEGATIVE_PROMPT_FALLBACK),
+        }
+    else:
+        min_dim = int(ai_cfg.get("sd分辨率映射最小边长", 1100))
+        max_dim = int(ai_cfg.get("sd分辨率映射最大边长", 1600))
+        default_w, default_h = 1152, 1536
+        raw_default_res = str(ai_cfg.get("sd画图默认分辨率", "")).strip()
+        if "," in raw_default_res:
+            try:
+                dw_s, dh_s = raw_default_res.split(",", 1)
+                default_w, default_h = int(dw_s.strip()), int(dh_s.strip())
+            except Exception:
+                pass
+        w, h = map_aspect_ratio_to_resolution(
+            ar, default_w=default_w, default_h=default_h, min_dim=min_dim, max_dim=max_dim
+        )
+
+        opt_prompt = prompt
+        neg_prompt = DEFAULT_NEGATIVE_PROMPT_FALLBACK
+        try:
+            from run.wardrobe.wardrobe_manager import get_wardrobe_manager
+            wm = get_wardrobe_manager() if get_wardrobe_manager else None
+            if wm:
+                neg_prompt = wm.get_negative_prompt() or neg_prompt
+                if is_about_bot:
+                    char_anchor = wm.get_character_anchor() or ""
+                    outfit_info = wm.get_current_outfit() or {}
+                    outfit_tags = outfit_info.get("clothing_tags", "") or ""
+                    parts = []
+                    if char_anchor and char_anchor[:25].lower() not in prompt.lower():
+                        parts.append(char_anchor)
+                    if outfit_tags and outfit_tags[:25].lower() not in prompt.lower():
+                        parts.append(outfit_tags)
+                    parts.append(prompt)
+                    opt_prompt = ", ".join(p.strip(" ,") for p in parts if p and p.strip(" ,"))
+        except Exception as e:
+            bot.logger.debug(f"[SD] 读取衣橱系统异常: {e}")
+
+        sd_args = {
+            "w": w,
+            "h": h,
+            "steps": 28,
+            "cfg": 5.5,
+            "n": neg_prompt,
+        }
     if "steps" in kwargs:
         sd_args["steps"] = kwargs["steps"]
     if "width" in kwargs:
