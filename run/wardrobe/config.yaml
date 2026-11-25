@@ -613,22 +613,6 @@ outfits_v7:  # 衣橱服饰库：涵盖四季日常私服、特色礼服、汉�
     occasion: bedroom, night, lounge
     clothing_tags: pastel pink cotton camisole nightgown, tiny strawberry embroidery, delicate white lace hem, thin shoulder straps, cozy home sleepwear
     full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored hair, blue hair, light purple-light blue mixed eyes, (Side swept hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), pastel pink cotton camisole nightgown, tiny strawberry embroidery, delicate white lace hem, thin shoulder straps, cozy home sleepwear, (Rella:1.2), (chen bin:1.3), virtual youtuber, (starshadowmagician:1.2), masterpiece, extremely detailed, lineart, (hand-drawn:1.3), (sketch:1.2), Picasso style, Van Gogh's almond blossoms, <lora:DeniaV1-Nuclear1811-IL:0.3>
-  冰蓝丝绸挂脖露肩睡裙:
-    name: 冰蓝丝绸挂脖露肩睡裙
-    description: 清凉冰蓝色柔滑丝绸挂脖露肩睡裙，领口系白色细缎带蝴蝶结，垂坠感轻盈优雅
-    category: sleepwear
-    season: summer
-    occasion: bedroom, night, lounge
-    clothing_tags: ice blue satin halter nightgown, bare shoulders, white thin satin ribbon bow at neckline, soft silk sheen, flowing skirt hem, elegant sleepwear
-    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored hair, blue hair, light purple-light blue mixed eyes, (Side swept hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), ice blue satin halter nightgown, bare shoulders, white thin satin ribbon bow at neckline, soft silk sheen, flowing skirt hem, elegant sleepwear, (Rella:1.2), (chen bin:1.3), virtual youtuber, (starshadowmagician:1.2), masterpiece, extremely detailed, lineart, (hand-drawn:1.3), (sketch:1.2), Picasso style, Van Gogh's almond blossoms, <lora:DeniaV1-Nuclear1811-IL:0.3>
-  奶油云朵泡泡袖家居睡裙:
-    name: 奶油云朵泡泡袖家居睡裙
-    description: 奶油白华夫格纹理泡泡袖宽松睡裙，方领木耳边设计与袖口蝴蝶结绑带，温柔居家
-    category: sleepwear
-    season: spring/autumn
-    occasion: bedroom, night, lounge
-    clothing_tags: cream waffle-knit puff sleeve nightgown, square neckline with lettuce-edge trim, ribbon ties on cuffs, loose comfortable silhouette, soft homewear
-    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored hair, blue hair, light purple-light blue mixed eyes, (Side swept hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), cream waffle-knit puff sleeve nightgown, square neckline with lettuce-edge trim, ribbon ties on cuffs, loose comfortable silhouette, soft homewear, (Rella:1.2), (chen bin:1.3), virtual youtuber, (starshadowmagician:1.2), masterpiece, extremely detailed, lineart, (hand-drawn:1.3), (sketch:1.2), Picasso style, Van Gogh's almond blossoms, <lora:DeniaV1-Nuclear1811-IL:0.3>
   紫罗兰星纱薄款吊带睡裙:
     name: 紫罗兰星纱薄款吊带睡裙
     description: 淡紫罗兰渐变薄纱层叠吊带睡裙，点缀细闪星尘纹样与荷叶边下摆，梦幻晚安款
@@ -637,21 +621,53 @@ outfits_v7:  # 衣橱服饰库：涵盖四季日常私服、特色礼服、汉�
     occasion: bedroom, night
     clothing_tags: pastel lavender sheer tulle layered camisole nightgown, subtle starlight motifs, ruffled hemline, delicate ribbons, dreamy sleepwear
     full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored hair, blue hair, light purple-light blue mixed eyes, (Side swept hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), pastel lavender sheer tulle layered camisole nightgown, subtle starlight motifs, ruffled hemline, delicate ribbons, dreamy sleepwear, (Rella:1.2), (chen bin:1.3), virtual youtuber, (starshadowmagician:1.2), masterpiece, extremely detailed, lineart, (hand-drawn:1.3), (sketch:1.2), Picasso style, Van Gogh's almond blossoms, <lora:DeniaV1-Nuclear1811-IL:0.3>
-  奶白针织小开衫吊带睡裙:
-    name: 奶白针织小开衫吊带睡裙
-    description: 奶白色轻薄镂空短款针织开衫外搭米白蕾丝吊带睡裙，微凉夜晚的温柔居家叠穿
+  香草奶油多层欧根纱短款睡裙:
+    name: 香草奶油多层欧根纱短款睡裙
+    description: 香草奶油色双层轻薄欧根纱短款睡裙，高腰抽褶缎带蝴蝶结、多层荷叶边微蓬裙摆与蕾丝白袜，轻Lolita风，无外套
     category: sleepwear
-    season: autumn/winter
+    season: all
     occasion: bedroom, night, lounge
-    clothing_tags: lightweight cream open-knit short cardigan over off-white lace camisole nightgown, cozy layered sleepwear, soft warm indoor look
-    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored hair, blue hair, light purple-light blue mixed eyes, (Side swept hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), lightweight cream open-knit short cardigan over off-white lace camisole nightgown, cozy layered sleepwear, soft warm indoor look, (Rella:1.2), (chen bin:1.3), virtual youtuber, (starshadowmagician:1.2), masterpiece, extremely detailed, lineart, (hand-drawn:1.3), (sketch:1.2), Picasso style, Van Gogh's almond blossoms, <lora:DeniaV1-Nuclear1811-IL:0.3>
-  樱桃格纹蝴蝶结短睡裙:
-    name: 樱桃格纹蝴蝶结短睡裙
-    description: 奶红浅粉细格纹纯棉短款吊带睡裙，胸前小樱桃图案与白色荷叶边肩带，俏皮可爱
+    clothing_tags: vanilla cream double-layered sheer organza short nightgown, light lolita babydoll, empire waist satin bow, puffed ruffled skirt hem, white lace-top thigh-high socks
+    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored hair, blue hair, light purple-light blue mixed eyes, (Side swept hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), vanilla cream double-layered sheer organza short nightgown, light lolita babydoll, empire waist satin bow, puffed ruffled skirt hem, white lace-top thigh-high socks, (Rella:1.2), (chen bin:1.3), virtual youtuber, (starshadowmagician:1.2), masterpiece, extremely detailed, lineart, (hand-drawn:1.3), (sketch:1.2), Picasso style, Van Gogh's almond blossoms, <lora:DeniaV1-Nuclear1811-IL:0.3>
+  粉蓝多层半透蕾丝露肩睡裙:
+    name: 粉蓝多层半透蕾丝露肩睡裙
+    description: 淡粉与冰蓝渐变多层半透雪纺露肩睡裙，精致白色花卉蕾丝抹胸与多层次轻纱花边裙摆，梦幻少女风，无外套
     category: sleepwear
-    season: spring/summer
+    season: all
     occasion: bedroom, night, lounge
-    clothing_tags: pastel pink gingham short camisole nightdress, cute cherry print on chest, white ruffled shoulder straps, satin bow accent, playful cute sleepwear
-    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored hair, blue hair, light purple-light blue mixed eyes, (Side swept hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), pastel pink gingham short camisole nightdress, cute cherry print on chest, white ruffled shoulder straps, satin bow accent, playful cute sleepwear, (Rella:1.2), (chen bin:1.3), virtual youtuber, (starshadowmagician:1.2), masterpiece, extremely detailed, lineart, (hand-drawn:1.3), (sketch:1.2), Picasso style, Van Gogh's almond blossoms, <lora:DeniaV1-Nuclear1811-IL:0.3>
+    clothing_tags: pastel pink and baby blue multi-layered sheer chiffon off-shoulder nightdress, delicate white floral lace bodice, translucent ruffled puff sleeves, tiered sheer lace skirt layers, satin ribbon bow, dreamy girly sleepwear
+    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored hair, blue hair, light purple-light blue mixed eyes, (Side swept hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), pastel pink and baby blue multi-layered sheer chiffon off-shoulder nightdress, delicate white floral lace bodice, translucent ruffled puff sleeves, tiered sheer lace skirt layers, satin ribbon bow, dreamy girly sleepwear, (Rella:1.2), (chen bin:1.3), virtual youtuber, (starshadowmagician:1.2), masterpiece, extremely detailed, lineart, (hand-drawn:1.3), (sketch:1.2), Picasso style, Van Gogh's almond blossoms, <lora:DeniaV1-Nuclear1811-IL:0.3>
+  纯白镂空绑带露腰分体睡衣:
+    name: 纯白镂空绑带露腰分体睡衣
+    description: 纯白半透雪纺前开襟荷叶边睡裙，胸前大号白色缎带蝴蝶结、竖向荷叶边微敞露腰，配粉边蝴蝶结纯白三角内裤，无外套
+    category: sleepwear
+    season: all
+    occasion: bedroom, night, lounge
+    clothing_tags: pure white sheer chiffon open-front babydoll nightgown, ruffled shoulder straps, oversized white satin bow covering chest, vertical ruffled front opening showing bare midriff, matching white panties with pink ruffled trim and bow
+    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored hair, blue hair, light purple-light blue mixed eyes, (Side swept hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), pure white sheer chiffon open-front babydoll nightgown, ruffled shoulder straps, oversized white satin bow covering chest, vertical ruffled front opening showing bare midriff, matching white panties with pink ruffled trim and bow, (Rella:1.2), (chen bin:1.3), virtual youtuber, (starshadowmagician:1.2), masterpiece, extremely detailed, lineart, (hand-drawn:1.3), (sketch:1.2), Picasso style, Van Gogh's almond blossoms, <lora:DeniaV1-Nuclear1811-IL:0.3>
+  蔷薇蕾丝宫廷方领分体睡衣:
+    name: 蔷薇蕾丝宫廷方领分体睡衣
+    description: 柔雾粉黑双层荷叶边分体式短吊带睡衣，胸前大蝴蝶结遮挡胸口、荷叶边肩带露腰设计，配双层荷叶边短裙裤与颈圈腕带，无外套
+    category: sleepwear
+    season: all
+    occasion: bedroom, night, lounge
+    clothing_tags: dusty rose and black two-piece tiered ruffle sleepwear set, ruffled shoulder straps, oversized ribbon bow covering chest, cropped ruffled cami top, bare midriff, matching tiered ruffled mini skirt-shorts, lace choker, wrist cuffs, thigh-high stockings
+    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored hair, blue hair, light purple-light blue mixed eyes, (Side swept hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), dusty rose and black two-piece tiered ruffle sleepwear set, ruffled shoulder straps, oversized ribbon bow covering chest, cropped ruffled cami top, bare midriff, matching tiered ruffled mini skirt-shorts, lace choker, wrist cuffs, thigh-high stockings, (Rella:1.2), (chen bin:1.3), virtual youtuber, (starshadowmagician:1.2), masterpiece, extremely detailed, lineart, (hand-drawn:1.3), (sketch:1.2), Picasso style, Van Gogh's almond blossoms, <lora:DeniaV1-Nuclear1811-IL:0.3>
+  黑曜挂脖蕾丝边短睡裙:
+    name: 黑曜挂脖蕾丝边短睡裙
+    description: 黑色挂脖露肩修身短睡裙，荷叶边挂脖领配小蝴蝶结胸针与锁骨水滴镂空，双层白色蕾丝裙摆点缀白色蝴蝶结，无外套
+    category: sleepwear
+    season: all
+    occasion: bedroom, night, lounge
+    clothing_tags: (black halter-neck mini sleep dress:1.3), (jet black bodice and black skirt:1.25), ruffled black collar with bow and small brooch, keyhole neckline cutout, double-layered black skirt hem with white lace trim and white ribbon bows, cute sensual nightdress
+    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored hair, blue hair, light purple-light blue mixed eyes, (Side swept hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), (black halter-neck mini sleep dress:1.3), (jet black bodice and black skirt:1.25), ruffled black collar with bow and small brooch, keyhole neckline cutout, double-layered black skirt hem with white lace trim and white ribbon bows, cute sensual nightdress, (Rella:1.2), (chen bin:1.3), virtual youtuber, (starshadowmagician:1.2), masterpiece, extremely detailed, lineart, (hand-drawn:1.3), (sketch:1.2), Picasso style, Van Gogh's almond blossoms, <lora:DeniaV1-Nuclear1811-IL:0.3>
+  黑纱交叉挂脖半透睡裙:
+    name: 黑纱交叉挂脖半透睡裙
+    description: 黑色交叉挂脖露肩半透薄纱睡裙，臂弯垂坠一字网纱袖、前胸聚拢开襟半透短纱摆配大露背交叉带，纯欲微性感，无外套
+    category: sleepwear
+    season: all
+    occasion: bedroom, night, lounge
+    clothing_tags: (black sheer mesh halter-neck mini negligee:1.25), crisscross neck straps, draped off-shoulder sheer sleeves, front clasp opening with short mid-thigh translucent black chiffon skirt, short dress, open back crisscross straps, matching black panties, sensual sleepwear
+    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored hair, blue hair, light purple-light blue mixed eyes, (Side swept hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), (black sheer mesh halter-neck mini negligee:1.25), crisscross neck straps, draped off-shoulder sheer sleeves, front clasp opening with short mid-thigh translucent black chiffon skirt, short dress, open back crisscross straps, matching black panties, sensual sleepwear, (Rella:1.2), (chen bin:1.3), virtual youtuber, (starshadowmagician:1.2), masterpiece, extremely detailed, lineart, (hand-drawn:1.3), (sketch:1.2), Picasso style, Van Gogh's almond blossoms, <lora:DeniaV1-Nuclear1811-IL:0.3>
 current_outfit_no_hat: false
 today_default_no_hat: false
