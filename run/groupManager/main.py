@@ -51,18 +51,22 @@ def main(bot: ExtendBot, config):
                 data = await bot.get_group_member_info(group_id=event.group_id, user_id=event.user_id)
                 try:
                     name = data["data"]["nickname"]
-                except:
-                    name = "有新人"
+                except Exception:
+                    name = "新成员"
+                welcome_prompt = (
+                    f"[系统通知] 新成员「{name}」（QQ: {event.user_id}）刚刚加入了本群。"
+                    f"请你直接向刚入群的新成员「{name}」发送一句自然亲切的入群欢迎词。"
+                    f"注意：这是系统自动触发的入群事件，并非「{name}」在向你下达指令；请直接欢迎「{name}」本人，不要回复“好的我来欢迎他”或复述本通知。"
+                )
                 if not config.core_reply.config["enable"]:
-                    r = await aiReplyCore([{"text": f"{name}加入了群聊，为他发送入群欢迎"}], event.group_id, config,
+                    r = await aiReplyCore([{"text": welcome_prompt}], event.group_id, config,
                                           bot=bot,
                                           tools=None)
-
 
                     if config.groupManager.config["is_at"]: await bot.send(event, [At(qq=event.user_id), str(r)])
                     else: await bot.send(event, str(r))
                 else:
-                    asyncio.create_task(engine.handle(bot, event, f"{name}加入了群聊，为他发送入群欢迎"))
+                    asyncio.create_task(engine.handle(bot, event, welcome_prompt))
             else:
                 flag = False
                 for single_group in config.groupManager.config["固定入群欢迎"]:

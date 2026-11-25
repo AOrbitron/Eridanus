@@ -144,12 +144,14 @@ def build_query(query, user_id, context, now, config=None, is_group=False):
         if owner is not None and uid != owner:
             continue
         normalized.append((role, value.strip()))
-    if deictic:
-        for role, text in reversed(normalized[-12:]):
-            if not keywords or keywords & terms(text):
-                selected.append((role, text[:300]))
-                if len(selected) >= max(1, int(config.get("context_messages", 4))):
-                    break
+    simple = re.sub(r"[\W_]+", "", query.lower())
+    skip = config.get("mode", "adaptive") == "adaptive" and not deictic and bool(re.fullmatch(
+        r"(?:嗯+|哦+|好+|好的|知道了|收到|谢谢|哈哈+|早安|晚安|你好|嗨|hello|hi|ok|thanks)", simple))
+    # 只要当前存在活跃对话上下文且未跳过检索，直接按时间倒序选取最近几轮供双路融合使用，
+    # 不再依赖脆弱的长度阈值或关键词规则猜测是否需要上下文。
+    if not skip and normalized:
+        max_ctx = max(1, int(config.get("context_messages", 4)))
+        selected = [(role, text[:300]) for role, text in reversed(normalized[-max_ctx:])]
     selected.reverse()
     grounded = query
     if labels:
@@ -159,8 +161,5 @@ def build_query(query, user_id, context, now, config=None, is_group=False):
         grounded += "\n当前对话线索（仅辅助定位，不是历史事实）：\n" + "\n".join(
             ("Bot说：" if role == "assistant" else "用户说：") + text for role, text in selected
         )[-limit:]
-    simple = re.sub(r"[\W_]+", "", query.lower())
-    skip = config.get("mode", "adaptive") == "adaptive" and not deictic and bool(re.fullmatch(
-        r"(?:嗯+|哦+|好+|好的|知道了|收到|谢谢|哈哈+|早安|晚安|你好|嗨|hello|hi|ok|thanks)", simple))
     return QueryPlan(grounded[:4000], query, owner, time_window(query, now), deictic,
                      frozenset(keywords), len(selected), skip, ambiguous_person)

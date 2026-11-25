@@ -8,13 +8,16 @@
 import asyncio
 import hashlib
 import json
+import math
 import re
 import time
+from collections import Counter
 from typing import List, Dict, Optional, Tuple, Any, Set
 
 import numpy as np
 
 from framework_common.utils.system_logger import get_logger
+from run.core_reply.service.rag_query import build_query, terms as query_terms
 
 logger = get_logger(__name__)
 
@@ -49,11 +52,117 @@ def _legacy_group_alias(scope, category, text):
         any(word in text for word in ("外号", "别名", "绰号", "昵称", "称呼")))
 
 
+def _tokenize_bm25(text: str) -> List[str]:
+    """抽取用于 BM25 的精确词条：英文/数字/ID词元与中文二元/三元切片。"""
+    if not text:
+        return []
+    low = str(text).lower()
+    tokens: List[str] = []
+    tokens.extend(re.findall(r"[a-z0-9][a-z0-9_.:-]{1,}", low))
+    for run in re.findall(r"[\u4e00-\u9fff]{2,}", low):
+        tokens.extend(run[i:i + 2] for i in range(len(run) - 1))
+        if len(run) >= 3:
+            tokens.extend(run[i:i + 3] for i in range(len(run) - 2))
+    return tokens
+
+
+def _compute_bm25_scores(
+    query_tokens: List[str],
+    docs_tokens: List[List[str]],
+    k1: float = 1.5,
+    b: float = 0.75,
+    k_norm: float = 3.0,
+) -> List[float]:
+    """计算轻量级 Okapi BM25 得分，并平滑归一化到 [0, 1)。"""
+    n_docs = len(docs_tokens)
+    if not query_tokens or n_docs == 0:
+        return [0.0] * n_docs
+
+    q_unique = list(dict.fromkeys(query_tokens))
+    doc_lens = [len(d) for d in docs_tokens]
+    avgdl = sum(doc_lens) / max(1, n_docs)
+
+    df: Dict[str, int] = {}
+    doc_counters: List[Counter] = []
+    for d in docs_tokens:
+        c = Counter(d)
+        doc_counters.append(c)
+        for qt in q_unique:
+            if qt in c:
+                df[qt] = df.get(qt, 0) + 1
+
+    idf = {
+        qt: math.log(1.0 + (n_docs - df.get(qt, 0) + 0.5) / (df.get(qt, 0) + 0.5))
+        for qt in q_unique
+    }
+
+    scores: List[float] = []
+    for c, dl in zip(doc_counters, doc_lens):
+        if dl == 0:
+            scores.append(0.0)
+            continue
+        s = 0.0
+        norm_len = 1.0 - b + b * (dl / max(1e-9, avgdl))
+        for qt in q_unique:
+            tf = c.get(qt, 0)
+            if tf <= 0:
+                continue
+            s += idf[qt] * (tf * (k1 + 1.0)) / (tf + k1 * norm_len)
+        scores.append(s / (s + k_norm) if s > 0 else 0.0)
+    return scores
+
+
+def _recency_score(row_ts: Optional[float], now: float, half_life_days: float = 30.0) -> float:
+    """轻量级时间衰减：当天为 1.0，每经过 half_life_days 衰减一半。"""
+    if not row_ts:
+        return 0.5
+    age_days = max(0.0, (now - float(row_ts)) / 86400.0)
+    return math.exp(-0.693147 * age_days / max(1.0, half_life_days))
+
+
 class EpisodeRetrieval:
     """负责跨会话多作用域隔离召回、群聊多成员感知、用户外号识别与背景事实注入"""
 
     def _init_retrieval(self):
         self._query_cache: Dict[str, Tuple[float, np.ndarray]] = {}
+
+    async def _get_query_vectors(
+        self,
+        texts: List[str],
+        timeout: float,
+        cache_ttl: float,
+        max_cache_size: int,
+        now: float,
+    ) -> List[Optional[np.ndarray]]:
+        """批量获取并缓存多路 Query Embedding（单次 HTTP 请求合并发送）。"""
+        results: List[Optional[np.ndarray]] = [None] * len(texts)
+        missing_indices: List[int] = []
+        missing_texts: List[str] = []
+
+        for idx, text in enumerate(texts):
+            if not text:
+                continue
+            cached = self._query_cache.get(text)
+            if cached and (now - cached[0]) < cache_ttl:
+                results[idx] = cached[1]
+            else:
+                missing_indices.append(idx)
+                missing_texts.append(text)
+
+        if not missing_texts:
+            return results
+
+        try:
+            vectors = await asyncio.wait_for(self._embed(missing_texts, is_query=True), timeout=timeout)
+            for idx, text, vec in zip(missing_indices, missing_texts, vectors):
+                results[idx] = vec
+                if len(self._query_cache) >= max_cache_size:
+                    oldest_k = min(self._query_cache.keys(), key=lambda k: self._query_cache[k][0])
+                    self._query_cache.pop(oldest_k, None)
+                self._query_cache[text] = (now, vec)
+        except Exception as exc:
+            self._warn(f"[MaiReply RAG] 生成 Query Embedding 超时或失败: {exc}")
+        return results
 
     async def _recall(
         self,
@@ -313,33 +422,29 @@ class EpisodeRetrieval:
                     seen_texts.add((current_scope, term_text))
                     group_facts.append((1.0, '', term_text))
 
-        # 2. 生成 Query Embedding (动态语义检索)
         # -------------------------------------------------------------
-        q_vec = None
-        if query_text:
+        # 2. 对话窗口上下文规划与单次批量双路 Query Embedding
+        # -------------------------------------------------------------
+        plan = build_query(query_text, user_id_str, recent_context or [], now, config=cfg, is_group=is_group)
+        raw_vec = None
+        ctx_vec = None
+        if query_text and not plan.skip:
             cache_ttl = float(cfg.get("query_cache_seconds", 300.0))
-            max_cache_size = int(cfg.get("query_cache_size", 256))
-
-            cached = self._query_cache.get(query_text)
-            if cached and (now - cached[0]) < cache_ttl:
-                q_vec = cached[1]
-
-            if q_vec is None:
-                try:
-                    vectors = await asyncio.wait_for(self._embed([query_text], is_query=True), timeout=timeout)
-                    q_vec = vectors[0]
-                    if len(self._query_cache) >= max_cache_size:
-                        oldest_k = min(self._query_cache.keys(), key=lambda k: self._query_cache[k][0])
-                        self._query_cache.pop(oldest_k, None)
-                    self._query_cache[query_text] = (now, q_vec)
-                except Exception as exc:
-                    self._warn(f"[MaiReply RAG] 生成 Query Embedding 超时或失败: {exc}")
+            max_cache_size = max(1, int(cfg.get("query_cache_size", 256)))
+            if plan.text and plan.text != plan.original:
+                raw_vec, ctx_vec = await self._get_query_vectors(
+                    [plan.original, plan.text], timeout, cache_ttl, max_cache_size, now
+                )
+            else:
+                (raw_vec,) = await self._get_query_vectors(
+                    [plan.original], timeout, cache_ttl, max_cache_size, now
+                )
 
         # -------------------------------------------------------------
-        # 3. 从数据库读取语义候选记忆
+        # 3. 双路语义召回 + BM25 混合匹配 + 时间衰减融合排序
         # -------------------------------------------------------------
         top_candidates = []
-        if q_vec is not None:
+        if query_text and not plan.skip and (raw_vec is not None or ctx_vec is not None or plan.keywords):
             placeholders = ",".join("?" for _ in unique_scopes)
             query_sql = f"""
                 SELECT id, scope, text, vector, created, ended, user_id, fact_type, category, target_id, target_name
@@ -349,24 +454,71 @@ class EpisodeRetrieval:
                 ORDER BY COALESCE(ended, created) DESC
             """
             params = list(unique_scopes) + [self._namespace]
-            # For facts, ended means superseded; for episodes it is the last
-            # message timestamp. Rank all eligible history, not just the latest
-            # 200 rows (which can be dominated by unrelated background facts).
             rows = self._run_db(lambda db: db.execute(query_sql, params).fetchall())
 
             if rows:
-                scored = []
-                for row in rows:
+                bm25_weight = float(cfg.get("bm25_weight", 0.20))
+                recency_weight = float(cfg.get("recency_weight", 0.10))
+                half_life_days = float(cfg.get("recency_half_life_days", 30.0))
+                bm25_rescue_min = float(cfg.get("bm25_rescue_threshold", 0.45))
+
+                # BM25 词袋：优先使用原句词元，若有上下文扩展则补充额外词元
+                q_tokens = _tokenize_bm25(plan.original)
+                if plan.text and plan.text != plan.original:
+                    extra_tokens = [t for t in _tokenize_bm25(plan.text) if t not in q_tokens]
+                    q_tokens.extend(extra_tokens[:12])
+                docs_tokens = [_tokenize_bm25(row[2] or "") for row in rows]
+                bm25_scores = _compute_bm25_scores(q_tokens, docs_tokens)
+
+                # 双路向量相似度计算 + RRF 排名融合
+                raw_sims: List[float] = [0.0] * len(rows)
+                ctx_sims: List[float] = [0.0] * len(rows)
+                for idx, row in enumerate(rows):
                     v_blob = row[3]
                     if not v_blob:
                         continue
                     try:
                         mem_vec = np.frombuffer(v_blob, dtype=np.float32)
-                        sim = float(np.dot(q_vec, mem_vec))
-                        if sim >= min_sim:
-                            scored.append((sim, row))
+                        if raw_vec is not None:
+                            raw_sims[idx] = float(np.dot(raw_vec, mem_vec))
+                        if ctx_vec is not None:
+                            ctx_sims[idx] = float(np.dot(ctx_vec, mem_vec))
                     except Exception:
                         continue
+
+                rrf_bonus: List[float] = [0.0] * len(rows)
+                if raw_vec is not None and ctx_vec is not None:
+                    rrf_k = 60.0
+                    raw_order = sorted(range(len(rows)), key=lambda i: raw_sims[i], reverse=True)
+                    ctx_order = sorted(range(len(rows)), key=lambda i: ctx_sims[i], reverse=True)
+                    for rank, idx in enumerate(raw_order, 1):
+                        if raw_sims[idx] >= min_sim:
+                            rrf_bonus[idx] += 1.2 / (rrf_k + rank)
+                    for rank, idx in enumerate(ctx_order, 1):
+                        if ctx_sims[idx] >= min_sim:
+                            rrf_bonus[idx] += 0.8 / (rrf_k + rank)
+
+                scored = []
+                win_start, win_end = plan.window if plan.window else (None, None)
+                for idx, row in enumerate(rows):
+                    sim_r = raw_sims[idx]
+                    sim_c = ctx_sims[idx]
+                    # 当前句为主焦点，上下文路在隐含承接/弱匹配时兜底抬升
+                    sem_score = max(sim_r, sim_c * 0.96) if ctx_vec is not None else sim_r
+                    bm25_s = bm25_scores[idx]
+
+                    # 未达语义阈值且无强关键词命中时过滤
+                    if sem_score < min_sim and bm25_s < bm25_rescue_min:
+                        continue
+
+                    row_ts = row[5] if row[5] is not None else row[4]
+                    rec_s = _recency_score(row_ts, now, half_life_days=half_life_days)
+                    fact_type = row[7] or "episode"
+                    eff_rec_weight = recency_weight if fact_type == "episode" else (recency_weight * 0.3)
+                    win_bonus = 0.20 if (win_start is not None and row_ts is not None and win_start <= row_ts <= win_end) else 0.0
+
+                    final_score = sem_score + (2.0 * rrf_bonus[idx]) + (bm25_weight * bm25_s) + (eff_rec_weight * rec_s) + win_bonus
+                    scored.append((final_score, row))
 
                 scored.sort(key=lambda x: x[0], reverse=True)
                 top_candidates = scored[:top_k]
