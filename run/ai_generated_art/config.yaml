@@ -104,7 +104,7 @@ ai绘画:
   nano_banana_config:
     model: gemini-3-pro-image-preview
     base_url: "https://generativelanguage.googleapis.com"
-    原生gemini接口: false
+    原生gemini接口: false   #不启用原生gemini接口，就填写下面的quest_url。开启原生gemini，就填写上面的
     quest_url: "http://fku.com/v1/chat/completions"
     nano_banana不限制次数所需权限: 1
     nano_banana默认权限用户可用次数: 10
