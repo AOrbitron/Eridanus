@@ -16,7 +16,14 @@ from typing import List, Dict, Optional, Any, AsyncGenerator, Tuple, Callable, A
 
 import httpx
 
-from run.core_reply.service.exceptions import RejectedResponseModelError, validate_response_model
+from run.core_reply.service.exceptions import (
+    DEFAULT_REJECTED_RESPONSE_KEYWORDS,
+    DEFAULT_REJECTED_RESPONSE_MODELS,
+    LLMResponseError,
+    normalize_rejected_list,
+    validate_response_content,
+    validate_response_model,
+)
 
 from framework_common.utils.system_logger import get_logger
 from framework_common.framework_util.yamlLoader import YAMLManager  # 【新增】引入框架配置管理器
@@ -31,19 +38,46 @@ class LLMClient:
 
     def __init__(self, config, custom_llm_cfg: Optional[Dict[str, Any]] = None):
         self.cfg = config
+        core_lcfg: Dict[str, Any] = {}
+        if hasattr(config, "core_reply") and hasattr(config.core_reply, "config"):
+            core_lcfg = config.core_reply.config.get("llm", {}) or {}
+        elif isinstance(config, dict):
+            core_lcfg = config.get("llm", {}) or {}
+
         if custom_llm_cfg is not None:
             lcfg = custom_llm_cfg
-        elif hasattr(config, "core_reply") and hasattr(config.core_reply, "config"):
-            lcfg = config.core_reply.config.get("llm", {})
-        elif isinstance(config, dict):
-            lcfg = config.get("llm", {})
         else:
-            lcfg = {}
+            lcfg = core_lcfg
         self.provider: str = lcfg.get("provider", "openai").lower()
 
         # 是否在底层使用流式请求防超时
         self.use_stream: bool = lcfg.get("stream", False)
         self.max_tool_rounds: int = int(lcfg.get("max_tool_rounds", 10))
+
+        # 视同生成失败的回复模型列表与回复内容关键字
+        if "rejected_response_models" in lcfg:
+            raw_rejected_models = lcfg.get("rejected_response_models")
+        elif "rejected_response_models" in core_lcfg:
+            raw_rejected_models = core_lcfg.get("rejected_response_models")
+        else:
+            raw_rejected_models = DEFAULT_REJECTED_RESPONSE_MODELS
+        self._rejected_models: Tuple[str, ...] = normalize_rejected_list(
+            raw_rejected_models,
+            DEFAULT_REJECTED_RESPONSE_MODELS,
+            strip_items=True,
+        )
+
+        if "rejected_response_keywords" in lcfg:
+            raw_rejected_keywords = lcfg.get("rejected_response_keywords")
+        elif "rejected_response_keywords" in core_lcfg:
+            raw_rejected_keywords = core_lcfg.get("rejected_response_keywords")
+        else:
+            raw_rejected_keywords = DEFAULT_REJECTED_RESPONSE_KEYWORDS
+        self._rejected_keywords: Tuple[str, ...] = normalize_rejected_list(
+            raw_rejected_keywords,
+            DEFAULT_REJECTED_RESPONSE_KEYWORDS,
+            strip_items=False,
+        )
 
         # --- OpenAI 兼容配置
         oa = lcfg.get("openai", {})
@@ -106,8 +140,8 @@ class LLMClient:
                     return await self._chat_stream_with_retries(messages, system_prompt, tools, retries, bot, event, model, on_intermediate_text)
                 else:
                     return await self._chat_non_stream_with_retries(messages, system_prompt, tools, retries, bot, event, model, on_intermediate_text)
-            except RejectedResponseModelError:
-                logger.warning("Discarded ministral-3-3b response; retrying in 1 second")
+            except LLMResponseError as e:
+                logger.warning("Discarded upstream response (%s); retrying in 1 second", e)
                 await asyncio.sleep(1)
 
     # ==================================================================
@@ -124,8 +158,9 @@ class LLMClient:
                     async for chunk in self._chat_openai_stream(messages, system_prompt, tools, bot, event, model, on_intermediate_text):
                         full_text += chunk
 
+                self._validate_response_content(full_text)
                 return full_text.strip() if full_text else None
-            except RejectedResponseModelError:
+            except LLMResponseError:
                 raise
             except Exception as e:
                 if attempt < retries - 1:
@@ -220,6 +255,7 @@ class LLMClient:
                         pass
 
                 if round_text:
+                    self._validate_response_content(round_text)
                     yield round_text
 
                 if not is_tool_call:
@@ -272,6 +308,7 @@ class LLMClient:
                     data_str = line[6:]
                     try:
                         data = json.loads(data_str)
+                        self._validate_openai_response_model(data)
                         if "candidates" not in data or not data["candidates"]: continue
                         candidate = data["candidates"][0]
                         parts = candidate.get("content", {}).get("parts",[])
@@ -290,6 +327,7 @@ class LLMClient:
                     return
 
                 round_text = "".join(round_text_parts)
+                self._validate_response_content(round_text)
                 if round_text.strip() and on_intermediate_text:
                     await on_intermediate_text(round_text)
 
@@ -314,7 +352,7 @@ class LLMClient:
                     return await self._chat_gemini_non_stream(messages, system_prompt, tools, bot, event, model, on_intermediate_text)
                 else:
                     return await self._chat_openai_non_stream(messages, system_prompt, tools, bot, event, model, on_intermediate_text)
-            except RejectedResponseModelError:
+            except LLMResponseError:
                 raise
             except Exception as e:
                 if attempt < retries - 1:
@@ -360,9 +398,11 @@ class LLMClient:
             tool_calls = message.get("tool_calls")
             if not tool_calls:
                 final_text = accumulated_text + (message.get("content") or "")
+                self._validate_response_content(final_text)
                 return final_text.strip() or None
 
             text_before_tool = message.get("content") or ""
+            self._validate_response_content(text_before_tool)
             if text_before_tool.strip() and on_intermediate_text:
                 await on_intermediate_text(text_before_tool)
             accumulated_text += text_before_tool
@@ -399,6 +439,7 @@ class LLMClient:
             resp = await http.post(url, json=payload, headers={"Content-Type": "application/json"},timeout=360)
             resp.raise_for_status()
             data = resp.json()
+            self._validate_openai_response_model(data)
 
             candidate = data["candidates"][0]
             parts = candidate.get("content", {}).get("parts",[])
@@ -407,9 +448,11 @@ class LLMClient:
 
             if not func_call_parts:
                 final_text = accumulated_text + "".join(p["text"] for p in text_parts)
+                self._validate_response_content(final_text)
                 return final_text.strip() or None
 
             text_before_tool = "".join(p["text"] for p in text_parts)
+            self._validate_response_content(text_before_tool)
             if text_before_tool.strip() and on_intermediate_text:
                 await on_intermediate_text(text_before_tool)
             accumulated_text += text_before_tool
@@ -425,13 +468,12 @@ class LLMClient:
     # ==================================================================
     # 辅助构建与执行方法
     # ==================================================================
-    @staticmethod
-    async def _openai_response_lines(response):
+    async def _openai_response_lines(self, response):
         # Some gateways ignore stream=True and return a JSON response body.
         if "application/json" in response.headers.get("content-type", ""):
             await response.aread()
             data = response.json()
-            validate_response_model(data)
+            self._validate_openai_response_model(data)
             for choice in data.get("choices", []):
                 choice["delta"] = choice.get("message") or choice.get("delta") or dict(choice)
             yield "data: " + json.dumps(data)
@@ -439,9 +481,13 @@ class LLMClient:
             async for line in response.aiter_lines():
                 yield line
 
-    @staticmethod
-    def _validate_openai_response_model(data):
-        validate_response_model(data)
+    def _validate_openai_response_model(self, data):
+        rejected_models = getattr(self, "_rejected_models", DEFAULT_REJECTED_RESPONSE_MODELS)
+        validate_response_model(data, rejected_models=rejected_models)
+
+    def _validate_response_content(self, content):
+        rejected_keywords = getattr(self, "_rejected_keywords", DEFAULT_REJECTED_RESPONSE_KEYWORDS)
+        validate_response_content(content, rejected_keywords=rejected_keywords)
 
     @staticmethod
     def _nonempty_content(content):

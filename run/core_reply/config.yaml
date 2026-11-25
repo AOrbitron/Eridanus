@@ -6,6 +6,10 @@ llm:
   func_calling: true  # 是否开启函数调用功能（需要模型支持）
   show_search_results: false  # 联网搜索工具是否向聊天发送原始结果
   max_tool_rounds: 10
+  rejected_response_models:  # 视同生成失败的回复模型列表（命中后自动丢弃并重试）
+    - "ministral-3-3b"
+  rejected_response_keywords:   # 视同生成失败的回复内容关键字列表（包含任一关键字即自动丢弃并重试）
+    - "我是 AWS Quick"
   openai:
     api_keys:
       - xxx

@@ -1,5 +1,6 @@
 """The configured LLM chooses the outfit and scene directly from the full wardrobe."""
 import json
+import random
 import re
 from run.wardrobe.outfit_policy import validate_outfit_prompt
 
@@ -136,8 +137,12 @@ async def select_post_outfit(manager, llm, post_text, theme_desc, season_name=""
     counts = manager._data.get("qzone_outfit_usage", {}) if manager else {}
     catalog = [{"key": key, "description": obj.get("description", ""),
                 "occasion": obj.get("occasion", ""), "season": obj.get("season", "all"),
+                "category": obj.get("category", ""),
                 "clothing_tags": obj["clothing_tags"], "usage_count": counts.get(key, 0)}
                for key, obj in candidates.items()]
+    # 按使用次数从低到高排序（同次数随机打散），确保从未穿过的服装优先曝光并被选用
+    random.shuffle(catalog)
+    catalog.sort(key=lambda item: item["usage_count"])
     if manager:
         character_anchor = manager.get_character_anchor() or character_anchor
         art_anchor = manager.get_art_anchor() or art_anchor
@@ -151,7 +156,7 @@ async def select_post_outfit(manager, llm, post_text, theme_desc, season_name=""
             f"原生服饰设计种子：{json.dumps(seeds, ensure_ascii=False)}\n"
             f"{post_scene_instruction(task_name)}\n"
             "每条动态独立设计，不沿用当天首条或上一条动态的着装。近期服饰已从可选衣橱排除，禁止重新选择或用自定义复刻；"
-            "在剩余衣橱中选择符合实际活动的款式，晚安睡裙也应轮换；使用次数仅作为多样性参考。"
+            "在剩余衣橱中选择符合实际活动的款式，晚安睡裙也应轮换；必须优先从 usage_count 最低（尤其是 0 次从未穿过）的合适款式中挑选，严禁反复穿少数几套常用服装！"
             "正文已经发散完成。根据正文结果选择服饰款型，并从原生种子中选择一个最适合的style_id、"
             "一个palette_id和零到三个detail_ids，供下一步完成服饰提示词。"
             "衣橱提供服饰的款型和角色气质；style seed提供材质剪裁灵感，palette提供整套协调配色，details提供兼容的细节。"

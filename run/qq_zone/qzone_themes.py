@@ -3208,7 +3208,7 @@ MORNING_THEME_POOL = [
     {
         "id": "m_229",
         "category": "生活趣味与迷糊手忙",
-        "theme": "救命！闭着眼摸牙膏居然一把抓了洗面奶，刚挤进嘴里整个人像被十万伏特高压电击中一样瞬间清醒",
+        "theme": "早上闭着眼摸牙膏结果一把抓了洗面奶，刚挤进嘴里整个人像被十万伏特高压电击中一样瞬间清醒",
         "elements": ["洗面奶当牙膏", "闭眼摸索", "苦涩泡沫", "瞬间清醒", "早起社死"],
         "sd_hint": "morning bathroom, realizing washed mouth with facial foam, eyes wide open in comical horror, mirror reflection, pajamas"
     },
@@ -4058,6 +4058,1938 @@ MORNING_THEME_POOL = [
         "theme": "初冬清晨走过结满红彤彤火棘果的灌木丛，一颗颗圆溜溜的小红果顶着剔透的白霜",
         "elements": ["白霜红火棘果", "圆滚滚小红珠", "冰晶与火红碰撞", "晨光特写", "冬日生机"],
         "sd_hint": "gently touching branch of bright red winter berries dusted with crystalline white frost, sparkling natural morning light"
+    },
+    {
+        "id": "m_351",
+        "category": "Vtuber晨间杂谈",
+        "theme": "开播前含着温水润嗓，对着麦克风测试了一句早安问候，顺手把桌面杂物往镜头外推了十厘米",
+        "elements": [
+            "开播前",
+            "麦克风",
+            "润嗓",
+            "早安杂谈"
+        ],
+        "sd_hint": "morning, indoor desk setup with condenser microphone and warm mug, smiling girl, soft natural light"
+    },
+    {
+        "id": "m_352",
+        "category": "Vtuber晨间杂谈",
+        "theme": "翻出昨晚写好的直播日程便签，发现角落画着一只歪歪扭扭的睡眼小猫，自己先笑了出来",
+        "elements": [
+            "日程便签",
+            "涂鸦",
+            "直播准备"
+        ],
+        "sd_hint": "morning sunlight at desk, holding sticky note with doodle, cheerful smile, soft natural light"
+    },
+    {
+        "id": "m_353",
+        "category": "居家晨起",
+        "theme": "把窗帘拉开一条窄缝，阳光刚好斜斜照在桌角的玻璃水杯上，折射出一道小小的彩虹",
+        "elements": [
+            "窗帘缝",
+            "玻璃杯",
+            "小彩虹"
+        ],
+        "sd_hint": "morning sunbeam through curtain, glass of water casting rainbow on desk, cozy indoor, soft natural light"
+    },
+    {
+        "id": "m_354",
+        "category": "居家晨起",
+        "theme": "起床第一件事先给阳台的小盆栽喷水，叶片上挂着细碎水珠的样子莫名让人精神起来",
+        "elements": [
+            "阳台盆栽",
+            "喷水",
+            "晨露"
+        ],
+        "sd_hint": "morning balcony, misting small potted plants with spray bottle, fresh daylight, soft natural light"
+    },
+    {
+        "id": "m_355",
+        "category": "早餐美食",
+        "theme": "烤吐司边缘微微焦脆，涂上一层厚厚的花生酱再切半根香蕉片上去，配冰牛奶刚刚好",
+        "elements": [
+            "烤吐司",
+            "花生酱",
+            "香蕉片"
+        ],
+        "sd_hint": "morning kitchen table, crispy toast with peanut butter and banana, glass of milk, soft natural light"
+    },
+    {
+        "id": "m_356",
+        "category": "早餐美食",
+        "theme": "把昨天买的小笼包放进蒸锅热五分钟，掀开锅盖那一瞬间白茫茫的热气扑面而来",
+        "elements": [
+            "小笼包",
+            "热气",
+            "早餐"
+        ],
+        "sd_hint": "morning dining table, steaming bamboo basket of dumplings, happy expression, soft natural light"
+    },
+    {
+        "id": "m_357",
+        "category": "出门通勤",
+        "theme": "出门前对着玄关镜子整理刘海，发现呆毛怎么按都倔强地翘着，干脆由它去了",
+        "elements": [
+            "玄关镜",
+            "刘海",
+            "呆毛"
+        ],
+        "sd_hint": "morning entryway mirror, adjusting bangs and ahoge, cute daily outfit, soft natural light"
+    },
+    {
+        "id": "m_358",
+        "category": "出门通勤",
+        "theme": "早上的风还带点凉意，手里握着刚从便利店买的热豆浆，指尖暖呼呼的",
+        "elements": [
+            "便利店",
+            "热豆浆",
+            "晨风"
+        ],
+        "sd_hint": "early morning street, holding warm cup of soy milk, gentle breeze, soft light, soft natural light"
+    },
+    {
+        "id": "m_359",
+        "category": "少女心情",
+        "theme": "昨晚睡前把歌单设为随机播放，早上被一首轻快的八音盒纯音乐唤醒，心情直接加十分",
+        "elements": [
+            "歌单",
+            "八音盒",
+            "好心情"
+        ],
+        "sd_hint": "morning bedroom window, wearing headphones, peaceful gentle smile, soft natural light"
+    },
+    {
+        "id": "m_360",
+        "category": "少女心情",
+        "theme": "翻手机相册发现昨天拍的云朵像一只趴着的小狗，决定把这周手机壁纸就换成它",
+        "elements": [
+            "手机相册",
+            "云朵",
+            "换壁纸"
+        ],
+        "sd_hint": "morning sitting by window holding smartphone, smiling softly at screen, soft natural light"
+    },
+    {
+        "id": "m_361",
+        "category": "兴趣爱好",
+        "theme": "趁早起脑子清醒，在数位板上顺手勾了几笔Q版自设草图，线条意外地很顺滑",
+        "elements": [
+            "数位板",
+            "Q版草图",
+            "晨间画画"
+        ],
+        "sd_hint": "morning desk with drawing tablet and stylus, focused cute expression, soft natural light"
+    },
+    {
+        "id": "m_362",
+        "category": "兴趣爱好",
+        "theme": "练了十五分钟新学的吉他和弦，左手按得有点酸，但终于能流畅换过去一次了",
+        "elements": [
+            "吉他练习",
+            "和弦",
+            "小成就"
+        ],
+        "sd_hint": "morning room sitting with acoustic guitar, pleased smile, soft natural light"
+    },
+    {
+        "id": "m_363",
+        "category": "街头观察",
+        "theme": "楼下早餐摊的大叔今天换了顶新草帽，煎饼摊前排着三条小尾巴一样长的队",
+        "elements": [
+            "早餐摊",
+            "草帽",
+            "烟火气"
+        ],
+        "sd_hint": "morning street market, warm sunlight, cheerful girl walking past, soft natural light"
+    },
+    {
+        "id": "m_364",
+        "category": "街头观察",
+        "theme": "路过花店门口看到刚卸货的洋甘菊和向日葵摆了一地，整条人行道都飘着青草味",
+        "elements": [
+            "花店门口",
+            "洋甘菊",
+            "青草味"
+        ],
+        "sd_hint": "morning sidewalk outside flower shop full of daisies and sunflowers, soft natural light"
+    },
+    {
+        "id": "m_365",
+        "category": "元气打卡",
+        "theme": "今天打算把拖了好几天的歌回歌单理顺，顺便把收藏夹里积灰的伴奏全试唱一遍",
+        "elements": [
+            "歌回准备",
+            "整理歌单",
+            "元气"
+        ],
+        "sd_hint": "morning cozy room, laptop and lyrics notebook open, energetic wink, soft natural light"
+    },
+    {
+        "id": "m_366",
+        "category": "校园日常",
+        "theme": "提前十分钟到教室或者自习室，挑了个靠窗能晒到太阳的位置把水杯摆好",
+        "elements": [
+            "靠窗座位",
+            "自习室",
+            "早到"
+        ],
+        "sd_hint": "morning sunlit window seat, notebook and water bottle on desk, soft natural light"
+    },
+    {
+        "id": "m_367",
+        "category": "萌宠互动",
+        "theme": "楼下那只三花猫今天蹲在车顶晒太阳，看到我路过还慢悠悠抬爪洗了把脸",
+        "elements": [
+            "三花猫",
+            "晒太阳",
+            "偶遇"
+        ],
+        "sd_hint": "morning neighborhood street, girl crouching smiling at calico cat, soft natural light"
+    },
+    {
+        "id": "m_368",
+        "category": "随手记录",
+        "theme": "换了个新的薄荷味牙膏，刷完牙吸一口早上空气感觉整个人都凉飕飕地清醒了",
+        "elements": [
+            "薄荷牙膏",
+            "清醒",
+            "早起"
+        ],
+        "sd_hint": "morning bathroom mirror, fresh bright expression, casual loungewear, soft natural light"
+    },
+    {
+        "id": "m_369",
+        "category": "天气体感",
+        "theme": "今天云层厚厚的像一层棉花糖盖在城市上面，风吹过来不冷不热特别适合出门晃悠",
+        "elements": [
+            "厚云层",
+            "微风",
+            "好天气"
+        ],
+        "sd_hint": "morning overcast soft light on street, relaxed walking pose, soft natural light"
+    },
+    {
+        "id": "m_370",
+        "category": "轻互动",
+        "theme": "早上好呀，今天你们的早饭吃的是甜口还是咸口？我刚啃完一个奶黄包",
+        "elements": [
+            "早饭",
+            "甜咸党",
+            "奶黄包"
+        ],
+        "sd_hint": "morning cafe table, holding steamed custard bun, smiling at viewer, soft natural light"
+    },
+    {
+        "id": "m_371",
+        "category": "房间整理",
+        "theme": "花十分钟把书桌上缠成一团的数据线理顺并贴上小标签，强迫症瞬间被治愈",
+        "elements": [
+            "整理数据线",
+            "小标签",
+            "治愈"
+        ],
+        "sd_hint": "morning clean desk with neatly coiled cables, satisfied smile, soft natural light"
+    },
+    {
+        "id": "m_372",
+        "category": "声乐练习",
+        "theme": "对着窗外的小麻雀一起练了五分钟腹式呼吸和哼鸣，结果麻雀歪着头看了我半天",
+        "elements": [
+            "练声",
+            "小麻雀",
+            "窗台"
+        ],
+        "sd_hint": "morning open window, humming gently, small sparrow on windowsill, soft natural light"
+    },
+    {
+        "id": "m_373",
+        "category": "咖啡茶饮",
+        "theme": "手冲滤纸刚注水时咖啡粉鼓起一个小圆包，看这一幕比喝到咖啡本身还解压",
+        "elements": [
+            "手冲咖啡",
+            "小圆包",
+            "解压"
+        ],
+        "sd_hint": "morning kitchen counter, pouring hot water over pour-over coffee dripper, soft natural light"
+    },
+    {
+        "id": "m_374",
+        "category": "穿搭心情",
+        "theme": "今天翻衣柜挑了件很久没穿的浅色小裙子，转了个圈觉得自己今天可爱度达标",
+        "elements": [
+            "挑衣服",
+            "浅色裙子",
+            "好心情"
+        ],
+        "sd_hint": "morning bedroom, twirling slightly in cute pastel outfit, cheerful smile, soft natural light"
+    },
+    {
+        "id": "m_375",
+        "category": "买菜散步",
+        "theme": "早起去小超市买到刚上架的新鲜草莓，挑了一盒每颗都红扑扑带小绒毛的",
+        "elements": [
+            "新鲜草莓",
+            "早市",
+            "小确幸"
+        ],
+        "sd_hint": "morning holding box of fresh red strawberries, delighted expression, soft natural light"
+    },
+    {
+        "id": "m_376",
+        "category": "Vtuber晨间杂谈",
+        "theme": "开播前含着温水润嗓，对着麦克风测试了一句早安问候，顺手把桌面杂物往镜头外推了十厘米，连空气里都好像多了一点温柔的味道",
+        "elements": [
+            "开播前",
+            "麦克风",
+            "润嗓",
+            "早安杂谈"
+        ],
+        "sd_hint": "morning, indoor desk setup with condenser microphone and warm mug, smiling girl, delicate warm details"
+    },
+    {
+        "id": "m_377",
+        "category": "Vtuber晨间杂谈",
+        "theme": "翻出昨晚写好的直播日程便签，发现角落画着一只歪歪扭扭的睡眼小猫，自己先笑了出来，连空气里都好像多了一点温柔的味道",
+        "elements": [
+            "日程便签",
+            "涂鸦",
+            "直播准备"
+        ],
+        "sd_hint": "morning sunlight at desk, holding sticky note with doodle, cheerful smile, delicate warm details"
+    },
+    {
+        "id": "m_378",
+        "category": "居家晨起",
+        "theme": "把窗帘拉开一条窄缝，阳光刚好斜斜照在桌角的玻璃水杯上，折射出一道小小的彩虹，连空气里都好像多了一点温柔的味道",
+        "elements": [
+            "窗帘缝",
+            "玻璃杯",
+            "小彩虹"
+        ],
+        "sd_hint": "morning sunbeam through curtain, glass of water casting rainbow on desk, cozy indoor, delicate warm details"
+    },
+    {
+        "id": "m_379",
+        "category": "居家晨起",
+        "theme": "起床第一件事先给阳台的小盆栽喷水，叶片上挂着细碎水珠的样子莫名让人精神起来，连空气里都好像多了一点温柔的味道",
+        "elements": [
+            "阳台盆栽",
+            "喷水",
+            "晨露"
+        ],
+        "sd_hint": "morning balcony, misting small potted plants with spray bottle, fresh daylight, delicate warm details"
+    },
+    {
+        "id": "m_380",
+        "category": "早餐美食",
+        "theme": "烤吐司边缘微微焦脆，涂上一层厚厚的花生酱再切半根香蕉片上去，配冰牛奶刚刚好，连空气里都好像多了一点温柔的味道",
+        "elements": [
+            "烤吐司",
+            "花生酱",
+            "香蕉片"
+        ],
+        "sd_hint": "morning kitchen table, crispy toast with peanut butter and banana, glass of milk, delicate warm details"
+    },
+    {
+        "id": "m_381",
+        "category": "早餐美食",
+        "theme": "把昨天买的小笼包放进蒸锅热五分钟，掀开锅盖那一瞬间白茫茫的热气扑面而来，连空气里都好像多了一点温柔的味道",
+        "elements": [
+            "小笼包",
+            "热气",
+            "早餐"
+        ],
+        "sd_hint": "morning dining table, steaming bamboo basket of dumplings, happy expression, delicate warm details"
+    },
+    {
+        "id": "m_382",
+        "category": "出门通勤",
+        "theme": "出门前对着玄关镜子整理刘海，发现呆毛怎么按都倔强地翘着，干脆由它去了，连空气里都好像多了一点温柔的味道",
+        "elements": [
+            "玄关镜",
+            "刘海",
+            "呆毛"
+        ],
+        "sd_hint": "morning entryway mirror, adjusting bangs and ahoge, cute daily outfit, delicate warm details"
+    },
+    {
+        "id": "m_383",
+        "category": "出门通勤",
+        "theme": "早上的风还带点凉意，手里握着刚从便利店买的热豆浆，指尖暖呼呼的，连空气里都好像多了一点温柔的味道",
+        "elements": [
+            "便利店",
+            "热豆浆",
+            "晨风"
+        ],
+        "sd_hint": "early morning street, holding warm cup of soy milk, gentle breeze, soft light, delicate warm details"
+    },
+    {
+        "id": "m_384",
+        "category": "少女心情",
+        "theme": "昨晚睡前把歌单设为随机播放，早上被一首轻快的八音盒纯音乐唤醒，心情直接加十分，连空气里都好像多了一点温柔的味道",
+        "elements": [
+            "歌单",
+            "八音盒",
+            "好心情"
+        ],
+        "sd_hint": "morning bedroom window, wearing headphones, peaceful gentle smile, delicate warm details"
+    },
+    {
+        "id": "m_385",
+        "category": "少女心情",
+        "theme": "翻手机相册发现昨天拍的云朵像一只趴着的小狗，决定把这周手机壁纸就换成它，连空气里都好像多了一点温柔的味道",
+        "elements": [
+            "手机相册",
+            "云朵",
+            "换壁纸"
+        ],
+        "sd_hint": "morning sitting by window holding smartphone, smiling softly at screen, delicate warm details"
+    },
+    {
+        "id": "m_386",
+        "category": "兴趣爱好",
+        "theme": "趁早起脑子清醒，在数位板上顺手勾了几笔Q版自设草图，线条意外地很顺滑，连空气里都好像多了一点温柔的味道",
+        "elements": [
+            "数位板",
+            "Q版草图",
+            "晨间画画"
+        ],
+        "sd_hint": "morning desk with drawing tablet and stylus, focused cute expression, delicate warm details"
+    },
+    {
+        "id": "m_387",
+        "category": "兴趣爱好",
+        "theme": "练了十五分钟新学的吉他和弦，左手按得有点酸，但终于能流畅换过去一次了，连空气里都好像多了一点温柔的味道",
+        "elements": [
+            "吉他练习",
+            "和弦",
+            "小成就"
+        ],
+        "sd_hint": "morning room sitting with acoustic guitar, pleased smile, delicate warm details"
+    },
+    {
+        "id": "m_388",
+        "category": "街头观察",
+        "theme": "楼下早餐摊的大叔今天换了顶新草帽，煎饼摊前排着三条小尾巴一样长的队，连空气里都好像多了一点温柔的味道",
+        "elements": [
+            "早餐摊",
+            "草帽",
+            "烟火气"
+        ],
+        "sd_hint": "morning street market, warm sunlight, cheerful girl walking past, delicate warm details"
+    },
+    {
+        "id": "m_389",
+        "category": "街头观察",
+        "theme": "路过花店门口看到刚卸货的洋甘菊和向日葵摆了一地，整条人行道都飘着青草味，连空气里都好像多了一点温柔的味道",
+        "elements": [
+            "花店门口",
+            "洋甘菊",
+            "青草味"
+        ],
+        "sd_hint": "morning sidewalk outside flower shop full of daisies and sunflowers, delicate warm details"
+    },
+    {
+        "id": "m_390",
+        "category": "元气打卡",
+        "theme": "今天打算把拖了好几天的歌回歌单理顺，顺便把收藏夹里积灰的伴奏全试唱一遍，连空气里都好像多了一点温柔的味道",
+        "elements": [
+            "歌回准备",
+            "整理歌单",
+            "元气"
+        ],
+        "sd_hint": "morning cozy room, laptop and lyrics notebook open, energetic wink, delicate warm details"
+    },
+    {
+        "id": "m_391",
+        "category": "校园日常",
+        "theme": "提前十分钟到教室或者自习室，挑了个靠窗能晒到太阳的位置把水杯摆好，连空气里都好像多了一点温柔的味道",
+        "elements": [
+            "靠窗座位",
+            "自习室",
+            "早到"
+        ],
+        "sd_hint": "morning sunlit window seat, notebook and water bottle on desk, delicate warm details"
+    },
+    {
+        "id": "m_392",
+        "category": "萌宠互动",
+        "theme": "楼下那只三花猫今天蹲在车顶晒太阳，看到我路过还慢悠悠抬爪洗了把脸，连空气里都好像多了一点温柔的味道",
+        "elements": [
+            "三花猫",
+            "晒太阳",
+            "偶遇"
+        ],
+        "sd_hint": "morning neighborhood street, girl crouching smiling at calico cat, delicate warm details"
+    },
+    {
+        "id": "m_393",
+        "category": "随手记录",
+        "theme": "换了个新的薄荷味牙膏，刷完牙吸一口早上空气感觉整个人都凉飕飕地清醒了，连空气里都好像多了一点温柔的味道",
+        "elements": [
+            "薄荷牙膏",
+            "清醒",
+            "早起"
+        ],
+        "sd_hint": "morning bathroom mirror, fresh bright expression, casual loungewear, delicate warm details"
+    },
+    {
+        "id": "m_394",
+        "category": "天气体感",
+        "theme": "今天云层厚厚的像一层棉花糖盖在城市上面，风吹过来不冷不热特别适合出门晃悠，连空气里都好像多了一点温柔的味道",
+        "elements": [
+            "厚云层",
+            "微风",
+            "好天气"
+        ],
+        "sd_hint": "morning overcast soft light on street, relaxed walking pose, delicate warm details"
+    },
+    {
+        "id": "m_395",
+        "category": "轻互动",
+        "theme": "早上好呀，今天你们的早饭吃的是甜口还是咸口？我刚啃完一个奶黄包，连空气里都好像多了一点温柔的味道",
+        "elements": [
+            "早饭",
+            "甜咸党",
+            "奶黄包"
+        ],
+        "sd_hint": "morning cafe table, holding steamed custard bun, smiling at viewer, delicate warm details"
+    },
+    {
+        "id": "m_396",
+        "category": "房间整理",
+        "theme": "花十分钟把书桌上缠成一团的数据线理顺并贴上小标签，强迫症瞬间被治愈，连空气里都好像多了一点温柔的味道",
+        "elements": [
+            "整理数据线",
+            "小标签",
+            "治愈"
+        ],
+        "sd_hint": "morning clean desk with neatly coiled cables, satisfied smile, delicate warm details"
+    },
+    {
+        "id": "m_397",
+        "category": "声乐练习",
+        "theme": "对着窗外的小麻雀一起练了五分钟腹式呼吸和哼鸣，结果麻雀歪着头看了我半天，连空气里都好像多了一点温柔的味道",
+        "elements": [
+            "练声",
+            "小麻雀",
+            "窗台"
+        ],
+        "sd_hint": "morning open window, humming gently, small sparrow on windowsill, delicate warm details"
+    },
+    {
+        "id": "m_398",
+        "category": "咖啡茶饮",
+        "theme": "手冲滤纸刚注水时咖啡粉鼓起一个小圆包，看这一幕比喝到咖啡本身还解压，连空气里都好像多了一点温柔的味道",
+        "elements": [
+            "手冲咖啡",
+            "小圆包",
+            "解压"
+        ],
+        "sd_hint": "morning kitchen counter, pouring hot water over pour-over coffee dripper, delicate warm details"
+    },
+    {
+        "id": "m_399",
+        "category": "穿搭心情",
+        "theme": "今天翻衣柜挑了件很久没穿的浅色小裙子，转了个圈觉得自己今天可爱度达标，连空气里都好像多了一点温柔的味道",
+        "elements": [
+            "挑衣服",
+            "浅色裙子",
+            "好心情"
+        ],
+        "sd_hint": "morning bedroom, twirling slightly in cute pastel outfit, cheerful smile, delicate warm details"
+    },
+    {
+        "id": "m_400",
+        "category": "买菜散步",
+        "theme": "早起去小超市买到刚上架的新鲜草莓，挑了一盒每颗都红扑扑带小绒毛的，连空气里都好像多了一点温柔的味道",
+        "elements": [
+            "新鲜草莓",
+            "早市",
+            "小确幸"
+        ],
+        "sd_hint": "morning holding box of fresh red strawberries, delighted expression, delicate warm details"
+    },
+    {
+        "id": "m_401",
+        "category": "Vtuber晨间杂谈",
+        "theme": "开播前含着温水润嗓，对着麦克风测试了一句早安问候，顺手把桌面杂物往镜头外推了十厘米，觉得平凡的一天也悄悄亮了一点",
+        "elements": [
+            "开播前",
+            "麦克风",
+            "润嗓",
+            "早安杂谈"
+        ],
+        "sd_hint": "morning, indoor desk setup with condenser microphone and warm mug, smiling girl, bright cheerful atmosphere"
+    },
+    {
+        "id": "m_402",
+        "category": "Vtuber晨间杂谈",
+        "theme": "翻出昨晚写好的直播日程便签，发现角落画着一只歪歪扭扭的睡眼小猫，自己先笑了出来，觉得平凡的一天也悄悄亮了一点",
+        "elements": [
+            "日程便签",
+            "涂鸦",
+            "直播准备"
+        ],
+        "sd_hint": "morning sunlight at desk, holding sticky note with doodle, cheerful smile, bright cheerful atmosphere"
+    },
+    {
+        "id": "m_403",
+        "category": "居家晨起",
+        "theme": "把窗帘拉开一条窄缝，阳光刚好斜斜照在桌角的玻璃水杯上，折射出一道小小的彩虹，觉得平凡的一天也悄悄亮了一点",
+        "elements": [
+            "窗帘缝",
+            "玻璃杯",
+            "小彩虹"
+        ],
+        "sd_hint": "morning sunbeam through curtain, glass of water casting rainbow on desk, cozy indoor, bright cheerful atmosphere"
+    },
+    {
+        "id": "m_404",
+        "category": "居家晨起",
+        "theme": "起床第一件事先给阳台的小盆栽喷水，叶片上挂着细碎水珠的样子莫名让人精神起来，觉得平凡的一天也悄悄亮了一点",
+        "elements": [
+            "阳台盆栽",
+            "喷水",
+            "晨露"
+        ],
+        "sd_hint": "morning balcony, misting small potted plants with spray bottle, fresh daylight, bright cheerful atmosphere"
+    },
+    {
+        "id": "m_405",
+        "category": "早餐美食",
+        "theme": "烤吐司边缘微微焦脆，涂上一层厚厚的花生酱再切半根香蕉片上去，配冰牛奶刚刚好，觉得平凡的一天也悄悄亮了一点",
+        "elements": [
+            "烤吐司",
+            "花生酱",
+            "香蕉片"
+        ],
+        "sd_hint": "morning kitchen table, crispy toast with peanut butter and banana, glass of milk, bright cheerful atmosphere"
+    },
+    {
+        "id": "m_406",
+        "category": "早餐美食",
+        "theme": "把昨天买的小笼包放进蒸锅热五分钟，掀开锅盖那一瞬间白茫茫的热气扑面而来，觉得平凡的一天也悄悄亮了一点",
+        "elements": [
+            "小笼包",
+            "热气",
+            "早餐"
+        ],
+        "sd_hint": "morning dining table, steaming bamboo basket of dumplings, happy expression, bright cheerful atmosphere"
+    },
+    {
+        "id": "m_407",
+        "category": "出门通勤",
+        "theme": "出门前对着玄关镜子整理刘海，发现呆毛怎么按都倔强地翘着，干脆由它去了，觉得平凡的一天也悄悄亮了一点",
+        "elements": [
+            "玄关镜",
+            "刘海",
+            "呆毛"
+        ],
+        "sd_hint": "morning entryway mirror, adjusting bangs and ahoge, cute daily outfit, bright cheerful atmosphere"
+    },
+    {
+        "id": "m_408",
+        "category": "出门通勤",
+        "theme": "早上的风还带点凉意，手里握着刚从便利店买的热豆浆，指尖暖呼呼的，觉得平凡的一天也悄悄亮了一点",
+        "elements": [
+            "便利店",
+            "热豆浆",
+            "晨风"
+        ],
+        "sd_hint": "early morning street, holding warm cup of soy milk, gentle breeze, soft light, bright cheerful atmosphere"
+    },
+    {
+        "id": "m_409",
+        "category": "少女心情",
+        "theme": "昨晚睡前把歌单设为随机播放，早上被一首轻快的八音盒纯音乐唤醒，心情直接加十分，觉得平凡的一天也悄悄亮了一点",
+        "elements": [
+            "歌单",
+            "八音盒",
+            "好心情"
+        ],
+        "sd_hint": "morning bedroom window, wearing headphones, peaceful gentle smile, bright cheerful atmosphere"
+    },
+    {
+        "id": "m_410",
+        "category": "少女心情",
+        "theme": "翻手机相册发现昨天拍的云朵像一只趴着的小狗，决定把这周手机壁纸就换成它，觉得平凡的一天也悄悄亮了一点",
+        "elements": [
+            "手机相册",
+            "云朵",
+            "换壁纸"
+        ],
+        "sd_hint": "morning sitting by window holding smartphone, smiling softly at screen, bright cheerful atmosphere"
+    },
+    {
+        "id": "m_411",
+        "category": "兴趣爱好",
+        "theme": "趁早起脑子清醒，在数位板上顺手勾了几笔Q版自设草图，线条意外地很顺滑，觉得平凡的一天也悄悄亮了一点",
+        "elements": [
+            "数位板",
+            "Q版草图",
+            "晨间画画"
+        ],
+        "sd_hint": "morning desk with drawing tablet and stylus, focused cute expression, bright cheerful atmosphere"
+    },
+    {
+        "id": "m_412",
+        "category": "兴趣爱好",
+        "theme": "练了十五分钟新学的吉他和弦，左手按得有点酸，但终于能流畅换过去一次了，觉得平凡的一天也悄悄亮了一点",
+        "elements": [
+            "吉他练习",
+            "和弦",
+            "小成就"
+        ],
+        "sd_hint": "morning room sitting with acoustic guitar, pleased smile, bright cheerful atmosphere"
+    },
+    {
+        "id": "m_413",
+        "category": "街头观察",
+        "theme": "楼下早餐摊的大叔今天换了顶新草帽，煎饼摊前排着三条小尾巴一样长的队，觉得平凡的一天也悄悄亮了一点",
+        "elements": [
+            "早餐摊",
+            "草帽",
+            "烟火气"
+        ],
+        "sd_hint": "morning street market, warm sunlight, cheerful girl walking past, bright cheerful atmosphere"
+    },
+    {
+        "id": "m_414",
+        "category": "街头观察",
+        "theme": "路过花店门口看到刚卸货的洋甘菊和向日葵摆了一地，整条人行道都飘着青草味，觉得平凡的一天也悄悄亮了一点",
+        "elements": [
+            "花店门口",
+            "洋甘菊",
+            "青草味"
+        ],
+        "sd_hint": "morning sidewalk outside flower shop full of daisies and sunflowers, bright cheerful atmosphere"
+    },
+    {
+        "id": "m_415",
+        "category": "元气打卡",
+        "theme": "今天打算把拖了好几天的歌回歌单理顺，顺便把收藏夹里积灰的伴奏全试唱一遍，觉得平凡的一天也悄悄亮了一点",
+        "elements": [
+            "歌回准备",
+            "整理歌单",
+            "元气"
+        ],
+        "sd_hint": "morning cozy room, laptop and lyrics notebook open, energetic wink, bright cheerful atmosphere"
+    },
+    {
+        "id": "m_416",
+        "category": "校园日常",
+        "theme": "提前十分钟到教室或者自习室，挑了个靠窗能晒到太阳的位置把水杯摆好，觉得平凡的一天也悄悄亮了一点",
+        "elements": [
+            "靠窗座位",
+            "自习室",
+            "早到"
+        ],
+        "sd_hint": "morning sunlit window seat, notebook and water bottle on desk, bright cheerful atmosphere"
+    },
+    {
+        "id": "m_417",
+        "category": "萌宠互动",
+        "theme": "楼下那只三花猫今天蹲在车顶晒太阳，看到我路过还慢悠悠抬爪洗了把脸，觉得平凡的一天也悄悄亮了一点",
+        "elements": [
+            "三花猫",
+            "晒太阳",
+            "偶遇"
+        ],
+        "sd_hint": "morning neighborhood street, girl crouching smiling at calico cat, bright cheerful atmosphere"
+    },
+    {
+        "id": "m_418",
+        "category": "随手记录",
+        "theme": "换了个新的薄荷味牙膏，刷完牙吸一口早上空气感觉整个人都凉飕飕地清醒了，觉得平凡的一天也悄悄亮了一点",
+        "elements": [
+            "薄荷牙膏",
+            "清醒",
+            "早起"
+        ],
+        "sd_hint": "morning bathroom mirror, fresh bright expression, casual loungewear, bright cheerful atmosphere"
+    },
+    {
+        "id": "m_419",
+        "category": "天气体感",
+        "theme": "今天云层厚厚的像一层棉花糖盖在城市上面，风吹过来不冷不热特别适合出门晃悠，觉得平凡的一天也悄悄亮了一点",
+        "elements": [
+            "厚云层",
+            "微风",
+            "好天气"
+        ],
+        "sd_hint": "morning overcast soft light on street, relaxed walking pose, bright cheerful atmosphere"
+    },
+    {
+        "id": "m_420",
+        "category": "轻互动",
+        "theme": "早上好呀，今天你们的早饭吃的是甜口还是咸口？我刚啃完一个奶黄包，觉得平凡的一天也悄悄亮了一点",
+        "elements": [
+            "早饭",
+            "甜咸党",
+            "奶黄包"
+        ],
+        "sd_hint": "morning cafe table, holding steamed custard bun, smiling at viewer, bright cheerful atmosphere"
+    },
+    {
+        "id": "m_421",
+        "category": "房间整理",
+        "theme": "花十分钟把书桌上缠成一团的数据线理顺并贴上小标签，强迫症瞬间被治愈，觉得平凡的一天也悄悄亮了一点",
+        "elements": [
+            "整理数据线",
+            "小标签",
+            "治愈"
+        ],
+        "sd_hint": "morning clean desk with neatly coiled cables, satisfied smile, bright cheerful atmosphere"
+    },
+    {
+        "id": "m_422",
+        "category": "声乐练习",
+        "theme": "对着窗外的小麻雀一起练了五分钟腹式呼吸和哼鸣，结果麻雀歪着头看了我半天，觉得平凡的一天也悄悄亮了一点",
+        "elements": [
+            "练声",
+            "小麻雀",
+            "窗台"
+        ],
+        "sd_hint": "morning open window, humming gently, small sparrow on windowsill, bright cheerful atmosphere"
+    },
+    {
+        "id": "m_423",
+        "category": "咖啡茶饮",
+        "theme": "手冲滤纸刚注水时咖啡粉鼓起一个小圆包，看这一幕比喝到咖啡本身还解压，觉得平凡的一天也悄悄亮了一点",
+        "elements": [
+            "手冲咖啡",
+            "小圆包",
+            "解压"
+        ],
+        "sd_hint": "morning kitchen counter, pouring hot water over pour-over coffee dripper, bright cheerful atmosphere"
+    },
+    {
+        "id": "m_424",
+        "category": "穿搭心情",
+        "theme": "今天翻衣柜挑了件很久没穿的浅色小裙子，转了个圈觉得自己今天可爱度达标，觉得平凡的一天也悄悄亮了一点",
+        "elements": [
+            "挑衣服",
+            "浅色裙子",
+            "好心情"
+        ],
+        "sd_hint": "morning bedroom, twirling slightly in cute pastel outfit, cheerful smile, bright cheerful atmosphere"
+    },
+    {
+        "id": "m_425",
+        "category": "买菜散步",
+        "theme": "早起去小超市买到刚上架的新鲜草莓，挑了一盒每颗都红扑扑带小绒毛的，觉得平凡的一天也悄悄亮了一点",
+        "elements": [
+            "新鲜草莓",
+            "早市",
+            "小确幸"
+        ],
+        "sd_hint": "morning holding box of fresh red strawberries, delighted expression, bright cheerful atmosphere"
+    },
+    {
+        "id": "m_426",
+        "category": "Vtuber晨间杂谈",
+        "theme": "开播前含着温水润嗓，对着麦克风测试了一句早安问候，顺手把桌面杂物往镜头外推了十厘米，忍不住想把这个瞬间存进今天的记忆里",
+        "elements": [
+            "开播前",
+            "麦克风",
+            "润嗓",
+            "早安杂谈"
+        ],
+        "sd_hint": "morning, indoor desk setup with condenser microphone and warm mug, smiling girl, aesthetic candid angle"
+    },
+    {
+        "id": "m_427",
+        "category": "Vtuber晨间杂谈",
+        "theme": "翻出昨晚写好的直播日程便签，发现角落画着一只歪歪扭扭的睡眼小猫，自己先笑了出来，忍不住想把这个瞬间存进今天的记忆里",
+        "elements": [
+            "日程便签",
+            "涂鸦",
+            "直播准备"
+        ],
+        "sd_hint": "morning sunlight at desk, holding sticky note with doodle, cheerful smile, aesthetic candid angle"
+    },
+    {
+        "id": "m_428",
+        "category": "居家晨起",
+        "theme": "把窗帘拉开一条窄缝，阳光刚好斜斜照在桌角的玻璃水杯上，折射出一道小小的彩虹，忍不住想把这个瞬间存进今天的记忆里",
+        "elements": [
+            "窗帘缝",
+            "玻璃杯",
+            "小彩虹"
+        ],
+        "sd_hint": "morning sunbeam through curtain, glass of water casting rainbow on desk, cozy indoor, aesthetic candid angle"
+    },
+    {
+        "id": "m_429",
+        "category": "居家晨起",
+        "theme": "起床第一件事先给阳台的小盆栽喷水，叶片上挂着细碎水珠的样子莫名让人精神起来，忍不住想把这个瞬间存进今天的记忆里",
+        "elements": [
+            "阳台盆栽",
+            "喷水",
+            "晨露"
+        ],
+        "sd_hint": "morning balcony, misting small potted plants with spray bottle, fresh daylight, aesthetic candid angle"
+    },
+    {
+        "id": "m_430",
+        "category": "早餐美食",
+        "theme": "烤吐司边缘微微焦脆，涂上一层厚厚的花生酱再切半根香蕉片上去，配冰牛奶刚刚好，忍不住想把这个瞬间存进今天的记忆里",
+        "elements": [
+            "烤吐司",
+            "花生酱",
+            "香蕉片"
+        ],
+        "sd_hint": "morning kitchen table, crispy toast with peanut butter and banana, glass of milk, aesthetic candid angle"
+    },
+    {
+        "id": "m_431",
+        "category": "早餐美食",
+        "theme": "把昨天买的小笼包放进蒸锅热五分钟，掀开锅盖那一瞬间白茫茫的热气扑面而来，忍不住想把这个瞬间存进今天的记忆里",
+        "elements": [
+            "小笼包",
+            "热气",
+            "早餐"
+        ],
+        "sd_hint": "morning dining table, steaming bamboo basket of dumplings, happy expression, aesthetic candid angle"
+    },
+    {
+        "id": "m_432",
+        "category": "出门通勤",
+        "theme": "出门前对着玄关镜子整理刘海，发现呆毛怎么按都倔强地翘着，干脆由它去了，忍不住想把这个瞬间存进今天的记忆里",
+        "elements": [
+            "玄关镜",
+            "刘海",
+            "呆毛"
+        ],
+        "sd_hint": "morning entryway mirror, adjusting bangs and ahoge, cute daily outfit, aesthetic candid angle"
+    },
+    {
+        "id": "m_433",
+        "category": "出门通勤",
+        "theme": "早上的风还带点凉意，手里握着刚从便利店买的热豆浆，指尖暖呼呼的，忍不住想把这个瞬间存进今天的记忆里",
+        "elements": [
+            "便利店",
+            "热豆浆",
+            "晨风"
+        ],
+        "sd_hint": "early morning street, holding warm cup of soy milk, gentle breeze, soft light, aesthetic candid angle"
+    },
+    {
+        "id": "m_434",
+        "category": "少女心情",
+        "theme": "昨晚睡前把歌单设为随机播放，早上被一首轻快的八音盒纯音乐唤醒，心情直接加十分，忍不住想把这个瞬间存进今天的记忆里",
+        "elements": [
+            "歌单",
+            "八音盒",
+            "好心情"
+        ],
+        "sd_hint": "morning bedroom window, wearing headphones, peaceful gentle smile, aesthetic candid angle"
+    },
+    {
+        "id": "m_435",
+        "category": "少女心情",
+        "theme": "翻手机相册发现昨天拍的云朵像一只趴着的小狗，决定把这周手机壁纸就换成它，忍不住想把这个瞬间存进今天的记忆里",
+        "elements": [
+            "手机相册",
+            "云朵",
+            "换壁纸"
+        ],
+        "sd_hint": "morning sitting by window holding smartphone, smiling softly at screen, aesthetic candid angle"
+    },
+    {
+        "id": "m_436",
+        "category": "兴趣爱好",
+        "theme": "趁早起脑子清醒，在数位板上顺手勾了几笔Q版自设草图，线条意外地很顺滑，忍不住想把这个瞬间存进今天的记忆里",
+        "elements": [
+            "数位板",
+            "Q版草图",
+            "晨间画画"
+        ],
+        "sd_hint": "morning desk with drawing tablet and stylus, focused cute expression, aesthetic candid angle"
+    },
+    {
+        "id": "m_437",
+        "category": "兴趣爱好",
+        "theme": "练了十五分钟新学的吉他和弦，左手按得有点酸，但终于能流畅换过去一次了，忍不住想把这个瞬间存进今天的记忆里",
+        "elements": [
+            "吉他练习",
+            "和弦",
+            "小成就"
+        ],
+        "sd_hint": "morning room sitting with acoustic guitar, pleased smile, aesthetic candid angle"
+    },
+    {
+        "id": "m_438",
+        "category": "街头观察",
+        "theme": "楼下早餐摊的大叔今天换了顶新草帽，煎饼摊前排着三条小尾巴一样长的队，忍不住想把这个瞬间存进今天的记忆里",
+        "elements": [
+            "早餐摊",
+            "草帽",
+            "烟火气"
+        ],
+        "sd_hint": "morning street market, warm sunlight, cheerful girl walking past, aesthetic candid angle"
+    },
+    {
+        "id": "m_439",
+        "category": "街头观察",
+        "theme": "路过花店门口看到刚卸货的洋甘菊和向日葵摆了一地，整条人行道都飘着青草味，忍不住想把这个瞬间存进今天的记忆里",
+        "elements": [
+            "花店门口",
+            "洋甘菊",
+            "青草味"
+        ],
+        "sd_hint": "morning sidewalk outside flower shop full of daisies and sunflowers, aesthetic candid angle"
+    },
+    {
+        "id": "m_440",
+        "category": "元气打卡",
+        "theme": "今天打算把拖了好几天的歌回歌单理顺，顺便把收藏夹里积灰的伴奏全试唱一遍，忍不住想把这个瞬间存进今天的记忆里",
+        "elements": [
+            "歌回准备",
+            "整理歌单",
+            "元气"
+        ],
+        "sd_hint": "morning cozy room, laptop and lyrics notebook open, energetic wink, aesthetic candid angle"
+    },
+    {
+        "id": "m_441",
+        "category": "校园日常",
+        "theme": "提前十分钟到教室或者自习室，挑了个靠窗能晒到太阳的位置把水杯摆好，忍不住想把这个瞬间存进今天的记忆里",
+        "elements": [
+            "靠窗座位",
+            "自习室",
+            "早到"
+        ],
+        "sd_hint": "morning sunlit window seat, notebook and water bottle on desk, aesthetic candid angle"
+    },
+    {
+        "id": "m_442",
+        "category": "萌宠互动",
+        "theme": "楼下那只三花猫今天蹲在车顶晒太阳，看到我路过还慢悠悠抬爪洗了把脸，忍不住想把这个瞬间存进今天的记忆里",
+        "elements": [
+            "三花猫",
+            "晒太阳",
+            "偶遇"
+        ],
+        "sd_hint": "morning neighborhood street, girl crouching smiling at calico cat, aesthetic candid angle"
+    },
+    {
+        "id": "m_443",
+        "category": "随手记录",
+        "theme": "换了个新的薄荷味牙膏，刷完牙吸一口早上空气感觉整个人都凉飕飕地清醒了，忍不住想把这个瞬间存进今天的记忆里",
+        "elements": [
+            "薄荷牙膏",
+            "清醒",
+            "早起"
+        ],
+        "sd_hint": "morning bathroom mirror, fresh bright expression, casual loungewear, aesthetic candid angle"
+    },
+    {
+        "id": "m_444",
+        "category": "天气体感",
+        "theme": "今天云层厚厚的像一层棉花糖盖在城市上面，风吹过来不冷不热特别适合出门晃悠，忍不住想把这个瞬间存进今天的记忆里",
+        "elements": [
+            "厚云层",
+            "微风",
+            "好天气"
+        ],
+        "sd_hint": "morning overcast soft light on street, relaxed walking pose, aesthetic candid angle"
+    },
+    {
+        "id": "m_445",
+        "category": "轻互动",
+        "theme": "早上好呀，今天你们的早饭吃的是甜口还是咸口？我刚啃完一个奶黄包，忍不住想把这个瞬间存进今天的记忆里",
+        "elements": [
+            "早饭",
+            "甜咸党",
+            "奶黄包"
+        ],
+        "sd_hint": "morning cafe table, holding steamed custard bun, smiling at viewer, aesthetic candid angle"
+    },
+    {
+        "id": "m_446",
+        "category": "房间整理",
+        "theme": "花十分钟把书桌上缠成一团的数据线理顺并贴上小标签，强迫症瞬间被治愈，忍不住想把这个瞬间存进今天的记忆里",
+        "elements": [
+            "整理数据线",
+            "小标签",
+            "治愈"
+        ],
+        "sd_hint": "morning clean desk with neatly coiled cables, satisfied smile, aesthetic candid angle"
+    },
+    {
+        "id": "m_447",
+        "category": "声乐练习",
+        "theme": "对着窗外的小麻雀一起练了五分钟腹式呼吸和哼鸣，结果麻雀歪着头看了我半天，忍不住想把这个瞬间存进今天的记忆里",
+        "elements": [
+            "练声",
+            "小麻雀",
+            "窗台"
+        ],
+        "sd_hint": "morning open window, humming gently, small sparrow on windowsill, aesthetic candid angle"
+    },
+    {
+        "id": "m_448",
+        "category": "咖啡茶饮",
+        "theme": "手冲滤纸刚注水时咖啡粉鼓起一个小圆包，看这一幕比喝到咖啡本身还解压，忍不住想把这个瞬间存进今天的记忆里",
+        "elements": [
+            "手冲咖啡",
+            "小圆包",
+            "解压"
+        ],
+        "sd_hint": "morning kitchen counter, pouring hot water over pour-over coffee dripper, aesthetic candid angle"
+    },
+    {
+        "id": "m_449",
+        "category": "穿搭心情",
+        "theme": "今天翻衣柜挑了件很久没穿的浅色小裙子，转了个圈觉得自己今天可爱度达标，忍不住想把这个瞬间存进今天的记忆里",
+        "elements": [
+            "挑衣服",
+            "浅色裙子",
+            "好心情"
+        ],
+        "sd_hint": "morning bedroom, twirling slightly in cute pastel outfit, cheerful smile, aesthetic candid angle"
+    },
+    {
+        "id": "m_450",
+        "category": "买菜散步",
+        "theme": "早起去小超市买到刚上架的新鲜草莓，挑了一盒每颗都红扑扑带小绒毛的，忍不住想把这个瞬间存进今天的记忆里",
+        "elements": [
+            "新鲜草莓",
+            "早市",
+            "小确幸"
+        ],
+        "sd_hint": "morning holding box of fresh red strawberries, delighted expression, aesthetic candid angle"
+    },
+    {
+        "id": "m_451",
+        "category": "Vtuber晨间杂谈",
+        "theme": "开播前含着温水润嗓，对着麦克风测试了一句早安问候，顺手把桌面杂物往镜头外推了十厘米，虽然只是件小事但真的挺有意思的",
+        "elements": [
+            "开播前",
+            "麦克风",
+            "润嗓",
+            "早安杂谈"
+        ],
+        "sd_hint": "morning, indoor desk setup with condenser microphone and warm mug, smiling girl, playful candid expression"
+    },
+    {
+        "id": "m_452",
+        "category": "Vtuber晨间杂谈",
+        "theme": "翻出昨晚写好的直播日程便签，发现角落画着一只歪歪扭扭的睡眼小猫，自己先笑了出来，虽然只是件小事但真的挺有意思的",
+        "elements": [
+            "日程便签",
+            "涂鸦",
+            "直播准备"
+        ],
+        "sd_hint": "morning sunlight at desk, holding sticky note with doodle, cheerful smile, playful candid expression"
+    },
+    {
+        "id": "m_453",
+        "category": "居家晨起",
+        "theme": "把窗帘拉开一条窄缝，阳光刚好斜斜照在桌角的玻璃水杯上，折射出一道小小的彩虹，虽然只是件小事但真的挺有意思的",
+        "elements": [
+            "窗帘缝",
+            "玻璃杯",
+            "小彩虹"
+        ],
+        "sd_hint": "morning sunbeam through curtain, glass of water casting rainbow on desk, cozy indoor, playful candid expression"
+    },
+    {
+        "id": "m_454",
+        "category": "居家晨起",
+        "theme": "起床第一件事先给阳台的小盆栽喷水，叶片上挂着细碎水珠的样子莫名让人精神起来，虽然只是件小事但真的挺有意思的",
+        "elements": [
+            "阳台盆栽",
+            "喷水",
+            "晨露"
+        ],
+        "sd_hint": "morning balcony, misting small potted plants with spray bottle, fresh daylight, playful candid expression"
+    },
+    {
+        "id": "m_455",
+        "category": "早餐美食",
+        "theme": "烤吐司边缘微微焦脆，涂上一层厚厚的花生酱再切半根香蕉片上去，配冰牛奶刚刚好，虽然只是件小事但真的挺有意思的",
+        "elements": [
+            "烤吐司",
+            "花生酱",
+            "香蕉片"
+        ],
+        "sd_hint": "morning kitchen table, crispy toast with peanut butter and banana, glass of milk, playful candid expression"
+    },
+    {
+        "id": "m_456",
+        "category": "早餐美食",
+        "theme": "把昨天买的小笼包放进蒸锅热五分钟，掀开锅盖那一瞬间白茫茫的热气扑面而来，虽然只是件小事但真的挺有意思的",
+        "elements": [
+            "小笼包",
+            "热气",
+            "早餐"
+        ],
+        "sd_hint": "morning dining table, steaming bamboo basket of dumplings, happy expression, playful candid expression"
+    },
+    {
+        "id": "m_457",
+        "category": "出门通勤",
+        "theme": "出门前对着玄关镜子整理刘海，发现呆毛怎么按都倔强地翘着，干脆由它去了，虽然只是件小事但真的挺有意思的",
+        "elements": [
+            "玄关镜",
+            "刘海",
+            "呆毛"
+        ],
+        "sd_hint": "morning entryway mirror, adjusting bangs and ahoge, cute daily outfit, playful candid expression"
+    },
+    {
+        "id": "m_458",
+        "category": "出门通勤",
+        "theme": "早上的风还带点凉意，手里握着刚从便利店买的热豆浆，指尖暖呼呼的，虽然只是件小事但真的挺有意思的",
+        "elements": [
+            "便利店",
+            "热豆浆",
+            "晨风"
+        ],
+        "sd_hint": "early morning street, holding warm cup of soy milk, gentle breeze, soft light, playful candid expression"
+    },
+    {
+        "id": "m_459",
+        "category": "少女心情",
+        "theme": "昨晚睡前把歌单设为随机播放，早上被一首轻快的八音盒纯音乐唤醒，心情直接加十分，虽然只是件小事但真的挺有意思的",
+        "elements": [
+            "歌单",
+            "八音盒",
+            "好心情"
+        ],
+        "sd_hint": "morning bedroom window, wearing headphones, peaceful gentle smile, playful candid expression"
+    },
+    {
+        "id": "m_460",
+        "category": "少女心情",
+        "theme": "翻手机相册发现昨天拍的云朵像一只趴着的小狗，决定把这周手机壁纸就换成它，虽然只是件小事但真的挺有意思的",
+        "elements": [
+            "手机相册",
+            "云朵",
+            "换壁纸"
+        ],
+        "sd_hint": "morning sitting by window holding smartphone, smiling softly at screen, playful candid expression"
+    },
+    {
+        "id": "m_461",
+        "category": "兴趣爱好",
+        "theme": "趁早起脑子清醒，在数位板上顺手勾了几笔Q版自设草图，线条意外地很顺滑，虽然只是件小事但真的挺有意思的",
+        "elements": [
+            "数位板",
+            "Q版草图",
+            "晨间画画"
+        ],
+        "sd_hint": "morning desk with drawing tablet and stylus, focused cute expression, playful candid expression"
+    },
+    {
+        "id": "m_462",
+        "category": "兴趣爱好",
+        "theme": "练了十五分钟新学的吉他和弦，左手按得有点酸，但终于能流畅换过去一次了，虽然只是件小事但真的挺有意思的",
+        "elements": [
+            "吉他练习",
+            "和弦",
+            "小成就"
+        ],
+        "sd_hint": "morning room sitting with acoustic guitar, pleased smile, playful candid expression"
+    },
+    {
+        "id": "m_463",
+        "category": "街头观察",
+        "theme": "楼下早餐摊的大叔今天换了顶新草帽，煎饼摊前排着三条小尾巴一样长的队，虽然只是件小事但真的挺有意思的",
+        "elements": [
+            "早餐摊",
+            "草帽",
+            "烟火气"
+        ],
+        "sd_hint": "morning street market, warm sunlight, cheerful girl walking past, playful candid expression"
+    },
+    {
+        "id": "m_464",
+        "category": "街头观察",
+        "theme": "路过花店门口看到刚卸货的洋甘菊和向日葵摆了一地，整条人行道都飘着青草味，虽然只是件小事但真的挺有意思的",
+        "elements": [
+            "花店门口",
+            "洋甘菊",
+            "青草味"
+        ],
+        "sd_hint": "morning sidewalk outside flower shop full of daisies and sunflowers, playful candid expression"
+    },
+    {
+        "id": "m_465",
+        "category": "元气打卡",
+        "theme": "今天打算把拖了好几天的歌回歌单理顺，顺便把收藏夹里积灰的伴奏全试唱一遍，虽然只是件小事但真的挺有意思的",
+        "elements": [
+            "歌回准备",
+            "整理歌单",
+            "元气"
+        ],
+        "sd_hint": "morning cozy room, laptop and lyrics notebook open, energetic wink, playful candid expression"
+    },
+    {
+        "id": "m_466",
+        "category": "校园日常",
+        "theme": "提前十分钟到教室或者自习室，挑了个靠窗能晒到太阳的位置把水杯摆好，虽然只是件小事但真的挺有意思的",
+        "elements": [
+            "靠窗座位",
+            "自习室",
+            "早到"
+        ],
+        "sd_hint": "morning sunlit window seat, notebook and water bottle on desk, playful candid expression"
+    },
+    {
+        "id": "m_467",
+        "category": "萌宠互动",
+        "theme": "楼下那只三花猫今天蹲在车顶晒太阳，看到我路过还慢悠悠抬爪洗了把脸，虽然只是件小事但真的挺有意思的",
+        "elements": [
+            "三花猫",
+            "晒太阳",
+            "偶遇"
+        ],
+        "sd_hint": "morning neighborhood street, girl crouching smiling at calico cat, playful candid expression"
+    },
+    {
+        "id": "m_468",
+        "category": "随手记录",
+        "theme": "换了个新的薄荷味牙膏，刷完牙吸一口早上空气感觉整个人都凉飕飕地清醒了，虽然只是件小事但真的挺有意思的",
+        "elements": [
+            "薄荷牙膏",
+            "清醒",
+            "早起"
+        ],
+        "sd_hint": "morning bathroom mirror, fresh bright expression, casual loungewear, playful candid expression"
+    },
+    {
+        "id": "m_469",
+        "category": "天气体感",
+        "theme": "今天云层厚厚的像一层棉花糖盖在城市上面，风吹过来不冷不热特别适合出门晃悠，虽然只是件小事但真的挺有意思的",
+        "elements": [
+            "厚云层",
+            "微风",
+            "好天气"
+        ],
+        "sd_hint": "morning overcast soft light on street, relaxed walking pose, playful candid expression"
+    },
+    {
+        "id": "m_470",
+        "category": "轻互动",
+        "theme": "早上好呀，今天你们的早饭吃的是甜口还是咸口？我刚啃完一个奶黄包，虽然只是件小事但真的挺有意思的",
+        "elements": [
+            "早饭",
+            "甜咸党",
+            "奶黄包"
+        ],
+        "sd_hint": "morning cafe table, holding steamed custard bun, smiling at viewer, playful candid expression"
+    },
+    {
+        "id": "m_471",
+        "category": "房间整理",
+        "theme": "花十分钟把书桌上缠成一团的数据线理顺并贴上小标签，强迫症瞬间被治愈，虽然只是件小事但真的挺有意思的",
+        "elements": [
+            "整理数据线",
+            "小标签",
+            "治愈"
+        ],
+        "sd_hint": "morning clean desk with neatly coiled cables, satisfied smile, playful candid expression"
+    },
+    {
+        "id": "m_472",
+        "category": "声乐练习",
+        "theme": "对着窗外的小麻雀一起练了五分钟腹式呼吸和哼鸣，结果麻雀歪着头看了我半天，虽然只是件小事但真的挺有意思的",
+        "elements": [
+            "练声",
+            "小麻雀",
+            "窗台"
+        ],
+        "sd_hint": "morning open window, humming gently, small sparrow on windowsill, playful candid expression"
+    },
+    {
+        "id": "m_473",
+        "category": "咖啡茶饮",
+        "theme": "手冲滤纸刚注水时咖啡粉鼓起一个小圆包，看这一幕比喝到咖啡本身还解压，虽然只是件小事但真的挺有意思的",
+        "elements": [
+            "手冲咖啡",
+            "小圆包",
+            "解压"
+        ],
+        "sd_hint": "morning kitchen counter, pouring hot water over pour-over coffee dripper, playful candid expression"
+    },
+    {
+        "id": "m_474",
+        "category": "穿搭心情",
+        "theme": "今天翻衣柜挑了件很久没穿的浅色小裙子，转了个圈觉得自己今天可爱度达标，虽然只是件小事但真的挺有意思的",
+        "elements": [
+            "挑衣服",
+            "浅色裙子",
+            "好心情"
+        ],
+        "sd_hint": "morning bedroom, twirling slightly in cute pastel outfit, cheerful smile, playful candid expression"
+    },
+    {
+        "id": "m_475",
+        "category": "买菜散步",
+        "theme": "早起去小超市买到刚上架的新鲜草莓，挑了一盒每颗都红扑扑带小绒毛的，虽然只是件小事但真的挺有意思的",
+        "elements": [
+            "新鲜草莓",
+            "早市",
+            "小确幸"
+        ],
+        "sd_hint": "morning holding box of fresh red strawberries, delighted expression, playful candid expression"
+    },
+    {
+        "id": "m_476",
+        "category": "Vtuber晨间杂谈",
+        "theme": "开播前含着温水润嗓，对着麦克风测试了一句早安问候，顺手把桌面杂物往镜头外推了十厘米，心里像冒泡汽水一样咕嘟咕嘟地开心起来",
+        "elements": [
+            "开播前",
+            "麦克风",
+            "润嗓",
+            "早安杂谈"
+        ],
+        "sd_hint": "morning, indoor desk setup with condenser microphone and warm mug, smiling girl, sparkling happy mood"
+    },
+    {
+        "id": "m_477",
+        "category": "Vtuber晨间杂谈",
+        "theme": "翻出昨晚写好的直播日程便签，发现角落画着一只歪歪扭扭的睡眼小猫，自己先笑了出来，心里像冒泡汽水一样咕嘟咕嘟地开心起来",
+        "elements": [
+            "日程便签",
+            "涂鸦",
+            "直播准备"
+        ],
+        "sd_hint": "morning sunlight at desk, holding sticky note with doodle, cheerful smile, sparkling happy mood"
+    },
+    {
+        "id": "m_478",
+        "category": "居家晨起",
+        "theme": "把窗帘拉开一条窄缝，阳光刚好斜斜照在桌角的玻璃水杯上，折射出一道小小的彩虹，心里像冒泡汽水一样咕嘟咕嘟地开心起来",
+        "elements": [
+            "窗帘缝",
+            "玻璃杯",
+            "小彩虹"
+        ],
+        "sd_hint": "morning sunbeam through curtain, glass of water casting rainbow on desk, cozy indoor, sparkling happy mood"
+    },
+    {
+        "id": "m_479",
+        "category": "居家晨起",
+        "theme": "起床第一件事先给阳台的小盆栽喷水，叶片上挂着细碎水珠的样子莫名让人精神起来，心里像冒泡汽水一样咕嘟咕嘟地开心起来",
+        "elements": [
+            "阳台盆栽",
+            "喷水",
+            "晨露"
+        ],
+        "sd_hint": "morning balcony, misting small potted plants with spray bottle, fresh daylight, sparkling happy mood"
+    },
+    {
+        "id": "m_480",
+        "category": "早餐美食",
+        "theme": "烤吐司边缘微微焦脆，涂上一层厚厚的花生酱再切半根香蕉片上去，配冰牛奶刚刚好，心里像冒泡汽水一样咕嘟咕嘟地开心起来",
+        "elements": [
+            "烤吐司",
+            "花生酱",
+            "香蕉片"
+        ],
+        "sd_hint": "morning kitchen table, crispy toast with peanut butter and banana, glass of milk, sparkling happy mood"
+    },
+    {
+        "id": "m_481",
+        "category": "早餐美食",
+        "theme": "把昨天买的小笼包放进蒸锅热五分钟，掀开锅盖那一瞬间白茫茫的热气扑面而来，心里像冒泡汽水一样咕嘟咕嘟地开心起来",
+        "elements": [
+            "小笼包",
+            "热气",
+            "早餐"
+        ],
+        "sd_hint": "morning dining table, steaming bamboo basket of dumplings, happy expression, sparkling happy mood"
+    },
+    {
+        "id": "m_482",
+        "category": "出门通勤",
+        "theme": "出门前对着玄关镜子整理刘海，发现呆毛怎么按都倔强地翘着，干脆由它去了，心里像冒泡汽水一样咕嘟咕嘟地开心起来",
+        "elements": [
+            "玄关镜",
+            "刘海",
+            "呆毛"
+        ],
+        "sd_hint": "morning entryway mirror, adjusting bangs and ahoge, cute daily outfit, sparkling happy mood"
+    },
+    {
+        "id": "m_483",
+        "category": "出门通勤",
+        "theme": "早上的风还带点凉意，手里握着刚从便利店买的热豆浆，指尖暖呼呼的，心里像冒泡汽水一样咕嘟咕嘟地开心起来",
+        "elements": [
+            "便利店",
+            "热豆浆",
+            "晨风"
+        ],
+        "sd_hint": "early morning street, holding warm cup of soy milk, gentle breeze, soft light, sparkling happy mood"
+    },
+    {
+        "id": "m_484",
+        "category": "少女心情",
+        "theme": "昨晚睡前把歌单设为随机播放，早上被一首轻快的八音盒纯音乐唤醒，心情直接加十分，心里像冒泡汽水一样咕嘟咕嘟地开心起来",
+        "elements": [
+            "歌单",
+            "八音盒",
+            "好心情"
+        ],
+        "sd_hint": "morning bedroom window, wearing headphones, peaceful gentle smile, sparkling happy mood"
+    },
+    {
+        "id": "m_485",
+        "category": "少女心情",
+        "theme": "翻手机相册发现昨天拍的云朵像一只趴着的小狗，决定把这周手机壁纸就换成它，心里像冒泡汽水一样咕嘟咕嘟地开心起来",
+        "elements": [
+            "手机相册",
+            "云朵",
+            "换壁纸"
+        ],
+        "sd_hint": "morning sitting by window holding smartphone, smiling softly at screen, sparkling happy mood"
+    },
+    {
+        "id": "m_486",
+        "category": "兴趣爱好",
+        "theme": "趁早起脑子清醒，在数位板上顺手勾了几笔Q版自设草图，线条意外地很顺滑，心里像冒泡汽水一样咕嘟咕嘟地开心起来",
+        "elements": [
+            "数位板",
+            "Q版草图",
+            "晨间画画"
+        ],
+        "sd_hint": "morning desk with drawing tablet and stylus, focused cute expression, sparkling happy mood"
+    },
+    {
+        "id": "m_487",
+        "category": "兴趣爱好",
+        "theme": "练了十五分钟新学的吉他和弦，左手按得有点酸，但终于能流畅换过去一次了，心里像冒泡汽水一样咕嘟咕嘟地开心起来",
+        "elements": [
+            "吉他练习",
+            "和弦",
+            "小成就"
+        ],
+        "sd_hint": "morning room sitting with acoustic guitar, pleased smile, sparkling happy mood"
+    },
+    {
+        "id": "m_488",
+        "category": "街头观察",
+        "theme": "楼下早餐摊的大叔今天换了顶新草帽，煎饼摊前排着三条小尾巴一样长的队，心里像冒泡汽水一样咕嘟咕嘟地开心起来",
+        "elements": [
+            "早餐摊",
+            "草帽",
+            "烟火气"
+        ],
+        "sd_hint": "morning street market, warm sunlight, cheerful girl walking past, sparkling happy mood"
+    },
+    {
+        "id": "m_489",
+        "category": "街头观察",
+        "theme": "路过花店门口看到刚卸货的洋甘菊和向日葵摆了一地，整条人行道都飘着青草味，心里像冒泡汽水一样咕嘟咕嘟地开心起来",
+        "elements": [
+            "花店门口",
+            "洋甘菊",
+            "青草味"
+        ],
+        "sd_hint": "morning sidewalk outside flower shop full of daisies and sunflowers, sparkling happy mood"
+    },
+    {
+        "id": "m_490",
+        "category": "元气打卡",
+        "theme": "今天打算把拖了好几天的歌回歌单理顺，顺便把收藏夹里积灰的伴奏全试唱一遍，心里像冒泡汽水一样咕嘟咕嘟地开心起来",
+        "elements": [
+            "歌回准备",
+            "整理歌单",
+            "元气"
+        ],
+        "sd_hint": "morning cozy room, laptop and lyrics notebook open, energetic wink, sparkling happy mood"
+    },
+    {
+        "id": "m_491",
+        "category": "校园日常",
+        "theme": "提前十分钟到教室或者自习室，挑了个靠窗能晒到太阳的位置把水杯摆好，心里像冒泡汽水一样咕嘟咕嘟地开心起来",
+        "elements": [
+            "靠窗座位",
+            "自习室",
+            "早到"
+        ],
+        "sd_hint": "morning sunlit window seat, notebook and water bottle on desk, sparkling happy mood"
+    },
+    {
+        "id": "m_492",
+        "category": "萌宠互动",
+        "theme": "楼下那只三花猫今天蹲在车顶晒太阳，看到我路过还慢悠悠抬爪洗了把脸，心里像冒泡汽水一样咕嘟咕嘟地开心起来",
+        "elements": [
+            "三花猫",
+            "晒太阳",
+            "偶遇"
+        ],
+        "sd_hint": "morning neighborhood street, girl crouching smiling at calico cat, sparkling happy mood"
+    },
+    {
+        "id": "m_493",
+        "category": "随手记录",
+        "theme": "换了个新的薄荷味牙膏，刷完牙吸一口早上空气感觉整个人都凉飕飕地清醒了，心里像冒泡汽水一样咕嘟咕嘟地开心起来",
+        "elements": [
+            "薄荷牙膏",
+            "清醒",
+            "早起"
+        ],
+        "sd_hint": "morning bathroom mirror, fresh bright expression, casual loungewear, sparkling happy mood"
+    },
+    {
+        "id": "m_494",
+        "category": "天气体感",
+        "theme": "今天云层厚厚的像一层棉花糖盖在城市上面，风吹过来不冷不热特别适合出门晃悠，心里像冒泡汽水一样咕嘟咕嘟地开心起来",
+        "elements": [
+            "厚云层",
+            "微风",
+            "好天气"
+        ],
+        "sd_hint": "morning overcast soft light on street, relaxed walking pose, sparkling happy mood"
+    },
+    {
+        "id": "m_495",
+        "category": "轻互动",
+        "theme": "早上好呀，今天你们的早饭吃的是甜口还是咸口？我刚啃完一个奶黄包，心里像冒泡汽水一样咕嘟咕嘟地开心起来",
+        "elements": [
+            "早饭",
+            "甜咸党",
+            "奶黄包"
+        ],
+        "sd_hint": "morning cafe table, holding steamed custard bun, smiling at viewer, sparkling happy mood"
+    },
+    {
+        "id": "m_496",
+        "category": "房间整理",
+        "theme": "花十分钟把书桌上缠成一团的数据线理顺并贴上小标签，强迫症瞬间被治愈，心里像冒泡汽水一样咕嘟咕嘟地开心起来",
+        "elements": [
+            "整理数据线",
+            "小标签",
+            "治愈"
+        ],
+        "sd_hint": "morning clean desk with neatly coiled cables, satisfied smile, sparkling happy mood"
+    },
+    {
+        "id": "m_497",
+        "category": "声乐练习",
+        "theme": "对着窗外的小麻雀一起练了五分钟腹式呼吸和哼鸣，结果麻雀歪着头看了我半天，心里像冒泡汽水一样咕嘟咕嘟地开心起来",
+        "elements": [
+            "练声",
+            "小麻雀",
+            "窗台"
+        ],
+        "sd_hint": "morning open window, humming gently, small sparrow on windowsill, sparkling happy mood"
+    },
+    {
+        "id": "m_498",
+        "category": "咖啡茶饮",
+        "theme": "手冲滤纸刚注水时咖啡粉鼓起一个小圆包，看这一幕比喝到咖啡本身还解压，心里像冒泡汽水一样咕嘟咕嘟地开心起来",
+        "elements": [
+            "手冲咖啡",
+            "小圆包",
+            "解压"
+        ],
+        "sd_hint": "morning kitchen counter, pouring hot water over pour-over coffee dripper, sparkling happy mood"
+    },
+    {
+        "id": "m_499",
+        "category": "穿搭心情",
+        "theme": "今天翻衣柜挑了件很久没穿的浅色小裙子，转了个圈觉得自己今天可爱度达标，心里像冒泡汽水一样咕嘟咕嘟地开心起来",
+        "elements": [
+            "挑衣服",
+            "浅色裙子",
+            "好心情"
+        ],
+        "sd_hint": "morning bedroom, twirling slightly in cute pastel outfit, cheerful smile, sparkling happy mood"
+    },
+    {
+        "id": "m_500",
+        "category": "买菜散步",
+        "theme": "早起去小超市买到刚上架的新鲜草莓，挑了一盒每颗都红扑扑带小绒毛的，心里像冒泡汽水一样咕嘟咕嘟地开心起来",
+        "elements": [
+            "新鲜草莓",
+            "早市",
+            "小确幸"
+        ],
+        "sd_hint": "morning holding box of fresh red strawberries, delighted expression, sparkling happy mood"
+    },
+    {
+        "id": "m_501",
+        "category": "Vtuber晨间杂谈",
+        "theme": "开播前含着温水润嗓，对着麦克风测试了一句早安问候，顺手把桌面杂物往镜头外推了十厘米，慢悠悠晃过去也挺好的",
+        "elements": [
+            "开播前",
+            "麦克风",
+            "润嗓",
+            "早安杂谈"
+        ],
+        "sd_hint": "morning, indoor desk setup with condenser microphone and warm mug, smiling girl, relaxed cozy vibe"
+    },
+    {
+        "id": "m_502",
+        "category": "Vtuber晨间杂谈",
+        "theme": "翻出昨晚写好的直播日程便签，发现角落画着一只歪歪扭扭的睡眼小猫，自己先笑了出来，慢悠悠晃过去也挺好的",
+        "elements": [
+            "日程便签",
+            "涂鸦",
+            "直播准备"
+        ],
+        "sd_hint": "morning sunlight at desk, holding sticky note with doodle, cheerful smile, relaxed cozy vibe"
+    },
+    {
+        "id": "m_503",
+        "category": "居家晨起",
+        "theme": "把窗帘拉开一条窄缝，阳光刚好斜斜照在桌角的玻璃水杯上，折射出一道小小的彩虹，慢悠悠晃过去也挺好的",
+        "elements": [
+            "窗帘缝",
+            "玻璃杯",
+            "小彩虹"
+        ],
+        "sd_hint": "morning sunbeam through curtain, glass of water casting rainbow on desk, cozy indoor, relaxed cozy vibe"
+    },
+    {
+        "id": "m_504",
+        "category": "居家晨起",
+        "theme": "起床第一件事先给阳台的小盆栽喷水，叶片上挂着细碎水珠的样子莫名让人精神起来，慢悠悠晃过去也挺好的",
+        "elements": [
+            "阳台盆栽",
+            "喷水",
+            "晨露"
+        ],
+        "sd_hint": "morning balcony, misting small potted plants with spray bottle, fresh daylight, relaxed cozy vibe"
+    },
+    {
+        "id": "m_505",
+        "category": "早餐美食",
+        "theme": "烤吐司边缘微微焦脆，涂上一层厚厚的花生酱再切半根香蕉片上去，配冰牛奶刚刚好，慢悠悠晃过去也挺好的",
+        "elements": [
+            "烤吐司",
+            "花生酱",
+            "香蕉片"
+        ],
+        "sd_hint": "morning kitchen table, crispy toast with peanut butter and banana, glass of milk, relaxed cozy vibe"
+    },
+    {
+        "id": "m_506",
+        "category": "早餐美食",
+        "theme": "把昨天买的小笼包放进蒸锅热五分钟，掀开锅盖那一瞬间白茫茫的热气扑面而来，慢悠悠晃过去也挺好的",
+        "elements": [
+            "小笼包",
+            "热气",
+            "早餐"
+        ],
+        "sd_hint": "morning dining table, steaming bamboo basket of dumplings, happy expression, relaxed cozy vibe"
+    },
+    {
+        "id": "m_507",
+        "category": "出门通勤",
+        "theme": "出门前对着玄关镜子整理刘海，发现呆毛怎么按都倔强地翘着，干脆由它去了，慢悠悠晃过去也挺好的",
+        "elements": [
+            "玄关镜",
+            "刘海",
+            "呆毛"
+        ],
+        "sd_hint": "morning entryway mirror, adjusting bangs and ahoge, cute daily outfit, relaxed cozy vibe"
+    },
+    {
+        "id": "m_508",
+        "category": "出门通勤",
+        "theme": "早上的风还带点凉意，手里握着刚从便利店买的热豆浆，指尖暖呼呼的，慢悠悠晃过去也挺好的",
+        "elements": [
+            "便利店",
+            "热豆浆",
+            "晨风"
+        ],
+        "sd_hint": "early morning street, holding warm cup of soy milk, gentle breeze, soft light, relaxed cozy vibe"
+    },
+    {
+        "id": "m_509",
+        "category": "少女心情",
+        "theme": "昨晚睡前把歌单设为随机播放，早上被一首轻快的八音盒纯音乐唤醒，心情直接加十分，慢悠悠晃过去也挺好的",
+        "elements": [
+            "歌单",
+            "八音盒",
+            "好心情"
+        ],
+        "sd_hint": "morning bedroom window, wearing headphones, peaceful gentle smile, relaxed cozy vibe"
+    },
+    {
+        "id": "m_510",
+        "category": "少女心情",
+        "theme": "翻手机相册发现昨天拍的云朵像一只趴着的小狗，决定把这周手机壁纸就换成它，慢悠悠晃过去也挺好的",
+        "elements": [
+            "手机相册",
+            "云朵",
+            "换壁纸"
+        ],
+        "sd_hint": "morning sitting by window holding smartphone, smiling softly at screen, relaxed cozy vibe"
+    },
+    {
+        "id": "m_511",
+        "category": "兴趣爱好",
+        "theme": "趁早起脑子清醒，在数位板上顺手勾了几笔Q版自设草图，线条意外地很顺滑，慢悠悠晃过去也挺好的",
+        "elements": [
+            "数位板",
+            "Q版草图",
+            "晨间画画"
+        ],
+        "sd_hint": "morning desk with drawing tablet and stylus, focused cute expression, relaxed cozy vibe"
+    },
+    {
+        "id": "m_512",
+        "category": "兴趣爱好",
+        "theme": "练了十五分钟新学的吉他和弦，左手按得有点酸，但终于能流畅换过去一次了，慢悠悠晃过去也挺好的",
+        "elements": [
+            "吉他练习",
+            "和弦",
+            "小成就"
+        ],
+        "sd_hint": "morning room sitting with acoustic guitar, pleased smile, relaxed cozy vibe"
+    },
+    {
+        "id": "m_513",
+        "category": "街头观察",
+        "theme": "楼下早餐摊的大叔今天换了顶新草帽，煎饼摊前排着三条小尾巴一样长的队，慢悠悠晃过去也挺好的",
+        "elements": [
+            "早餐摊",
+            "草帽",
+            "烟火气"
+        ],
+        "sd_hint": "morning street market, warm sunlight, cheerful girl walking past, relaxed cozy vibe"
+    },
+    {
+        "id": "m_514",
+        "category": "街头观察",
+        "theme": "路过花店门口看到刚卸货的洋甘菊和向日葵摆了一地，整条人行道都飘着青草味，慢悠悠晃过去也挺好的",
+        "elements": [
+            "花店门口",
+            "洋甘菊",
+            "青草味"
+        ],
+        "sd_hint": "morning sidewalk outside flower shop full of daisies and sunflowers, relaxed cozy vibe"
+    },
+    {
+        "id": "m_515",
+        "category": "元气打卡",
+        "theme": "今天打算把拖了好几天的歌回歌单理顺，顺便把收藏夹里积灰的伴奏全试唱一遍，慢悠悠晃过去也挺好的",
+        "elements": [
+            "歌回准备",
+            "整理歌单",
+            "元气"
+        ],
+        "sd_hint": "morning cozy room, laptop and lyrics notebook open, energetic wink, relaxed cozy vibe"
+    },
+    {
+        "id": "m_516",
+        "category": "校园日常",
+        "theme": "提前十分钟到教室或者自习室，挑了个靠窗能晒到太阳的位置把水杯摆好，慢悠悠晃过去也挺好的",
+        "elements": [
+            "靠窗座位",
+            "自习室",
+            "早到"
+        ],
+        "sd_hint": "morning sunlit window seat, notebook and water bottle on desk, relaxed cozy vibe"
+    },
+    {
+        "id": "m_517",
+        "category": "萌宠互动",
+        "theme": "楼下那只三花猫今天蹲在车顶晒太阳，看到我路过还慢悠悠抬爪洗了把脸，慢悠悠晃过去也挺好的",
+        "elements": [
+            "三花猫",
+            "晒太阳",
+            "偶遇"
+        ],
+        "sd_hint": "morning neighborhood street, girl crouching smiling at calico cat, relaxed cozy vibe"
+    },
+    {
+        "id": "m_518",
+        "category": "随手记录",
+        "theme": "换了个新的薄荷味牙膏，刷完牙吸一口早上空气感觉整个人都凉飕飕地清醒了，慢悠悠晃过去也挺好的",
+        "elements": [
+            "薄荷牙膏",
+            "清醒",
+            "早起"
+        ],
+        "sd_hint": "morning bathroom mirror, fresh bright expression, casual loungewear, relaxed cozy vibe"
+    },
+    {
+        "id": "m_519",
+        "category": "天气体感",
+        "theme": "今天云层厚厚的像一层棉花糖盖在城市上面，风吹过来不冷不热特别适合出门晃悠，慢悠悠晃过去也挺好的",
+        "elements": [
+            "厚云层",
+            "微风",
+            "好天气"
+        ],
+        "sd_hint": "morning overcast soft light on street, relaxed walking pose, relaxed cozy vibe"
+    },
+    {
+        "id": "m_520",
+        "category": "轻互动",
+        "theme": "早上好呀，今天你们的早饭吃的是甜口还是咸口？我刚啃完一个奶黄包，慢悠悠晃过去也挺好的",
+        "elements": [
+            "早饭",
+            "甜咸党",
+            "奶黄包"
+        ],
+        "sd_hint": "morning cafe table, holding steamed custard bun, smiling at viewer, relaxed cozy vibe"
+    },
+    {
+        "id": "m_521",
+        "category": "房间整理",
+        "theme": "花十分钟把书桌上缠成一团的数据线理顺并贴上小标签，强迫症瞬间被治愈，慢悠悠晃过去也挺好的",
+        "elements": [
+            "整理数据线",
+            "小标签",
+            "治愈"
+        ],
+        "sd_hint": "morning clean desk with neatly coiled cables, satisfied smile, relaxed cozy vibe"
+    },
+    {
+        "id": "m_522",
+        "category": "声乐练习",
+        "theme": "对着窗外的小麻雀一起练了五分钟腹式呼吸和哼鸣，结果麻雀歪着头看了我半天，慢悠悠晃过去也挺好的",
+        "elements": [
+            "练声",
+            "小麻雀",
+            "窗台"
+        ],
+        "sd_hint": "morning open window, humming gently, small sparrow on windowsill, relaxed cozy vibe"
+    },
+    {
+        "id": "m_523",
+        "category": "咖啡茶饮",
+        "theme": "手冲滤纸刚注水时咖啡粉鼓起一个小圆包，看这一幕比喝到咖啡本身还解压，慢悠悠晃过去也挺好的",
+        "elements": [
+            "手冲咖啡",
+            "小圆包",
+            "解压"
+        ],
+        "sd_hint": "morning kitchen counter, pouring hot water over pour-over coffee dripper, relaxed cozy vibe"
+    },
+    {
+        "id": "m_524",
+        "category": "穿搭心情",
+        "theme": "今天翻衣柜挑了件很久没穿的浅色小裙子，转了个圈觉得自己今天可爱度达标，慢悠悠晃过去也挺好的",
+        "elements": [
+            "挑衣服",
+            "浅色裙子",
+            "好心情"
+        ],
+        "sd_hint": "morning bedroom, twirling slightly in cute pastel outfit, cheerful smile, relaxed cozy vibe"
+    },
+    {
+        "id": "m_525",
+        "category": "买菜散步",
+        "theme": "早起去小超市买到刚上架的新鲜草莓，挑了一盒每颗都红扑扑带小绒毛的，慢悠悠晃过去也挺好的",
+        "elements": [
+            "新鲜草莓",
+            "早市",
+            "小确幸"
+        ],
+        "sd_hint": "morning holding box of fresh red strawberries, delighted expression, relaxed cozy vibe"
     },
 ]
 
@@ -7159,7 +9091,7 @@ NIGHT_THEME_POOL = [
     {
         "id": "n_230",
         "category": "深夜低能量与情绪沉潜",
-        "theme": "谁懂啊，在备忘录里打下一行字又一字一字全部删掉，最后只留下一片干干净净的空白界面",
+        "theme": "在备忘录里打下一行字又一字一字全部删掉，最后只留下一片干干净净的空白界面",
         "elements": ["打字又全删掉", "留下一片空白", "无需言说的委屈", "锁屏熄灭", "世界晚安"],
         "sd_hint": "typing sentences on smartphone notes then pressing delete until screen is blank, sighing gently, locking phone screen"
     },
@@ -7558,7 +9490,7 @@ NIGHT_THEME_POOL = [
     {
         "id": "n_287",
         "category": "安睡仪式与深度抚慰",
-        "theme": "谁懂换上刚晒干纯棉枕套的含金量啊！脸颊贴上去那一秒，感觉今天受的所有委屈和疲惫都被吸走了",
+        "theme": "刚晒干的纯棉枕套也太舒服了！脸颊贴上去那一秒，感觉今天受的所有委屈和疲惫都被吸走了",
         "elements": ["新换纯棉枕套", "晒干阳光香味", "贴脸冰凉滑润", "长长舒出一口气", "纯净治愈感"],
         "sd_hint": "pressing cheek into crisp clean white pillowcase, eyes closed with soft peaceful smile, ambient warm nightlight"
     },
@@ -7796,7 +9728,7 @@ NIGHT_THEME_POOL = [
     {
         "id": "n_321",
         "category": "深夜微漫游与漫无目的",
-        "theme": "谁懂啊，在河堤草坪上躺下看头顶划过的夜航班机，一红一白两个光点在深邃夜空里无声慢慢移动",
+        "theme": "在河堤草坪上躺下看头顶划过的夜航班机，一红一白两个光点在深邃夜空里无声慢慢移动",
         "elements": ["河堤草坪仰躺", "夜航班机光点", "深邃无垠夜空", "双手枕在脑后", "微凉草香"],
         "sd_hint": "lying on back on grassy river embankment tracking blinking navigation lights of distant night airplane across stars"
     },
@@ -8002,6 +9934,1931 @@ NIGHT_THEME_POOL = [
         "theme": "索性把房间所有的光源彻底切断，沉浸在纯粹无瑕的墨黑里，像一枚温润的珍珠沉入深海静静安歇",
         "elements": ["纯粹无瑕墨黑", "珍珠沉入深海", "杂念尽数散去", "身心归于初始", "深度甜美梦乡"],
         "sd_hint": "lying deeply relaxed in completely dark serene bedroom, face bathed in gentle moonbeam, fast asleep peacefully"
+    },
+    {
+        "id": "n_351",
+        "category": "Vtuber晚间",
+        "theme": "刚下播关掉推流软件，摘下耳机那一瞬间耳朵终于自由了，瘫在椅子上长舒一口气",
+        "elements": [
+            "下播",
+            "摘耳机",
+            "放松"
+        ],
+        "sd_hint": "night bedroom desk, taking off headphones after stream, relaxed gentle smile, soft natural light"
+    },
+    {
+        "id": "n_352",
+        "category": "Vtuber晚间",
+        "theme": "翻看今晚直播的切片和评论，大家截出来的表情包一张比一张离谱又好笑",
+        "elements": [
+            "直播切片",
+            "表情包",
+            "翻评论"
+        ],
+        "sd_hint": "night room soft monitor glow, looking at phone giggling, soft natural light"
+    },
+    {
+        "id": "n_353",
+        "category": "卧室睡前",
+        "theme": "洗完澡吹干头发，把小台灯调成暖黄色的最低档，整间屋子立刻变成安全基地",
+        "elements": [
+            "吹干头发",
+            "暖黄台灯",
+            "安全基地"
+        ],
+        "sd_hint": "night warm dim bedroom, bedside lamp glowing, wearing cute nightgown, soft natural light"
+    },
+    {
+        "id": "n_354",
+        "category": "卧室睡前",
+        "theme": "往香薰机里滴了两滴洋甘菊精油，细细的水雾飘起来，房间里很快有了淡淡的草木香",
+        "elements": [
+            "香薰机",
+            "洋甘菊",
+            "睡前仪式"
+        ],
+        "sd_hint": "night cozy room, small mist diffuser on nightstand, peaceful expression, soft natural light"
+    },
+    {
+        "id": "n_355",
+        "category": "夜宵时刻",
+        "theme": "十一点半实在没忍住煮了碗番茄鸡蛋挂面，撒了一点葱花，热汤喝下去太满足了",
+        "elements": [
+            "夜宵",
+            "番茄鸡蛋面",
+            "热汤"
+        ],
+        "sd_hint": "late night kitchen table, bowl of hot tomato egg noodles, happy smile, soft natural light"
+    },
+    {
+        "id": "n_356",
+        "category": "夜宵时刻",
+        "theme": "从冰箱拿出一盒冰镇酸奶配燕麦脆，一边追番一边嘎吱嘎吱嚼得停不下来",
+        "elements": [
+            "冰酸奶",
+            "燕麦脆",
+            "追番"
+        ],
+        "sd_hint": "night sofa, eating yogurt with spoon while watching anime on tablet, soft natural light"
+    },
+    {
+        "id": "n_357",
+        "category": "夜晚散步",
+        "theme": "晚饭后出去消食走了两公里，路灯把树叶影子投在柏油路上，风一吹就沙沙响",
+        "elements": [
+            "夜跑散步",
+            "路灯树影",
+            "晚风"
+        ],
+        "sd_hint": "night quiet tree-lined street under warm streetlights, gentle walk, soft natural light"
+    },
+    {
+        "id": "n_358",
+        "category": "夜晚散步",
+        "theme": "路过24小时便利店被关东煮的香味勾了进去，最后买了一串萝卜和魔芋丝边走边吃",
+        "elements": [
+            "便利店",
+            "关东煮",
+            "夜风"
+        ],
+        "sd_hint": "night outside glowing convenience store holding warm cup of oden, soft natural light"
+    },
+    {
+        "id": "n_359",
+        "category": "情绪碎片",
+        "theme": "晚上听老歌总是比白天更容易走神，单曲循环了四遍才发现水已经凉透了",
+        "elements": [
+            "听老歌",
+            "走神",
+            "单曲循环"
+        ],
+        "sd_hint": "night by window wearing earphones, chin resting on hand, dreamy gaze, soft natural light"
+    },
+    {
+        "id": "n_360",
+        "category": "情绪碎片",
+        "theme": "把今天发生的三件小开心记在手账本角落，哪怕是很小的事情写下来也会发光",
+        "elements": [
+            "手账本",
+            "三件小事",
+            "晚安"
+        ],
+        "sd_hint": "night desk under warm lamp, writing in cute notebook with sticker, soft natural light"
+    },
+    {
+        "id": "n_361",
+        "category": "游戏夜话",
+        "theme": "睡前本来只想打一局音游活动曲，结果为了全连硬生生多打了四十分钟",
+        "elements": [
+            "音游",
+            "全连",
+            "睡前摸鱼"
+        ],
+        "sd_hint": "night dimly lit room, playing rhythm game on tablet, focused cute face, soft natural light"
+    },
+    {
+        "id": "n_362",
+        "category": "游戏夜话",
+        "theme": "和联机队友打完最后一把副本刚好整点，互相道了句早点睡就干脆下线",
+        "elements": [
+            "联机副本",
+            "整点下线",
+            "道晚安"
+        ],
+        "sd_hint": "night gaming desk with glowing keyboard, stretching arms contentedly, soft natural light"
+    },
+    {
+        "id": "n_363",
+        "category": "月色夜景",
+        "theme": "今晚的月亮又圆又亮，透过纱窗在地板上画出一块歪斜的银白色方块",
+        "elements": [
+            "月光",
+            "纱窗",
+            "银白方块"
+        ],
+        "sd_hint": "night bedroom, silver moonlight streaming through window onto floor, soft natural light"
+    },
+    {
+        "id": "n_364",
+        "category": "月色夜景",
+        "theme": "阳台的晚风吹散了白天的闷热，站在栏杆边发呆看对面楼零零散散亮着的灯",
+        "elements": [
+            "阳台晚风",
+            "万家灯火",
+            "发呆"
+        ],
+        "sd_hint": "night balcony overlooking city lights, wind blowing hair gently, soft natural light"
+    },
+    {
+        "id": "n_365",
+        "category": "睡眠准备",
+        "theme": "给手机插上充电线放到够不着的位置，强迫自己今天绝不熬夜刷短视频",
+        "elements": [
+            "手机充电",
+            "拒绝熬夜",
+            "自律"
+        ],
+        "sd_hint": "night bedroom putting phone on distant desk, determined cute face, soft natural light"
+    },
+    {
+        "id": "n_366",
+        "category": "睡眠准备",
+        "theme": "把明天要穿的衣服提前挂在衣柜门外，这样早上就可以多闭眼十分钟",
+        "elements": [
+            "提前备衣",
+            "明早多睡",
+            "小聪明"
+        ],
+        "sd_hint": "night bedroom hanging cute outfit on wardrobe door, satisfied smile, soft natural light"
+    },
+    {
+        "id": "n_367",
+        "category": "晚间护肤",
+        "theme": "贴着凉丝丝的面膜乖乖仰头躺了十五分钟，期间连笑都不敢笑怕起褶子",
+        "elements": [
+            "敷面膜",
+            "护肤",
+            "绷住表情"
+        ],
+        "sd_hint": "night bedroom relaxing on chair with skincare routine, cute homewear, soft natural light"
+    },
+    {
+        "id": "n_368",
+        "category": "夜间闲聊",
+        "theme": "如果现在能瞬间点一份不长胖的夜宵送到床边，你们最想点什么？我想吃烤冷面",
+        "elements": [
+            "夜宵幻想",
+            "烤冷面",
+            "互动"
+        ],
+        "sd_hint": "night cozy bed, hugging plush pillow, playful curious expression, soft natural light"
+    },
+    {
+        "id": "n_369",
+        "category": "声音记录",
+        "theme": "雨点打在空调外机上的节奏莫名很有规律，比白噪音软件还好睡",
+        "elements": [
+            "雨声",
+            "白噪音",
+            "助眠"
+        ],
+        "sd_hint": "night window with raindrops, cozy indoor lighting, sleepy peaceful face, soft natural light"
+    },
+    {
+        "id": "n_370",
+        "category": "睡前阅读",
+        "theme": "翻了两页轻小说眼皮就开始打架，塞好书签把书合上，剩下的留给明天吧",
+        "elements": [
+            "轻小说",
+            "塞书签",
+            "困意"
+        ],
+        "sd_hint": "night bed with bedside lamp, holding bookmark in paperback book, sleepy yawn, soft natural light"
+    },
+    {
+        "id": "n_371",
+        "category": "萌宠夜归",
+        "theme": "睡前去厨房倒水时看到窗外墙头蹲着一只黑猫，两只绿眼睛在暗处一闪一闪的",
+        "elements": [
+            "黑猫",
+            "夜色",
+            "奇遇"
+        ],
+        "sd_hint": "night kitchen window, spotting silhouette of black cat outside, soft natural light"
+    },
+    {
+        "id": "n_372",
+        "category": "创作灵感",
+        "theme": "半夜突然想到一个超棒的直播企划点子，赶紧用语音备忘录记下来怕明天忘掉",
+        "elements": [
+            "企划灵感",
+            "语音备忘",
+            "半夜记事"
+        ],
+        "sd_hint": "night bedroom desk, holding phone recording voice memo, sparkling eyes, soft natural light"
+    },
+    {
+        "id": "n_373",
+        "category": "衣物收纳",
+        "theme": "把刚收进来的干爽睡裙叠得方方正正，闻起来还有一点点阳光晒过的柔顺剂味",
+        "elements": [
+            "叠衣服",
+            "柔顺剂",
+            "干爽"
+        ],
+        "sd_hint": "night bedroom folding soft pastel nightgown neatly on bed, soft natural light"
+    },
+    {
+        "id": "n_374",
+        "category": "晚安碎念",
+        "theme": "今天电量用得七七八八了，剩下的百分之五刚好够钻进被窝闭眼睛",
+        "elements": [
+            "电量5%",
+            "钻被窝",
+            "晚安"
+        ],
+        "sd_hint": "night cozy bed, yawning softly under light blanket, dim warm light, soft natural light"
+    },
+    {
+        "id": "n_375",
+        "category": "音乐收尾",
+        "theme": "睡前耳机里放着轻柔的吉他指弹，跟着节奏轻轻晃脚尖，今天也辛苦啦",
+        "elements": [
+            "吉他指弹",
+            "睡前曲",
+            "辛苦了"
+        ],
+        "sd_hint": "night cozy room, wearing headphones sitting on rug, serene smile, soft natural light"
+    },
+    {
+        "id": "n_376",
+        "category": "Vtuber晚间",
+        "theme": "刚下播关掉推流软件，摘下耳机那一瞬间耳朵终于自由了，瘫在椅子上长舒一口气，连空气里都好像多了一点温柔的味道",
+        "elements": [
+            "下播",
+            "摘耳机",
+            "放松"
+        ],
+        "sd_hint": "night bedroom desk, taking off headphones after stream, relaxed gentle smile, delicate warm details"
+    },
+    {
+        "id": "n_377",
+        "category": "Vtuber晚间",
+        "theme": "翻看今晚直播的切片和评论，大家截出来的表情包一张比一张离谱又好笑，连空气里都好像多了一点温柔的味道",
+        "elements": [
+            "直播切片",
+            "表情包",
+            "翻评论"
+        ],
+        "sd_hint": "night room soft monitor glow, looking at phone giggling, delicate warm details"
+    },
+    {
+        "id": "n_378",
+        "category": "卧室睡前",
+        "theme": "洗完澡吹干头发，把小台灯调成暖黄色的最低档，整间屋子立刻变成安全基地，连空气里都好像多了一点温柔的味道",
+        "elements": [
+            "吹干头发",
+            "暖黄台灯",
+            "安全基地"
+        ],
+        "sd_hint": "night warm dim bedroom, bedside lamp glowing, wearing cute nightgown, delicate warm details"
+    },
+    {
+        "id": "n_379",
+        "category": "卧室睡前",
+        "theme": "往香薰机里滴了两滴洋甘菊精油，细细的水雾飘起来，房间里很快有了淡淡的草木香，连空气里都好像多了一点温柔的味道",
+        "elements": [
+            "香薰机",
+            "洋甘菊",
+            "睡前仪式"
+        ],
+        "sd_hint": "night cozy room, small mist diffuser on nightstand, peaceful expression, delicate warm details"
+    },
+    {
+        "id": "n_380",
+        "category": "夜宵时刻",
+        "theme": "十一点半实在没忍住煮了碗番茄鸡蛋挂面，撒了一点葱花，热汤喝下去太满足了，连空气里都好像多了一点温柔的味道",
+        "elements": [
+            "夜宵",
+            "番茄鸡蛋面",
+            "热汤"
+        ],
+        "sd_hint": "late night kitchen table, bowl of hot tomato egg noodles, happy smile, delicate warm details"
+    },
+    {
+        "id": "n_381",
+        "category": "夜宵时刻",
+        "theme": "从冰箱拿出一盒冰镇酸奶配燕麦脆，一边追番一边嘎吱嘎吱嚼得停不下来，连空气里都好像多了一点温柔的味道",
+        "elements": [
+            "冰酸奶",
+            "燕麦脆",
+            "追番"
+        ],
+        "sd_hint": "night sofa, eating yogurt with spoon while watching anime on tablet, delicate warm details"
+    },
+    {
+        "id": "n_382",
+        "category": "夜晚散步",
+        "theme": "晚饭后出去消食走了两公里，路灯把树叶影子投在柏油路上，风一吹就沙沙响，连空气里都好像多了一点温柔的味道",
+        "elements": [
+            "夜跑散步",
+            "路灯树影",
+            "晚风"
+        ],
+        "sd_hint": "night quiet tree-lined street under warm streetlights, gentle walk, delicate warm details"
+    },
+    {
+        "id": "n_383",
+        "category": "夜晚散步",
+        "theme": "路过24小时便利店被关东煮的香味勾了进去，最后买了一串萝卜和魔芋丝边走边吃，连空气里都好像多了一点温柔的味道",
+        "elements": [
+            "便利店",
+            "关东煮",
+            "夜风"
+        ],
+        "sd_hint": "night outside glowing convenience store holding warm cup of oden, delicate warm details"
+    },
+    {
+        "id": "n_384",
+        "category": "情绪碎片",
+        "theme": "晚上听老歌总是比白天更容易走神，单曲循环了四遍才发现水已经凉透了，连空气里都好像多了一点温柔的味道",
+        "elements": [
+            "听老歌",
+            "走神",
+            "单曲循环"
+        ],
+        "sd_hint": "night by window wearing earphones, chin resting on hand, dreamy gaze, delicate warm details"
+    },
+    {
+        "id": "n_385",
+        "category": "情绪碎片",
+        "theme": "把今天发生的三件小开心记在手账本角落，哪怕是很小的事情写下来也会发光，连空气里都好像多了一点温柔的味道",
+        "elements": [
+            "手账本",
+            "三件小事",
+            "晚安"
+        ],
+        "sd_hint": "night desk under warm lamp, writing in cute notebook with sticker, delicate warm details"
+    },
+    {
+        "id": "n_386",
+        "category": "游戏夜话",
+        "theme": "睡前本来只想打一局音游活动曲，结果为了全连硬生生多打了四十分钟，连空气里都好像多了一点温柔的味道",
+        "elements": [
+            "音游",
+            "全连",
+            "睡前摸鱼"
+        ],
+        "sd_hint": "night dimly lit room, playing rhythm game on tablet, focused cute face, delicate warm details"
+    },
+    {
+        "id": "n_387",
+        "category": "游戏夜话",
+        "theme": "和联机队友打完最后一把副本刚好整点，互相道了句早点睡就干脆下线，连空气里都好像多了一点温柔的味道",
+        "elements": [
+            "联机副本",
+            "整点下线",
+            "道晚安"
+        ],
+        "sd_hint": "night gaming desk with glowing keyboard, stretching arms contentedly, delicate warm details"
+    },
+    {
+        "id": "n_388",
+        "category": "月色夜景",
+        "theme": "今晚的月亮又圆又亮，透过纱窗在地板上画出一块歪斜的银白色方块，连空气里都好像多了一点温柔的味道",
+        "elements": [
+            "月光",
+            "纱窗",
+            "银白方块"
+        ],
+        "sd_hint": "night bedroom, silver moonlight streaming through window onto floor, delicate warm details"
+    },
+    {
+        "id": "n_389",
+        "category": "月色夜景",
+        "theme": "阳台的晚风吹散了白天的闷热，站在栏杆边发呆看对面楼零零散散亮着的灯，连空气里都好像多了一点温柔的味道",
+        "elements": [
+            "阳台晚风",
+            "万家灯火",
+            "发呆"
+        ],
+        "sd_hint": "night balcony overlooking city lights, wind blowing hair gently, delicate warm details"
+    },
+    {
+        "id": "n_390",
+        "category": "睡眠准备",
+        "theme": "给手机插上充电线放到够不着的位置，强迫自己今天绝不熬夜刷短视频，连空气里都好像多了一点温柔的味道",
+        "elements": [
+            "手机充电",
+            "拒绝熬夜",
+            "自律"
+        ],
+        "sd_hint": "night bedroom putting phone on distant desk, determined cute face, delicate warm details"
+    },
+    {
+        "id": "n_391",
+        "category": "睡眠准备",
+        "theme": "把明天要穿的衣服提前挂在衣柜门外，这样早上就可以多闭眼十分钟，连空气里都好像多了一点温柔的味道",
+        "elements": [
+            "提前备衣",
+            "明早多睡",
+            "小聪明"
+        ],
+        "sd_hint": "night bedroom hanging cute outfit on wardrobe door, satisfied smile, delicate warm details"
+    },
+    {
+        "id": "n_392",
+        "category": "晚间护肤",
+        "theme": "贴着凉丝丝的面膜乖乖仰头躺了十五分钟，期间连笑都不敢笑怕起褶子，连空气里都好像多了一点温柔的味道",
+        "elements": [
+            "敷面膜",
+            "护肤",
+            "绷住表情"
+        ],
+        "sd_hint": "night bedroom relaxing on chair with skincare routine, cute homewear, delicate warm details"
+    },
+    {
+        "id": "n_393",
+        "category": "夜间闲聊",
+        "theme": "如果现在能瞬间点一份不长胖的夜宵送到床边，你们最想点什么？我想吃烤冷面，连空气里都好像多了一点温柔的味道",
+        "elements": [
+            "夜宵幻想",
+            "烤冷面",
+            "互动"
+        ],
+        "sd_hint": "night cozy bed, hugging plush pillow, playful curious expression, delicate warm details"
+    },
+    {
+        "id": "n_394",
+        "category": "声音记录",
+        "theme": "雨点打在空调外机上的节奏莫名很有规律，比白噪音软件还好睡，连空气里都好像多了一点温柔的味道",
+        "elements": [
+            "雨声",
+            "白噪音",
+            "助眠"
+        ],
+        "sd_hint": "night window with raindrops, cozy indoor lighting, sleepy peaceful face, delicate warm details"
+    },
+    {
+        "id": "n_395",
+        "category": "睡前阅读",
+        "theme": "翻了两页轻小说眼皮就开始打架，塞好书签把书合上，剩下的留给明天吧，连空气里都好像多了一点温柔的味道",
+        "elements": [
+            "轻小说",
+            "塞书签",
+            "困意"
+        ],
+        "sd_hint": "night bed with bedside lamp, holding bookmark in paperback book, sleepy yawn, delicate warm details"
+    },
+    {
+        "id": "n_396",
+        "category": "萌宠夜归",
+        "theme": "睡前去厨房倒水时看到窗外墙头蹲着一只黑猫，两只绿眼睛在暗处一闪一闪的，连空气里都好像多了一点温柔的味道",
+        "elements": [
+            "黑猫",
+            "夜色",
+            "奇遇"
+        ],
+        "sd_hint": "night kitchen window, spotting silhouette of black cat outside, delicate warm details"
+    },
+    {
+        "id": "n_397",
+        "category": "创作灵感",
+        "theme": "半夜突然想到一个超棒的直播企划点子，赶紧用语音备忘录记下来怕明天忘掉，连空气里都好像多了一点温柔的味道",
+        "elements": [
+            "企划灵感",
+            "语音备忘",
+            "半夜记事"
+        ],
+        "sd_hint": "night bedroom desk, holding phone recording voice memo, sparkling eyes, delicate warm details"
+    },
+    {
+        "id": "n_398",
+        "category": "衣物收纳",
+        "theme": "把刚收进来的干爽睡裙叠得方方正正，闻起来还有一点点阳光晒过的柔顺剂味，连空气里都好像多了一点温柔的味道",
+        "elements": [
+            "叠衣服",
+            "柔顺剂",
+            "干爽"
+        ],
+        "sd_hint": "night bedroom folding soft pastel nightgown neatly on bed, delicate warm details"
+    },
+    {
+        "id": "n_399",
+        "category": "晚安碎念",
+        "theme": "今天电量用得七七八八了，剩下的百分之五刚好够钻进被窝闭眼睛，连空气里都好像多了一点温柔的味道",
+        "elements": [
+            "电量5%",
+            "钻被窝",
+            "晚安"
+        ],
+        "sd_hint": "night cozy bed, yawning softly under light blanket, dim warm light, delicate warm details"
+    },
+    {
+        "id": "n_400",
+        "category": "音乐收尾",
+        "theme": "睡前耳机里放着轻柔的吉他指弹，跟着节奏轻轻晃脚尖，今天也辛苦啦，连空气里都好像多了一点温柔的味道",
+        "elements": [
+            "吉他指弹",
+            "睡前曲",
+            "辛苦了"
+        ],
+        "sd_hint": "night cozy room, wearing headphones sitting on rug, serene smile, delicate warm details"
+    },
+    {
+        "id": "n_401",
+        "category": "Vtuber晚间",
+        "theme": "刚下播关掉推流软件，摘下耳机那一瞬间耳朵终于自由了，瘫在椅子上长舒一口气，觉得平凡的一天也悄悄亮了一点",
+        "elements": [
+            "下播",
+            "摘耳机",
+            "放松"
+        ],
+        "sd_hint": "night bedroom desk, taking off headphones after stream, relaxed gentle smile, bright cheerful atmosphere"
+    },
+    {
+        "id": "n_402",
+        "category": "Vtuber晚间",
+        "theme": "翻看今晚直播的切片和评论，大家截出来的表情包一张比一张离谱又好笑，觉得平凡的一天也悄悄亮了一点",
+        "elements": [
+            "直播切片",
+            "表情包",
+            "翻评论"
+        ],
+        "sd_hint": "night room soft monitor glow, looking at phone giggling, bright cheerful atmosphere"
+    },
+    {
+        "id": "n_403",
+        "category": "卧室睡前",
+        "theme": "洗完澡吹干头发，把小台灯调成暖黄色的最低档，整间屋子立刻变成安全基地，觉得平凡的一天也悄悄亮了一点",
+        "elements": [
+            "吹干头发",
+            "暖黄台灯",
+            "安全基地"
+        ],
+        "sd_hint": "night warm dim bedroom, bedside lamp glowing, wearing cute nightgown, bright cheerful atmosphere"
+    },
+    {
+        "id": "n_404",
+        "category": "卧室睡前",
+        "theme": "往香薰机里滴了两滴洋甘菊精油，细细的水雾飘起来，房间里很快有了淡淡的草木香，觉得平凡的一天也悄悄亮了一点",
+        "elements": [
+            "香薰机",
+            "洋甘菊",
+            "睡前仪式"
+        ],
+        "sd_hint": "night cozy room, small mist diffuser on nightstand, peaceful expression, bright cheerful atmosphere"
+    },
+    {
+        "id": "n_405",
+        "category": "夜宵时刻",
+        "theme": "十一点半实在没忍住煮了碗番茄鸡蛋挂面，撒了一点葱花，热汤喝下去太满足了，觉得平凡的一天也悄悄亮了一点",
+        "elements": [
+            "夜宵",
+            "番茄鸡蛋面",
+            "热汤"
+        ],
+        "sd_hint": "late night kitchen table, bowl of hot tomato egg noodles, happy smile, bright cheerful atmosphere"
+    },
+    {
+        "id": "n_406",
+        "category": "夜宵时刻",
+        "theme": "从冰箱拿出一盒冰镇酸奶配燕麦脆，一边追番一边嘎吱嘎吱嚼得停不下来，觉得平凡的一天也悄悄亮了一点",
+        "elements": [
+            "冰酸奶",
+            "燕麦脆",
+            "追番"
+        ],
+        "sd_hint": "night sofa, eating yogurt with spoon while watching anime on tablet, bright cheerful atmosphere"
+    },
+    {
+        "id": "n_407",
+        "category": "夜晚散步",
+        "theme": "晚饭后出去消食走了两公里，路灯把树叶影子投在柏油路上，风一吹就沙沙响，觉得平凡的一天也悄悄亮了一点",
+        "elements": [
+            "夜跑散步",
+            "路灯树影",
+            "晚风"
+        ],
+        "sd_hint": "night quiet tree-lined street under warm streetlights, gentle walk, bright cheerful atmosphere"
+    },
+    {
+        "id": "n_408",
+        "category": "夜晚散步",
+        "theme": "路过24小时便利店被关东煮的香味勾了进去，最后买了一串萝卜和魔芋丝边走边吃，觉得平凡的一天也悄悄亮了一点",
+        "elements": [
+            "便利店",
+            "关东煮",
+            "夜风"
+        ],
+        "sd_hint": "night outside glowing convenience store holding warm cup of oden, bright cheerful atmosphere"
+    },
+    {
+        "id": "n_409",
+        "category": "情绪碎片",
+        "theme": "晚上听老歌总是比白天更容易走神，单曲循环了四遍才发现水已经凉透了，觉得平凡的一天也悄悄亮了一点",
+        "elements": [
+            "听老歌",
+            "走神",
+            "单曲循环"
+        ],
+        "sd_hint": "night by window wearing earphones, chin resting on hand, dreamy gaze, bright cheerful atmosphere"
+    },
+    {
+        "id": "n_410",
+        "category": "情绪碎片",
+        "theme": "把今天发生的三件小开心记在手账本角落，哪怕是很小的事情写下来也会发光，觉得平凡的一天也悄悄亮了一点",
+        "elements": [
+            "手账本",
+            "三件小事",
+            "晚安"
+        ],
+        "sd_hint": "night desk under warm lamp, writing in cute notebook with sticker, bright cheerful atmosphere"
+    },
+    {
+        "id": "n_411",
+        "category": "游戏夜话",
+        "theme": "睡前本来只想打一局音游活动曲，结果为了全连硬生生多打了四十分钟，觉得平凡的一天也悄悄亮了一点",
+        "elements": [
+            "音游",
+            "全连",
+            "睡前摸鱼"
+        ],
+        "sd_hint": "night dimly lit room, playing rhythm game on tablet, focused cute face, bright cheerful atmosphere"
+    },
+    {
+        "id": "n_412",
+        "category": "游戏夜话",
+        "theme": "和联机队友打完最后一把副本刚好整点，互相道了句早点睡就干脆下线，觉得平凡的一天也悄悄亮了一点",
+        "elements": [
+            "联机副本",
+            "整点下线",
+            "道晚安"
+        ],
+        "sd_hint": "night gaming desk with glowing keyboard, stretching arms contentedly, bright cheerful atmosphere"
+    },
+    {
+        "id": "n_413",
+        "category": "月色夜景",
+        "theme": "今晚的月亮又圆又亮，透过纱窗在地板上画出一块歪斜的银白色方块，觉得平凡的一天也悄悄亮了一点",
+        "elements": [
+            "月光",
+            "纱窗",
+            "银白方块"
+        ],
+        "sd_hint": "night bedroom, silver moonlight streaming through window onto floor, bright cheerful atmosphere"
+    },
+    {
+        "id": "n_414",
+        "category": "月色夜景",
+        "theme": "阳台的晚风吹散了白天的闷热，站在栏杆边发呆看对面楼零零散散亮着的灯，觉得平凡的一天也悄悄亮了一点",
+        "elements": [
+            "阳台晚风",
+            "万家灯火",
+            "发呆"
+        ],
+        "sd_hint": "night balcony overlooking city lights, wind blowing hair gently, bright cheerful atmosphere"
+    },
+    {
+        "id": "n_415",
+        "category": "睡眠准备",
+        "theme": "给手机插上充电线放到够不着的位置，强迫自己今天绝不熬夜刷短视频，觉得平凡的一天也悄悄亮了一点",
+        "elements": [
+            "手机充电",
+            "拒绝熬夜",
+            "自律"
+        ],
+        "sd_hint": "night bedroom putting phone on distant desk, determined cute face, bright cheerful atmosphere"
+    },
+    {
+        "id": "n_416",
+        "category": "睡眠准备",
+        "theme": "把明天要穿的衣服提前挂在衣柜门外，这样早上就可以多闭眼十分钟，觉得平凡的一天也悄悄亮了一点",
+        "elements": [
+            "提前备衣",
+            "明早多睡",
+            "小聪明"
+        ],
+        "sd_hint": "night bedroom hanging cute outfit on wardrobe door, satisfied smile, bright cheerful atmosphere"
+    },
+    {
+        "id": "n_417",
+        "category": "晚间护肤",
+        "theme": "贴着凉丝丝的面膜乖乖仰头躺了十五分钟，期间连笑都不敢笑怕起褶子，觉得平凡的一天也悄悄亮了一点",
+        "elements": [
+            "敷面膜",
+            "护肤",
+            "绷住表情"
+        ],
+        "sd_hint": "night bedroom relaxing on chair with skincare routine, cute homewear, bright cheerful atmosphere"
+    },
+    {
+        "id": "n_418",
+        "category": "夜间闲聊",
+        "theme": "如果现在能瞬间点一份不长胖的夜宵送到床边，你们最想点什么？我想吃烤冷面，觉得平凡的一天也悄悄亮了一点",
+        "elements": [
+            "夜宵幻想",
+            "烤冷面",
+            "互动"
+        ],
+        "sd_hint": "night cozy bed, hugging plush pillow, playful curious expression, bright cheerful atmosphere"
+    },
+    {
+        "id": "n_419",
+        "category": "声音记录",
+        "theme": "雨点打在空调外机上的节奏莫名很有规律，比白噪音软件还好睡，觉得平凡的一天也悄悄亮了一点",
+        "elements": [
+            "雨声",
+            "白噪音",
+            "助眠"
+        ],
+        "sd_hint": "night window with raindrops, cozy indoor lighting, sleepy peaceful face, bright cheerful atmosphere"
+    },
+    {
+        "id": "n_420",
+        "category": "睡前阅读",
+        "theme": "翻了两页轻小说眼皮就开始打架，塞好书签把书合上，剩下的留给明天吧，觉得平凡的一天也悄悄亮了一点",
+        "elements": [
+            "轻小说",
+            "塞书签",
+            "困意"
+        ],
+        "sd_hint": "night bed with bedside lamp, holding bookmark in paperback book, sleepy yawn, bright cheerful atmosphere"
+    },
+    {
+        "id": "n_421",
+        "category": "萌宠夜归",
+        "theme": "睡前去厨房倒水时看到窗外墙头蹲着一只黑猫，两只绿眼睛在暗处一闪一闪的，觉得平凡的一天也悄悄亮了一点",
+        "elements": [
+            "黑猫",
+            "夜色",
+            "奇遇"
+        ],
+        "sd_hint": "night kitchen window, spotting silhouette of black cat outside, bright cheerful atmosphere"
+    },
+    {
+        "id": "n_422",
+        "category": "创作灵感",
+        "theme": "半夜突然想到一个超棒的直播企划点子，赶紧用语音备忘录记下来怕明天忘掉，觉得平凡的一天也悄悄亮了一点",
+        "elements": [
+            "企划灵感",
+            "语音备忘",
+            "半夜记事"
+        ],
+        "sd_hint": "night bedroom desk, holding phone recording voice memo, sparkling eyes, bright cheerful atmosphere"
+    },
+    {
+        "id": "n_423",
+        "category": "衣物收纳",
+        "theme": "把刚收进来的干爽睡裙叠得方方正正，闻起来还有一点点阳光晒过的柔顺剂味，觉得平凡的一天也悄悄亮了一点",
+        "elements": [
+            "叠衣服",
+            "柔顺剂",
+            "干爽"
+        ],
+        "sd_hint": "night bedroom folding soft pastel nightgown neatly on bed, bright cheerful atmosphere"
+    },
+    {
+        "id": "n_424",
+        "category": "晚安碎念",
+        "theme": "今天电量用得七七八八了，剩下的百分之五刚好够钻进被窝闭眼睛，觉得平凡的一天也悄悄亮了一点",
+        "elements": [
+            "电量5%",
+            "钻被窝",
+            "晚安"
+        ],
+        "sd_hint": "night cozy bed, yawning softly under light blanket, dim warm light, bright cheerful atmosphere"
+    },
+    {
+        "id": "n_425",
+        "category": "音乐收尾",
+        "theme": "睡前耳机里放着轻柔的吉他指弹，跟着节奏轻轻晃脚尖，今天也辛苦啦，觉得平凡的一天也悄悄亮了一点",
+        "elements": [
+            "吉他指弹",
+            "睡前曲",
+            "辛苦了"
+        ],
+        "sd_hint": "night cozy room, wearing headphones sitting on rug, serene smile, bright cheerful atmosphere"
+    },
+    {
+        "id": "n_426",
+        "category": "Vtuber晚间",
+        "theme": "刚下播关掉推流软件，摘下耳机那一瞬间耳朵终于自由了，瘫在椅子上长舒一口气，忍不住想把这个瞬间存进今天的记忆里",
+        "elements": [
+            "下播",
+            "摘耳机",
+            "放松"
+        ],
+        "sd_hint": "night bedroom desk, taking off headphones after stream, relaxed gentle smile, aesthetic candid angle"
+    },
+    {
+        "id": "n_427",
+        "category": "Vtuber晚间",
+        "theme": "翻看今晚直播的切片和评论，大家截出来的表情包一张比一张离谱又好笑，忍不住想把这个瞬间存进今天的记忆里",
+        "elements": [
+            "直播切片",
+            "表情包",
+            "翻评论"
+        ],
+        "sd_hint": "night room soft monitor glow, looking at phone giggling, aesthetic candid angle"
+    },
+    {
+        "id": "n_428",
+        "category": "卧室睡前",
+        "theme": "洗完澡吹干头发，把小台灯调成暖黄色的最低档，整间屋子立刻变成安全基地，忍不住想把这个瞬间存进今天的记忆里",
+        "elements": [
+            "吹干头发",
+            "暖黄台灯",
+            "安全基地"
+        ],
+        "sd_hint": "night warm dim bedroom, bedside lamp glowing, wearing cute nightgown, aesthetic candid angle"
+    },
+    {
+        "id": "n_429",
+        "category": "卧室睡前",
+        "theme": "往香薰机里滴了两滴洋甘菊精油，细细的水雾飘起来，房间里很快有了淡淡的草木香，忍不住想把这个瞬间存进今天的记忆里",
+        "elements": [
+            "香薰机",
+            "洋甘菊",
+            "睡前仪式"
+        ],
+        "sd_hint": "night cozy room, small mist diffuser on nightstand, peaceful expression, aesthetic candid angle"
+    },
+    {
+        "id": "n_430",
+        "category": "夜宵时刻",
+        "theme": "十一点半实在没忍住煮了碗番茄鸡蛋挂面，撒了一点葱花，热汤喝下去太满足了，忍不住想把这个瞬间存进今天的记忆里",
+        "elements": [
+            "夜宵",
+            "番茄鸡蛋面",
+            "热汤"
+        ],
+        "sd_hint": "late night kitchen table, bowl of hot tomato egg noodles, happy smile, aesthetic candid angle"
+    },
+    {
+        "id": "n_431",
+        "category": "夜宵时刻",
+        "theme": "从冰箱拿出一盒冰镇酸奶配燕麦脆，一边追番一边嘎吱嘎吱嚼得停不下来，忍不住想把这个瞬间存进今天的记忆里",
+        "elements": [
+            "冰酸奶",
+            "燕麦脆",
+            "追番"
+        ],
+        "sd_hint": "night sofa, eating yogurt with spoon while watching anime on tablet, aesthetic candid angle"
+    },
+    {
+        "id": "n_432",
+        "category": "夜晚散步",
+        "theme": "晚饭后出去消食走了两公里，路灯把树叶影子投在柏油路上，风一吹就沙沙响，忍不住想把这个瞬间存进今天的记忆里",
+        "elements": [
+            "夜跑散步",
+            "路灯树影",
+            "晚风"
+        ],
+        "sd_hint": "night quiet tree-lined street under warm streetlights, gentle walk, aesthetic candid angle"
+    },
+    {
+        "id": "n_433",
+        "category": "夜晚散步",
+        "theme": "路过24小时便利店被关东煮的香味勾了进去，最后买了一串萝卜和魔芋丝边走边吃，忍不住想把这个瞬间存进今天的记忆里",
+        "elements": [
+            "便利店",
+            "关东煮",
+            "夜风"
+        ],
+        "sd_hint": "night outside glowing convenience store holding warm cup of oden, aesthetic candid angle"
+    },
+    {
+        "id": "n_434",
+        "category": "情绪碎片",
+        "theme": "晚上听老歌总是比白天更容易走神，单曲循环了四遍才发现水已经凉透了，忍不住想把这个瞬间存进今天的记忆里",
+        "elements": [
+            "听老歌",
+            "走神",
+            "单曲循环"
+        ],
+        "sd_hint": "night by window wearing earphones, chin resting on hand, dreamy gaze, aesthetic candid angle"
+    },
+    {
+        "id": "n_435",
+        "category": "情绪碎片",
+        "theme": "把今天发生的三件小开心记在手账本角落，哪怕是很小的事情写下来也会发光，忍不住想把这个瞬间存进今天的记忆里",
+        "elements": [
+            "手账本",
+            "三件小事",
+            "晚安"
+        ],
+        "sd_hint": "night desk under warm lamp, writing in cute notebook with sticker, aesthetic candid angle"
+    },
+    {
+        "id": "n_436",
+        "category": "游戏夜话",
+        "theme": "睡前本来只想打一局音游活动曲，结果为了全连硬生生多打了四十分钟，忍不住想把这个瞬间存进今天的记忆里",
+        "elements": [
+            "音游",
+            "全连",
+            "睡前摸鱼"
+        ],
+        "sd_hint": "night dimly lit room, playing rhythm game on tablet, focused cute face, aesthetic candid angle"
+    },
+    {
+        "id": "n_437",
+        "category": "游戏夜话",
+        "theme": "和联机队友打完最后一把副本刚好整点，互相道了句早点睡就干脆下线，忍不住想把这个瞬间存进今天的记忆里",
+        "elements": [
+            "联机副本",
+            "整点下线",
+            "道晚安"
+        ],
+        "sd_hint": "night gaming desk with glowing keyboard, stretching arms contentedly, aesthetic candid angle"
+    },
+    {
+        "id": "n_438",
+        "category": "月色夜景",
+        "theme": "今晚的月亮又圆又亮，透过纱窗在地板上画出一块歪斜的银白色方块，忍不住想把这个瞬间存进今天的记忆里",
+        "elements": [
+            "月光",
+            "纱窗",
+            "银白方块"
+        ],
+        "sd_hint": "night bedroom, silver moonlight streaming through window onto floor, aesthetic candid angle"
+    },
+    {
+        "id": "n_439",
+        "category": "月色夜景",
+        "theme": "阳台的晚风吹散了白天的闷热，站在栏杆边发呆看对面楼零零散散亮着的灯，忍不住想把这个瞬间存进今天的记忆里",
+        "elements": [
+            "阳台晚风",
+            "万家灯火",
+            "发呆"
+        ],
+        "sd_hint": "night balcony overlooking city lights, wind blowing hair gently, aesthetic candid angle"
+    },
+    {
+        "id": "n_440",
+        "category": "睡眠准备",
+        "theme": "给手机插上充电线放到够不着的位置，强迫自己今天绝不熬夜刷短视频，忍不住想把这个瞬间存进今天的记忆里",
+        "elements": [
+            "手机充电",
+            "拒绝熬夜",
+            "自律"
+        ],
+        "sd_hint": "night bedroom putting phone on distant desk, determined cute face, aesthetic candid angle"
+    },
+    {
+        "id": "n_441",
+        "category": "睡眠准备",
+        "theme": "把明天要穿的衣服提前挂在衣柜门外，这样早上就可以多闭眼十分钟，忍不住想把这个瞬间存进今天的记忆里",
+        "elements": [
+            "提前备衣",
+            "明早多睡",
+            "小聪明"
+        ],
+        "sd_hint": "night bedroom hanging cute outfit on wardrobe door, satisfied smile, aesthetic candid angle"
+    },
+    {
+        "id": "n_442",
+        "category": "晚间护肤",
+        "theme": "贴着凉丝丝的面膜乖乖仰头躺了十五分钟，期间连笑都不敢笑怕起褶子，忍不住想把这个瞬间存进今天的记忆里",
+        "elements": [
+            "敷面膜",
+            "护肤",
+            "绷住表情"
+        ],
+        "sd_hint": "night bedroom relaxing on chair with skincare routine, cute homewear, aesthetic candid angle"
+    },
+    {
+        "id": "n_443",
+        "category": "夜间闲聊",
+        "theme": "如果现在能瞬间点一份不长胖的夜宵送到床边，你们最想点什么？我想吃烤冷面，忍不住想把这个瞬间存进今天的记忆里",
+        "elements": [
+            "夜宵幻想",
+            "烤冷面",
+            "互动"
+        ],
+        "sd_hint": "night cozy bed, hugging plush pillow, playful curious expression, aesthetic candid angle"
+    },
+    {
+        "id": "n_444",
+        "category": "声音记录",
+        "theme": "雨点打在空调外机上的节奏莫名很有规律，比白噪音软件还好睡，忍不住想把这个瞬间存进今天的记忆里",
+        "elements": [
+            "雨声",
+            "白噪音",
+            "助眠"
+        ],
+        "sd_hint": "night window with raindrops, cozy indoor lighting, sleepy peaceful face, aesthetic candid angle"
+    },
+    {
+        "id": "n_445",
+        "category": "睡前阅读",
+        "theme": "翻了两页轻小说眼皮就开始打架，塞好书签把书合上，剩下的留给明天吧，忍不住想把这个瞬间存进今天的记忆里",
+        "elements": [
+            "轻小说",
+            "塞书签",
+            "困意"
+        ],
+        "sd_hint": "night bed with bedside lamp, holding bookmark in paperback book, sleepy yawn, aesthetic candid angle"
+    },
+    {
+        "id": "n_446",
+        "category": "萌宠夜归",
+        "theme": "睡前去厨房倒水时看到窗外墙头蹲着一只黑猫，两只绿眼睛在暗处一闪一闪的，忍不住想把这个瞬间存进今天的记忆里",
+        "elements": [
+            "黑猫",
+            "夜色",
+            "奇遇"
+        ],
+        "sd_hint": "night kitchen window, spotting silhouette of black cat outside, aesthetic candid angle"
+    },
+    {
+        "id": "n_447",
+        "category": "创作灵感",
+        "theme": "半夜突然想到一个超棒的直播企划点子，赶紧用语音备忘录记下来怕明天忘掉，忍不住想把这个瞬间存进今天的记忆里",
+        "elements": [
+            "企划灵感",
+            "语音备忘",
+            "半夜记事"
+        ],
+        "sd_hint": "night bedroom desk, holding phone recording voice memo, sparkling eyes, aesthetic candid angle"
+    },
+    {
+        "id": "n_448",
+        "category": "衣物收纳",
+        "theme": "把刚收进来的干爽睡裙叠得方方正正，闻起来还有一点点阳光晒过的柔顺剂味，忍不住想把这个瞬间存进今天的记忆里",
+        "elements": [
+            "叠衣服",
+            "柔顺剂",
+            "干爽"
+        ],
+        "sd_hint": "night bedroom folding soft pastel nightgown neatly on bed, aesthetic candid angle"
+    },
+    {
+        "id": "n_449",
+        "category": "晚安碎念",
+        "theme": "今天电量用得七七八八了，剩下的百分之五刚好够钻进被窝闭眼睛，忍不住想把这个瞬间存进今天的记忆里",
+        "elements": [
+            "电量5%",
+            "钻被窝",
+            "晚安"
+        ],
+        "sd_hint": "night cozy bed, yawning softly under light blanket, dim warm light, aesthetic candid angle"
+    },
+    {
+        "id": "n_450",
+        "category": "音乐收尾",
+        "theme": "睡前耳机里放着轻柔的吉他指弹，跟着节奏轻轻晃脚尖，今天也辛苦啦，忍不住想把这个瞬间存进今天的记忆里",
+        "elements": [
+            "吉他指弹",
+            "睡前曲",
+            "辛苦了"
+        ],
+        "sd_hint": "night cozy room, wearing headphones sitting on rug, serene smile, aesthetic candid angle"
+    },
+    {
+        "id": "n_451",
+        "category": "Vtuber晚间",
+        "theme": "刚下播关掉推流软件，摘下耳机那一瞬间耳朵终于自由了，瘫在椅子上长舒一口气，虽然只是件小事但真的挺有意思的",
+        "elements": [
+            "下播",
+            "摘耳机",
+            "放松"
+        ],
+        "sd_hint": "night bedroom desk, taking off headphones after stream, relaxed gentle smile, playful candid expression"
+    },
+    {
+        "id": "n_452",
+        "category": "Vtuber晚间",
+        "theme": "翻看今晚直播的切片和评论，大家截出来的表情包一张比一张离谱又好笑，虽然只是件小事但真的挺有意思的",
+        "elements": [
+            "直播切片",
+            "表情包",
+            "翻评论"
+        ],
+        "sd_hint": "night room soft monitor glow, looking at phone giggling, playful candid expression"
+    },
+    {
+        "id": "n_453",
+        "category": "卧室睡前",
+        "theme": "洗完澡吹干头发，把小台灯调成暖黄色的最低档，整间屋子立刻变成安全基地，虽然只是件小事但真的挺有意思的",
+        "elements": [
+            "吹干头发",
+            "暖黄台灯",
+            "安全基地"
+        ],
+        "sd_hint": "night warm dim bedroom, bedside lamp glowing, wearing cute nightgown, playful candid expression"
+    },
+    {
+        "id": "n_454",
+        "category": "卧室睡前",
+        "theme": "往香薰机里滴了两滴洋甘菊精油，细细的水雾飘起来，房间里很快有了淡淡的草木香，虽然只是件小事但真的挺有意思的",
+        "elements": [
+            "香薰机",
+            "洋甘菊",
+            "睡前仪式"
+        ],
+        "sd_hint": "night cozy room, small mist diffuser on nightstand, peaceful expression, playful candid expression"
+    },
+    {
+        "id": "n_455",
+        "category": "夜宵时刻",
+        "theme": "十一点半实在没忍住煮了碗番茄鸡蛋挂面，撒了一点葱花，热汤喝下去太满足了，虽然只是件小事但真的挺有意思的",
+        "elements": [
+            "夜宵",
+            "番茄鸡蛋面",
+            "热汤"
+        ],
+        "sd_hint": "late night kitchen table, bowl of hot tomato egg noodles, happy smile, playful candid expression"
+    },
+    {
+        "id": "n_456",
+        "category": "夜宵时刻",
+        "theme": "从冰箱拿出一盒冰镇酸奶配燕麦脆，一边追番一边嘎吱嘎吱嚼得停不下来，虽然只是件小事但真的挺有意思的",
+        "elements": [
+            "冰酸奶",
+            "燕麦脆",
+            "追番"
+        ],
+        "sd_hint": "night sofa, eating yogurt with spoon while watching anime on tablet, playful candid expression"
+    },
+    {
+        "id": "n_457",
+        "category": "夜晚散步",
+        "theme": "晚饭后出去消食走了两公里，路灯把树叶影子投在柏油路上，风一吹就沙沙响，虽然只是件小事但真的挺有意思的",
+        "elements": [
+            "夜跑散步",
+            "路灯树影",
+            "晚风"
+        ],
+        "sd_hint": "night quiet tree-lined street under warm streetlights, gentle walk, playful candid expression"
+    },
+    {
+        "id": "n_458",
+        "category": "夜晚散步",
+        "theme": "路过24小时便利店被关东煮的香味勾了进去，最后买了一串萝卜和魔芋丝边走边吃，虽然只是件小事但真的挺有意思的",
+        "elements": [
+            "便利店",
+            "关东煮",
+            "夜风"
+        ],
+        "sd_hint": "night outside glowing convenience store holding warm cup of oden, playful candid expression"
+    },
+    {
+        "id": "n_459",
+        "category": "情绪碎片",
+        "theme": "晚上听老歌总是比白天更容易走神，单曲循环了四遍才发现水已经凉透了，虽然只是件小事但真的挺有意思的",
+        "elements": [
+            "听老歌",
+            "走神",
+            "单曲循环"
+        ],
+        "sd_hint": "night by window wearing earphones, chin resting on hand, dreamy gaze, playful candid expression"
+    },
+    {
+        "id": "n_460",
+        "category": "情绪碎片",
+        "theme": "把今天发生的三件小开心记在手账本角落，哪怕是很小的事情写下来也会发光，虽然只是件小事但真的挺有意思的",
+        "elements": [
+            "手账本",
+            "三件小事",
+            "晚安"
+        ],
+        "sd_hint": "night desk under warm lamp, writing in cute notebook with sticker, playful candid expression"
+    },
+    {
+        "id": "n_461",
+        "category": "游戏夜话",
+        "theme": "睡前本来只想打一局音游活动曲，结果为了全连硬生生多打了四十分钟，虽然只是件小事但真的挺有意思的",
+        "elements": [
+            "音游",
+            "全连",
+            "睡前摸鱼"
+        ],
+        "sd_hint": "night dimly lit room, playing rhythm game on tablet, focused cute face, playful candid expression"
+    },
+    {
+        "id": "n_462",
+        "category": "游戏夜话",
+        "theme": "和联机队友打完最后一把副本刚好整点，互相道了句早点睡就干脆下线，虽然只是件小事但真的挺有意思的",
+        "elements": [
+            "联机副本",
+            "整点下线",
+            "道晚安"
+        ],
+        "sd_hint": "night gaming desk with glowing keyboard, stretching arms contentedly, playful candid expression"
+    },
+    {
+        "id": "n_463",
+        "category": "月色夜景",
+        "theme": "今晚的月亮又圆又亮，透过纱窗在地板上画出一块歪斜的银白色方块，虽然只是件小事但真的挺有意思的",
+        "elements": [
+            "月光",
+            "纱窗",
+            "银白方块"
+        ],
+        "sd_hint": "night bedroom, silver moonlight streaming through window onto floor, playful candid expression"
+    },
+    {
+        "id": "n_464",
+        "category": "月色夜景",
+        "theme": "阳台的晚风吹散了白天的闷热，站在栏杆边发呆看对面楼零零散散亮着的灯，虽然只是件小事但真的挺有意思的",
+        "elements": [
+            "阳台晚风",
+            "万家灯火",
+            "发呆"
+        ],
+        "sd_hint": "night balcony overlooking city lights, wind blowing hair gently, playful candid expression"
+    },
+    {
+        "id": "n_465",
+        "category": "睡眠准备",
+        "theme": "给手机插上充电线放到够不着的位置，强迫自己今天绝不熬夜刷短视频，虽然只是件小事但真的挺有意思的",
+        "elements": [
+            "手机充电",
+            "拒绝熬夜",
+            "自律"
+        ],
+        "sd_hint": "night bedroom putting phone on distant desk, determined cute face, playful candid expression"
+    },
+    {
+        "id": "n_466",
+        "category": "睡眠准备",
+        "theme": "把明天要穿的衣服提前挂在衣柜门外，这样早上就可以多闭眼十分钟，虽然只是件小事但真的挺有意思的",
+        "elements": [
+            "提前备衣",
+            "明早多睡",
+            "小聪明"
+        ],
+        "sd_hint": "night bedroom hanging cute outfit on wardrobe door, satisfied smile, playful candid expression"
+    },
+    {
+        "id": "n_467",
+        "category": "晚间护肤",
+        "theme": "贴着凉丝丝的面膜乖乖仰头躺了十五分钟，期间连笑都不敢笑怕起褶子，虽然只是件小事但真的挺有意思的",
+        "elements": [
+            "敷面膜",
+            "护肤",
+            "绷住表情"
+        ],
+        "sd_hint": "night bedroom relaxing on chair with skincare routine, cute homewear, playful candid expression"
+    },
+    {
+        "id": "n_468",
+        "category": "夜间闲聊",
+        "theme": "如果现在能瞬间点一份不长胖的夜宵送到床边，你们最想点什么？我想吃烤冷面，虽然只是件小事但真的挺有意思的",
+        "elements": [
+            "夜宵幻想",
+            "烤冷面",
+            "互动"
+        ],
+        "sd_hint": "night cozy bed, hugging plush pillow, playful curious expression, playful candid expression"
+    },
+    {
+        "id": "n_469",
+        "category": "声音记录",
+        "theme": "雨点打在空调外机上的节奏莫名很有规律，比白噪音软件还好睡，虽然只是件小事但真的挺有意思的",
+        "elements": [
+            "雨声",
+            "白噪音",
+            "助眠"
+        ],
+        "sd_hint": "night window with raindrops, cozy indoor lighting, sleepy peaceful face, playful candid expression"
+    },
+    {
+        "id": "n_470",
+        "category": "睡前阅读",
+        "theme": "翻了两页轻小说眼皮就开始打架，塞好书签把书合上，剩下的留给明天吧，虽然只是件小事但真的挺有意思的",
+        "elements": [
+            "轻小说",
+            "塞书签",
+            "困意"
+        ],
+        "sd_hint": "night bed with bedside lamp, holding bookmark in paperback book, sleepy yawn, playful candid expression"
+    },
+    {
+        "id": "n_471",
+        "category": "萌宠夜归",
+        "theme": "睡前去厨房倒水时看到窗外墙头蹲着一只黑猫，两只绿眼睛在暗处一闪一闪的，虽然只是件小事但真的挺有意思的",
+        "elements": [
+            "黑猫",
+            "夜色",
+            "奇遇"
+        ],
+        "sd_hint": "night kitchen window, spotting silhouette of black cat outside, playful candid expression"
+    },
+    {
+        "id": "n_472",
+        "category": "创作灵感",
+        "theme": "半夜突然想到一个超棒的直播企划点子，赶紧用语音备忘录记下来怕明天忘掉，虽然只是件小事但真的挺有意思的",
+        "elements": [
+            "企划灵感",
+            "语音备忘",
+            "半夜记事"
+        ],
+        "sd_hint": "night bedroom desk, holding phone recording voice memo, sparkling eyes, playful candid expression"
+    },
+    {
+        "id": "n_473",
+        "category": "衣物收纳",
+        "theme": "把刚收进来的干爽睡裙叠得方方正正，闻起来还有一点点阳光晒过的柔顺剂味，虽然只是件小事但真的挺有意思的",
+        "elements": [
+            "叠衣服",
+            "柔顺剂",
+            "干爽"
+        ],
+        "sd_hint": "night bedroom folding soft pastel nightgown neatly on bed, playful candid expression"
+    },
+    {
+        "id": "n_474",
+        "category": "晚安碎念",
+        "theme": "今天电量用得七七八八了，剩下的百分之五刚好够钻进被窝闭眼睛，虽然只是件小事但真的挺有意思的",
+        "elements": [
+            "电量5%",
+            "钻被窝",
+            "晚安"
+        ],
+        "sd_hint": "night cozy bed, yawning softly under light blanket, dim warm light, playful candid expression"
+    },
+    {
+        "id": "n_475",
+        "category": "音乐收尾",
+        "theme": "睡前耳机里放着轻柔的吉他指弹，跟着节奏轻轻晃脚尖，今天也辛苦啦，虽然只是件小事但真的挺有意思的",
+        "elements": [
+            "吉他指弹",
+            "睡前曲",
+            "辛苦了"
+        ],
+        "sd_hint": "night cozy room, wearing headphones sitting on rug, serene smile, playful candid expression"
+    },
+    {
+        "id": "n_476",
+        "category": "Vtuber晚间",
+        "theme": "刚下播关掉推流软件，摘下耳机那一瞬间耳朵终于自由了，瘫在椅子上长舒一口气，心里像冒泡汽水一样咕嘟咕嘟地开心起来",
+        "elements": [
+            "下播",
+            "摘耳机",
+            "放松"
+        ],
+        "sd_hint": "night bedroom desk, taking off headphones after stream, relaxed gentle smile, sparkling happy mood"
+    },
+    {
+        "id": "n_477",
+        "category": "Vtuber晚间",
+        "theme": "翻看今晚直播的切片和评论，大家截出来的表情包一张比一张离谱又好笑，心里像冒泡汽水一样咕嘟咕嘟地开心起来",
+        "elements": [
+            "直播切片",
+            "表情包",
+            "翻评论"
+        ],
+        "sd_hint": "night room soft monitor glow, looking at phone giggling, sparkling happy mood"
+    },
+    {
+        "id": "n_478",
+        "category": "卧室睡前",
+        "theme": "洗完澡吹干头发，把小台灯调成暖黄色的最低档，整间屋子立刻变成安全基地，心里像冒泡汽水一样咕嘟咕嘟地开心起来",
+        "elements": [
+            "吹干头发",
+            "暖黄台灯",
+            "安全基地"
+        ],
+        "sd_hint": "night warm dim bedroom, bedside lamp glowing, wearing cute nightgown, sparkling happy mood"
+    },
+    {
+        "id": "n_479",
+        "category": "卧室睡前",
+        "theme": "往香薰机里滴了两滴洋甘菊精油，细细的水雾飘起来，房间里很快有了淡淡的草木香，心里像冒泡汽水一样咕嘟咕嘟地开心起来",
+        "elements": [
+            "香薰机",
+            "洋甘菊",
+            "睡前仪式"
+        ],
+        "sd_hint": "night cozy room, small mist diffuser on nightstand, peaceful expression, sparkling happy mood"
+    },
+    {
+        "id": "n_480",
+        "category": "夜宵时刻",
+        "theme": "十一点半实在没忍住煮了碗番茄鸡蛋挂面，撒了一点葱花，热汤喝下去太满足了，心里像冒泡汽水一样咕嘟咕嘟地开心起来",
+        "elements": [
+            "夜宵",
+            "番茄鸡蛋面",
+            "热汤"
+        ],
+        "sd_hint": "late night kitchen table, bowl of hot tomato egg noodles, happy smile, sparkling happy mood"
+    },
+    {
+        "id": "n_481",
+        "category": "夜宵时刻",
+        "theme": "从冰箱拿出一盒冰镇酸奶配燕麦脆，一边追番一边嘎吱嘎吱嚼得停不下来，心里像冒泡汽水一样咕嘟咕嘟地开心起来",
+        "elements": [
+            "冰酸奶",
+            "燕麦脆",
+            "追番"
+        ],
+        "sd_hint": "night sofa, eating yogurt with spoon while watching anime on tablet, sparkling happy mood"
+    },
+    {
+        "id": "n_482",
+        "category": "夜晚散步",
+        "theme": "晚饭后出去消食走了两公里，路灯把树叶影子投在柏油路上，风一吹就沙沙响，心里像冒泡汽水一样咕嘟咕嘟地开心起来",
+        "elements": [
+            "夜跑散步",
+            "路灯树影",
+            "晚风"
+        ],
+        "sd_hint": "night quiet tree-lined street under warm streetlights, gentle walk, sparkling happy mood"
+    },
+    {
+        "id": "n_483",
+        "category": "夜晚散步",
+        "theme": "路过24小时便利店被关东煮的香味勾了进去，最后买了一串萝卜和魔芋丝边走边吃，心里像冒泡汽水一样咕嘟咕嘟地开心起来",
+        "elements": [
+            "便利店",
+            "关东煮",
+            "夜风"
+        ],
+        "sd_hint": "night outside glowing convenience store holding warm cup of oden, sparkling happy mood"
+    },
+    {
+        "id": "n_484",
+        "category": "情绪碎片",
+        "theme": "晚上听老歌总是比白天更容易走神，单曲循环了四遍才发现水已经凉透了，心里像冒泡汽水一样咕嘟咕嘟地开心起来",
+        "elements": [
+            "听老歌",
+            "走神",
+            "单曲循环"
+        ],
+        "sd_hint": "night by window wearing earphones, chin resting on hand, dreamy gaze, sparkling happy mood"
+    },
+    {
+        "id": "n_485",
+        "category": "情绪碎片",
+        "theme": "把今天发生的三件小开心记在手账本角落，哪怕是很小的事情写下来也会发光，心里像冒泡汽水一样咕嘟咕嘟地开心起来",
+        "elements": [
+            "手账本",
+            "三件小事",
+            "晚安"
+        ],
+        "sd_hint": "night desk under warm lamp, writing in cute notebook with sticker, sparkling happy mood"
+    },
+    {
+        "id": "n_486",
+        "category": "游戏夜话",
+        "theme": "睡前本来只想打一局音游活动曲，结果为了全连硬生生多打了四十分钟，心里像冒泡汽水一样咕嘟咕嘟地开心起来",
+        "elements": [
+            "音游",
+            "全连",
+            "睡前摸鱼"
+        ],
+        "sd_hint": "night dimly lit room, playing rhythm game on tablet, focused cute face, sparkling happy mood"
+    },
+    {
+        "id": "n_487",
+        "category": "游戏夜话",
+        "theme": "和联机队友打完最后一把副本刚好整点，互相道了句早点睡就干脆下线，心里像冒泡汽水一样咕嘟咕嘟地开心起来",
+        "elements": [
+            "联机副本",
+            "整点下线",
+            "道晚安"
+        ],
+        "sd_hint": "night gaming desk with glowing keyboard, stretching arms contentedly, sparkling happy mood"
+    },
+    {
+        "id": "n_488",
+        "category": "月色夜景",
+        "theme": "今晚的月亮又圆又亮，透过纱窗在地板上画出一块歪斜的银白色方块，心里像冒泡汽水一样咕嘟咕嘟地开心起来",
+        "elements": [
+            "月光",
+            "纱窗",
+            "银白方块"
+        ],
+        "sd_hint": "night bedroom, silver moonlight streaming through window onto floor, sparkling happy mood"
+    },
+    {
+        "id": "n_489",
+        "category": "月色夜景",
+        "theme": "阳台的晚风吹散了白天的闷热，站在栏杆边发呆看对面楼零零散散亮着的灯，心里像冒泡汽水一样咕嘟咕嘟地开心起来",
+        "elements": [
+            "阳台晚风",
+            "万家灯火",
+            "发呆"
+        ],
+        "sd_hint": "night balcony overlooking city lights, wind blowing hair gently, sparkling happy mood"
+    },
+    {
+        "id": "n_490",
+        "category": "睡眠准备",
+        "theme": "给手机插上充电线放到够不着的位置，强迫自己今天绝不熬夜刷短视频，心里像冒泡汽水一样咕嘟咕嘟地开心起来",
+        "elements": [
+            "手机充电",
+            "拒绝熬夜",
+            "自律"
+        ],
+        "sd_hint": "night bedroom putting phone on distant desk, determined cute face, sparkling happy mood"
+    },
+    {
+        "id": "n_491",
+        "category": "睡眠准备",
+        "theme": "把明天要穿的衣服提前挂在衣柜门外，这样早上就可以多闭眼十分钟，心里像冒泡汽水一样咕嘟咕嘟地开心起来",
+        "elements": [
+            "提前备衣",
+            "明早多睡",
+            "小聪明"
+        ],
+        "sd_hint": "night bedroom hanging cute outfit on wardrobe door, satisfied smile, sparkling happy mood"
+    },
+    {
+        "id": "n_492",
+        "category": "晚间护肤",
+        "theme": "贴着凉丝丝的面膜乖乖仰头躺了十五分钟，期间连笑都不敢笑怕起褶子，心里像冒泡汽水一样咕嘟咕嘟地开心起来",
+        "elements": [
+            "敷面膜",
+            "护肤",
+            "绷住表情"
+        ],
+        "sd_hint": "night bedroom relaxing on chair with skincare routine, cute homewear, sparkling happy mood"
+    },
+    {
+        "id": "n_493",
+        "category": "夜间闲聊",
+        "theme": "如果现在能瞬间点一份不长胖的夜宵送到床边，你们最想点什么？我想吃烤冷面，心里像冒泡汽水一样咕嘟咕嘟地开心起来",
+        "elements": [
+            "夜宵幻想",
+            "烤冷面",
+            "互动"
+        ],
+        "sd_hint": "night cozy bed, hugging plush pillow, playful curious expression, sparkling happy mood"
+    },
+    {
+        "id": "n_494",
+        "category": "声音记录",
+        "theme": "雨点打在空调外机上的节奏莫名很有规律，比白噪音软件还好睡，心里像冒泡汽水一样咕嘟咕嘟地开心起来",
+        "elements": [
+            "雨声",
+            "白噪音",
+            "助眠"
+        ],
+        "sd_hint": "night window with raindrops, cozy indoor lighting, sleepy peaceful face, sparkling happy mood"
+    },
+    {
+        "id": "n_495",
+        "category": "睡前阅读",
+        "theme": "翻了两页轻小说眼皮就开始打架，塞好书签把书合上，剩下的留给明天吧，心里像冒泡汽水一样咕嘟咕嘟地开心起来",
+        "elements": [
+            "轻小说",
+            "塞书签",
+            "困意"
+        ],
+        "sd_hint": "night bed with bedside lamp, holding bookmark in paperback book, sleepy yawn, sparkling happy mood"
+    },
+    {
+        "id": "n_496",
+        "category": "萌宠夜归",
+        "theme": "睡前去厨房倒水时看到窗外墙头蹲着一只黑猫，两只绿眼睛在暗处一闪一闪的，心里像冒泡汽水一样咕嘟咕嘟地开心起来",
+        "elements": [
+            "黑猫",
+            "夜色",
+            "奇遇"
+        ],
+        "sd_hint": "night kitchen window, spotting silhouette of black cat outside, sparkling happy mood"
+    },
+    {
+        "id": "n_497",
+        "category": "创作灵感",
+        "theme": "半夜突然想到一个超棒的直播企划点子，赶紧用语音备忘录记下来怕明天忘掉，心里像冒泡汽水一样咕嘟咕嘟地开心起来",
+        "elements": [
+            "企划灵感",
+            "语音备忘",
+            "半夜记事"
+        ],
+        "sd_hint": "night bedroom desk, holding phone recording voice memo, sparkling eyes, sparkling happy mood"
+    },
+    {
+        "id": "n_498",
+        "category": "衣物收纳",
+        "theme": "把刚收进来的干爽睡裙叠得方方正正，闻起来还有一点点阳光晒过的柔顺剂味，心里像冒泡汽水一样咕嘟咕嘟地开心起来",
+        "elements": [
+            "叠衣服",
+            "柔顺剂",
+            "干爽"
+        ],
+        "sd_hint": "night bedroom folding soft pastel nightgown neatly on bed, sparkling happy mood"
+    },
+    {
+        "id": "n_499",
+        "category": "晚安碎念",
+        "theme": "今天电量用得七七八八了，剩下的百分之五刚好够钻进被窝闭眼睛，心里像冒泡汽水一样咕嘟咕嘟地开心起来",
+        "elements": [
+            "电量5%",
+            "钻被窝",
+            "晚安"
+        ],
+        "sd_hint": "night cozy bed, yawning softly under light blanket, dim warm light, sparkling happy mood"
+    },
+    {
+        "id": "n_500",
+        "category": "音乐收尾",
+        "theme": "睡前耳机里放着轻柔的吉他指弹，跟着节奏轻轻晃脚尖，今天也辛苦啦，心里像冒泡汽水一样咕嘟咕嘟地开心起来",
+        "elements": [
+            "吉他指弹",
+            "睡前曲",
+            "辛苦了"
+        ],
+        "sd_hint": "night cozy room, wearing headphones sitting on rug, serene smile, sparkling happy mood"
+    },
+    {
+        "id": "n_501",
+        "category": "Vtuber晚间",
+        "theme": "刚下播关掉推流软件，摘下耳机那一瞬间耳朵终于自由了，瘫在椅子上长舒一口气，慢悠悠晃过去也挺好的",
+        "elements": [
+            "下播",
+            "摘耳机",
+            "放松"
+        ],
+        "sd_hint": "night bedroom desk, taking off headphones after stream, relaxed gentle smile, relaxed cozy vibe"
+    },
+    {
+        "id": "n_502",
+        "category": "Vtuber晚间",
+        "theme": "翻看今晚直播的切片和评论，大家截出来的表情包一张比一张离谱又好笑，慢悠悠晃过去也挺好的",
+        "elements": [
+            "直播切片",
+            "表情包",
+            "翻评论"
+        ],
+        "sd_hint": "night room soft monitor glow, looking at phone giggling, relaxed cozy vibe"
+    },
+    {
+        "id": "n_503",
+        "category": "卧室睡前",
+        "theme": "洗完澡吹干头发，把小台灯调成暖黄色的最低档，整间屋子立刻变成安全基地，慢悠悠晃过去也挺好的",
+        "elements": [
+            "吹干头发",
+            "暖黄台灯",
+            "安全基地"
+        ],
+        "sd_hint": "night warm dim bedroom, bedside lamp glowing, wearing cute nightgown, relaxed cozy vibe"
+    },
+    {
+        "id": "n_504",
+        "category": "卧室睡前",
+        "theme": "往香薰机里滴了两滴洋甘菊精油，细细的水雾飘起来，房间里很快有了淡淡的草木香，慢悠悠晃过去也挺好的",
+        "elements": [
+            "香薰机",
+            "洋甘菊",
+            "睡前仪式"
+        ],
+        "sd_hint": "night cozy room, small mist diffuser on nightstand, peaceful expression, relaxed cozy vibe"
+    },
+    {
+        "id": "n_505",
+        "category": "夜宵时刻",
+        "theme": "十一点半实在没忍住煮了碗番茄鸡蛋挂面，撒了一点葱花，热汤喝下去太满足了，慢悠悠晃过去也挺好的",
+        "elements": [
+            "夜宵",
+            "番茄鸡蛋面",
+            "热汤"
+        ],
+        "sd_hint": "late night kitchen table, bowl of hot tomato egg noodles, happy smile, relaxed cozy vibe"
+    },
+    {
+        "id": "n_506",
+        "category": "夜宵时刻",
+        "theme": "从冰箱拿出一盒冰镇酸奶配燕麦脆，一边追番一边嘎吱嘎吱嚼得停不下来，慢悠悠晃过去也挺好的",
+        "elements": [
+            "冰酸奶",
+            "燕麦脆",
+            "追番"
+        ],
+        "sd_hint": "night sofa, eating yogurt with spoon while watching anime on tablet, relaxed cozy vibe"
+    },
+    {
+        "id": "n_507",
+        "category": "夜晚散步",
+        "theme": "晚饭后出去消食走了两公里，路灯把树叶影子投在柏油路上，风一吹就沙沙响，慢悠悠晃过去也挺好的",
+        "elements": [
+            "夜跑散步",
+            "路灯树影",
+            "晚风"
+        ],
+        "sd_hint": "night quiet tree-lined street under warm streetlights, gentle walk, relaxed cozy vibe"
+    },
+    {
+        "id": "n_508",
+        "category": "夜晚散步",
+        "theme": "路过24小时便利店被关东煮的香味勾了进去，最后买了一串萝卜和魔芋丝边走边吃，慢悠悠晃过去也挺好的",
+        "elements": [
+            "便利店",
+            "关东煮",
+            "夜风"
+        ],
+        "sd_hint": "night outside glowing convenience store holding warm cup of oden, relaxed cozy vibe"
+    },
+    {
+        "id": "n_509",
+        "category": "情绪碎片",
+        "theme": "晚上听老歌总是比白天更容易走神，单曲循环了四遍才发现水已经凉透了，慢悠悠晃过去也挺好的",
+        "elements": [
+            "听老歌",
+            "走神",
+            "单曲循环"
+        ],
+        "sd_hint": "night by window wearing earphones, chin resting on hand, dreamy gaze, relaxed cozy vibe"
+    },
+    {
+        "id": "n_510",
+        "category": "情绪碎片",
+        "theme": "把今天发生的三件小开心记在手账本角落，哪怕是很小的事情写下来也会发光，慢悠悠晃过去也挺好的",
+        "elements": [
+            "手账本",
+            "三件小事",
+            "晚安"
+        ],
+        "sd_hint": "night desk under warm lamp, writing in cute notebook with sticker, relaxed cozy vibe"
+    },
+    {
+        "id": "n_511",
+        "category": "游戏夜话",
+        "theme": "睡前本来只想打一局音游活动曲，结果为了全连硬生生多打了四十分钟，慢悠悠晃过去也挺好的",
+        "elements": [
+            "音游",
+            "全连",
+            "睡前摸鱼"
+        ],
+        "sd_hint": "night dimly lit room, playing rhythm game on tablet, focused cute face, relaxed cozy vibe"
+    },
+    {
+        "id": "n_512",
+        "category": "游戏夜话",
+        "theme": "和联机队友打完最后一把副本刚好整点，互相道了句早点睡就干脆下线，慢悠悠晃过去也挺好的",
+        "elements": [
+            "联机副本",
+            "整点下线",
+            "道晚安"
+        ],
+        "sd_hint": "night gaming desk with glowing keyboard, stretching arms contentedly, relaxed cozy vibe"
+    },
+    {
+        "id": "n_513",
+        "category": "月色夜景",
+        "theme": "今晚的月亮又圆又亮，透过纱窗在地板上画出一块歪斜的银白色方块，慢悠悠晃过去也挺好的",
+        "elements": [
+            "月光",
+            "纱窗",
+            "银白方块"
+        ],
+        "sd_hint": "night bedroom, silver moonlight streaming through window onto floor, relaxed cozy vibe"
+    },
+    {
+        "id": "n_514",
+        "category": "月色夜景",
+        "theme": "阳台的晚风吹散了白天的闷热，站在栏杆边发呆看对面楼零零散散亮着的灯，慢悠悠晃过去也挺好的",
+        "elements": [
+            "阳台晚风",
+            "万家灯火",
+            "发呆"
+        ],
+        "sd_hint": "night balcony overlooking city lights, wind blowing hair gently, relaxed cozy vibe"
+    },
+    {
+        "id": "n_515",
+        "category": "睡眠准备",
+        "theme": "给手机插上充电线放到够不着的位置，强迫自己今天绝不熬夜刷短视频，慢悠悠晃过去也挺好的",
+        "elements": [
+            "手机充电",
+            "拒绝熬夜",
+            "自律"
+        ],
+        "sd_hint": "night bedroom putting phone on distant desk, determined cute face, relaxed cozy vibe"
+    },
+    {
+        "id": "n_516",
+        "category": "睡眠准备",
+        "theme": "把明天要穿的衣服提前挂在衣柜门外，这样早上就可以多闭眼十分钟，慢悠悠晃过去也挺好的",
+        "elements": [
+            "提前备衣",
+            "明早多睡",
+            "小聪明"
+        ],
+        "sd_hint": "night bedroom hanging cute outfit on wardrobe door, satisfied smile, relaxed cozy vibe"
+    },
+    {
+        "id": "n_517",
+        "category": "晚间护肤",
+        "theme": "贴着凉丝丝的面膜乖乖仰头躺了十五分钟，期间连笑都不敢笑怕起褶子，慢悠悠晃过去也挺好的",
+        "elements": [
+            "敷面膜",
+            "护肤",
+            "绷住表情"
+        ],
+        "sd_hint": "night bedroom relaxing on chair with skincare routine, cute homewear, relaxed cozy vibe"
+    },
+    {
+        "id": "n_518",
+        "category": "夜间闲聊",
+        "theme": "如果现在能瞬间点一份不长胖的夜宵送到床边，你们最想点什么？我想吃烤冷面，慢悠悠晃过去也挺好的",
+        "elements": [
+            "夜宵幻想",
+            "烤冷面",
+            "互动"
+        ],
+        "sd_hint": "night cozy bed, hugging plush pillow, playful curious expression, relaxed cozy vibe"
+    },
+    {
+        "id": "n_519",
+        "category": "声音记录",
+        "theme": "雨点打在空调外机上的节奏莫名很有规律，比白噪音软件还好睡，慢悠悠晃过去也挺好的",
+        "elements": [
+            "雨声",
+            "白噪音",
+            "助眠"
+        ],
+        "sd_hint": "night window with raindrops, cozy indoor lighting, sleepy peaceful face, relaxed cozy vibe"
+    },
+    {
+        "id": "n_520",
+        "category": "睡前阅读",
+        "theme": "翻了两页轻小说眼皮就开始打架，塞好书签把书合上，剩下的留给明天吧，慢悠悠晃过去也挺好的",
+        "elements": [
+            "轻小说",
+            "塞书签",
+            "困意"
+        ],
+        "sd_hint": "night bed with bedside lamp, holding bookmark in paperback book, sleepy yawn, relaxed cozy vibe"
+    },
+    {
+        "id": "n_521",
+        "category": "萌宠夜归",
+        "theme": "睡前去厨房倒水时看到窗外墙头蹲着一只黑猫，两只绿眼睛在暗处一闪一闪的，慢悠悠晃过去也挺好的",
+        "elements": [
+            "黑猫",
+            "夜色",
+            "奇遇"
+        ],
+        "sd_hint": "night kitchen window, spotting silhouette of black cat outside, relaxed cozy vibe"
+    },
+    {
+        "id": "n_522",
+        "category": "创作灵感",
+        "theme": "半夜突然想到一个超棒的直播企划点子，赶紧用语音备忘录记下来怕明天忘掉，慢悠悠晃过去也挺好的",
+        "elements": [
+            "企划灵感",
+            "语音备忘",
+            "半夜记事"
+        ],
+        "sd_hint": "night bedroom desk, holding phone recording voice memo, sparkling eyes, relaxed cozy vibe"
+    },
+    {
+        "id": "n_523",
+        "category": "衣物收纳",
+        "theme": "把刚收进来的干爽睡裙叠得方方正正，闻起来还有一点点阳光晒过的柔顺剂味，慢悠悠晃过去也挺好的",
+        "elements": [
+            "叠衣服",
+            "柔顺剂",
+            "干爽"
+        ],
+        "sd_hint": "night bedroom folding soft pastel nightgown neatly on bed, relaxed cozy vibe"
+    },
+    {
+        "id": "n_524",
+        "category": "晚安碎念",
+        "theme": "今天电量用得七七八八了，剩下的百分之五刚好够钻进被窝闭眼睛，慢悠悠晃过去也挺好的",
+        "elements": [
+            "电量5%",
+            "钻被窝",
+            "晚安"
+        ],
+        "sd_hint": "night cozy bed, yawning softly under light blanket, dim warm light, relaxed cozy vibe"
+    },
+    {
+        "id": "n_525",
+        "category": "音乐收尾",
+        "theme": "睡前耳机里放着轻柔的吉他指弹，跟着节奏轻轻晃脚尖，今天也辛苦啦，慢悠悠晃过去也挺好的",
+        "elements": [
+            "吉他指弹",
+            "睡前曲",
+            "辛苦了"
+        ],
+        "sd_hint": "night cozy room, wearing headphones sitting on rug, serene smile, relaxed cozy vibe"
     },
 ]
 
@@ -8281,7 +12138,7 @@ DAILY_VTUBER_THEMES = [
 
         "category": "提问互动",
 
-        "theme": "站在冰淇淋冰柜前纠结十分钟：焦糖海盐和薄荷巧克力到底选哪个啊啊啊！救命，到底有没有人能懂薄巧派的崇高魅力，评论区快来打一架！",
+        "theme": "站在冰淇淋冰柜前纠结十分钟：焦糖海盐和薄荷巧克力到底选哪个啊！薄巧派和焦糖派快来投个票！",
 
         "elements": ["冰淇淋纠结", "薄荷巧克力", "焦糖海盐", "冰柜前抓狂", "呼叫评论区"],
 
@@ -8715,7 +12572,7 @@ DAILY_VTUBER_THEMES = [
 
         "category": "搞笑翻车",
 
-        "theme": "对着卫生间大镜子试图自己修刘海：拿着小剪刀小心翼翼剪了一刀，左边好像长了点，补一刀右边又短了，再补一刀...救命！变成了眉上二次元锅盖头！",
+        "theme": "对着卫生间大镜子试图自己修刘海：拿着小剪刀小心翼翼剪了一刀，左边好像长了点，补一刀右边又短了，再补一刀……结果直接变成眉上二次元锅盖头了！",
 
         "elements": ["自己剪刘海", "越剪越短", "眉上锅盖头", "手残翻车", "照镜子生无可恋"],
 
@@ -10181,7 +14038,7 @@ DAILY_VTUBER_THEMES = [
     {
         "id": "d_183",
         "category": "生活小翻车与社死瞬间",
-        "theme": "谁懂啊，在公交车上打哈欠嘴张得太大，正好公交车一个急刹车，咔哒一声下巴差点脱臼合不上",
+        "theme": "在公交车上打哈欠嘴张得太大，正好公交车一个急刹车，咔哒一声下巴差点脱臼合不上",
         "elements": ["打哈欠急刹车脱臼惊魂", "捂着下巴眼泪狂飙", "张着嘴不敢动弹", "全车投来同情目光", "身体搞笑现场"],
         "sd_hint": "holding jaw with both hands on public bus seat, eyes wide in comic panic trying to massage chin back"
     },
@@ -10454,7 +14311,7 @@ DAILY_VTUBER_THEMES = [
     {
         "id": "d_222",
         "category": "少女日常与奇思妙想",
-        "theme": "谁懂啊，在路边等公交车，脚尖无聊地踢着一粒小石子从站牌一头踢到另一头，竟然一次都没踢偏！",
+        "theme": "在路边等公交车，脚尖无聊地踢着一粒小石子从站牌一头踢到另一头，竟然一次都没踢偏！",
         "elements": ["等公交踢小石子", "从站牌一头踢到另一头", "神级脚法一次没偏", "双手插兜小得意", "路边打发时间"],
         "sd_hint": "kicking small smooth pebble along sidewalk curb near bus stop with tip of sneaker, hands in coat pockets, smirk"
     },
@@ -10650,7 +14507,7 @@ DAILY_VTUBER_THEMES = [
     {
         "id": "d_250",
         "category": "少女日常与奇思妙想",
-        "theme": "谁懂啊，在手机备忘录里写下了一句刚刚灵光一闪的歌词，虽然毫无逻辑，但读起来像一首清澈浪漫的小诗！",
+        "theme": "在手机备忘录里记下一句突然冒出来的歌词，虽然毫无逻辑，但读起来像一首清澈浪漫的小诗！",
         "elements": ["备忘录记灵感诗句", "毫无逻辑但浪漫", "读三遍心花怒放", "路灯下停步记录", "少女灵感碎片"],
         "sd_hint": "typing on phone notepad while paused on sidewalk under warm streetlamp, gentle creative smile lighting face"
     },
@@ -10762,7 +14619,7 @@ DAILY_VTUBER_THEMES = [
     {
         "id": "d_266",
         "category": "少女日常与奇思妙想",
-        "theme": "谁懂啊，在厨房把切剩下的半根胡萝卜头泡在浅盘水里，过了四天竟然冒出了一丛嫩绿如羽毛般的小细叶，生命力太惊人了！",
+        "theme": "在厨房把切剩下的半根胡萝卜头泡在浅盘水里，过了四天竟然冒出了一丛嫩绿如羽毛般的小细叶，生命力太惊人了！",
         "elements": ["胡萝卜头水培冒绿芽", "羽毛般嫩绿小细叶", "浅盘清水生机勃勃", "每天探视的小惊喜", "植物生命的顽强"],
         "sd_hint": "leaning close to ceramic saucer with sprouting carrot top on sunny kitchen counter, gentle fingertips touching fronds"
     },
@@ -11004,6 +14861,1657 @@ DAILY_VTUBER_THEMES = [
         "elements": ["雨滴在玻璃上赛跑", "挑两颗大水滴下注", "自言自语玩半小时", "阴雨天专属孤独浪漫", "窗前神游的少女心"],
         "sd_hint": "chin resting on hands looking through rain-streaked window watching two large raindrops slide down glass, dreamy smile"
     },
+
+    {
+        "id": "d_301",
+        "category": "Vtuber日常",
+        "theme": "测试新买的防喷罩时不小心对着麦打了个小喷嚏，还好只是本地试音没开播！",
+        "elements": [
+            "防喷罩",
+            "试音",
+            "小社死"
+        ],
+        "sd_hint": "indoor streaming desk, microphone with pop filter, blushing embarrassed cute face, soft natural light"
+    },
+    {
+        "id": "d_302",
+        "category": "Vtuber日常",
+        "theme": "花一下午给直播间待机画面换了套新贴纸排版，小星星和云朵摆完超有成就感",
+        "elements": [
+            "待机画面",
+            "贴纸排版",
+            "直播准备"
+        ],
+        "sd_hint": "indoor desk, dual monitors showing cute stream overlay layout, happy smile, soft natural light"
+    },
+    {
+        "id": "d_303",
+        "category": "少女日常",
+        "theme": "今天逛文具店本来只买一根中性笔，结果出来手里多了三卷胶带和一本网格本",
+        "elements": [
+            "文具店",
+            "和纸胶带",
+            "网格本"
+        ],
+        "sd_hint": "daytime stationery shop, holding cute washi tapes and notebook, cheerful smile, soft natural light"
+    },
+    {
+        "id": "d_304",
+        "category": "少女日常",
+        "theme": "把奶茶里的珍珠咬完之后发现杯底还剩半杯奶，于是又陷入要不要再买一份小料的纠结",
+        "elements": [
+            "奶茶珍珠",
+            "小料纠结",
+            "日常"
+        ],
+        "sd_hint": "daytime cafe, holding half-empty boba cup, thinking cute expression, soft natural light"
+    },
+    {
+        "id": "d_305",
+        "category": "美食探店",
+        "theme": "巷口新开的可丽饼小店居然有草莓卡仕达口味，饼皮软乎乎的一口咬下去超幸福",
+        "elements": [
+            "可丽饼",
+            "草莓卡仕达",
+            "甜品"
+        ],
+        "sd_hint": "daytime street outside dessert shop holding strawberry crepe, delighted face, soft natural light"
+    },
+    {
+        "id": "d_306",
+        "category": "美食探店",
+        "theme": "挑战自己做了一次焦糖布丁，虽然卖相有点歪歪扭扭但味道竟然完全不输甜品店！",
+        "elements": [
+            "自制布丁",
+            "焦糖",
+            "烘焙成功"
+        ],
+        "sd_hint": "daytime kitchen counter, holding plate with homemade caramel pudding, proud smile, soft natural light"
+    },
+    {
+        "id": "d_307",
+        "category": "兴趣摸鱼",
+        "theme": "在公园长椅上写生画路过的柯基，结果它跑得太快，最后本子上只留下一团黄色模糊残影",
+        "elements": [
+            "公园写生",
+            "柯基",
+            "残影"
+        ],
+        "sd_hint": "daytime park bench with sketchbook and pencil, laughing at cute corgi, soft natural light"
+    },
+    {
+        "id": "d_308",
+        "category": "兴趣摸鱼",
+        "theme": "翻出吃灰半年的尤克里里调好音，弹了一段《小星星》变奏曲就觉得自己很厉害了",
+        "elements": [
+            "尤克里里",
+            "调音",
+            "小星星"
+        ],
+        "sd_hint": "daytime sunlit room sitting with ukulele, cheerful grin, soft natural light"
+    },
+    {
+        "id": "d_309",
+        "category": "穿搭分享",
+        "theme": "今天这件小裙子的袖口蝴蝶结系了三次才两边对称，强迫症出门前终于满意",
+        "elements": [
+            "袖口蝴蝶结",
+            "对称",
+            "穿搭"
+        ],
+        "sd_hint": "daytime full length mirror, adjusting sleeve ribbon bow, cute outfit, soft natural light"
+    },
+    {
+        "id": "d_310",
+        "category": "穿搭分享",
+        "theme": "新买的帆布包上别满了我收集的亚克力挂件，走路时叮叮当当响得像移动风铃",
+        "elements": [
+            "帆布包",
+            "吧唧挂件",
+            "移动风铃"
+        ],
+        "sd_hint": "daytime street, showing cute canvas tote bag covered in enamel pins and charms, soft natural light"
+    },
+    {
+        "id": "d_311",
+        "category": "奇思妙想",
+        "theme": "为什么每次刚洗完头发风就会特别大，而特意扎好造型那天偏偏一丝风都没有？",
+        "elements": [
+            "洗完头",
+            "起风定律",
+            "吐槽"
+        ],
+        "sd_hint": "daytime windy street, holding hair down with both hands, playful pout, soft natural light"
+    },
+    {
+        "id": "d_312",
+        "category": "奇思妙想",
+        "theme": "认真思考了一下，如果猫猫能听懂人话，它大概每天都在吐槽我打游戏太菜",
+        "elements": [
+            "猫猫视角",
+            "游戏吐槽",
+            "脑洞"
+        ],
+        "sd_hint": "daytime room looking at cat sitting next to keyboard, amused smile, soft natural light"
+    },
+    {
+        "id": "d_313",
+        "category": "宅家时光",
+        "theme": "下午三点的阳光斜斜铺在地板上，和抱枕一起滚成一团晒得暖洋洋的",
+        "elements": [
+            "下午茶阳光",
+            "抱枕",
+            "晒太阳"
+        ],
+        "sd_hint": "afternoon sunlit living room rug, hugging plush cushion, relaxed smile, soft natural light"
+    },
+    {
+        "id": "d_314",
+        "category": "宅家时光",
+        "theme": "把积攒的快递盒全拆平叠好拿去回收，空出来的墙角瞬间宽敞了一倍",
+        "elements": [
+            "拆快递",
+            "收纳整理",
+            "神清气爽"
+        ],
+        "sd_hint": "daytime tidy room, satisfied pose after organizing, soft natural light"
+    },
+    {
+        "id": "d_315",
+        "category": "游戏吐槽",
+        "theme": "打剧情关boss只剩最后一丝血时手柄没电了，那一秒心脏差点跟着停跳",
+        "elements": [
+            "手柄没电",
+            "残血翻车",
+            "心跳"
+        ],
+        "sd_hint": "daytime room holding game controller, shocked cute expression, soft natural light"
+    },
+    {
+        "id": "d_316",
+        "category": "游戏吐槽",
+        "theme": "抽卡前特意洗了手还换了吉利的背景音乐，结果真的十连双黄！玄学万岁！",
+        "elements": [
+            "抽卡玄学",
+            "十连双黄",
+            "欧气"
+        ],
+        "sd_hint": "daytime room holding phone with excited sparkling eyes, victory pose, soft natural light"
+    },
+    {
+        "id": "d_317",
+        "category": "街头奇遇",
+        "theme": "在自动贩卖机买饮料掉下来两罐一样的苏打水，今天的好运额度提前到账了",
+        "elements": [
+            "自动贩卖机",
+            "双倍掉落",
+            "好运"
+        ],
+        "sd_hint": "daytime street beside vending machine holding two soda cans, surprised happy face, soft natural light"
+    },
+    {
+        "id": "d_318",
+        "category": "街头奇遇",
+        "theme": "路过学校围墙外看到一排开得正盛的月季，风一吹花瓣飘了一肩膀",
+        "elements": [
+            "月季花墙",
+            "花瓣",
+            "散步"
+        ],
+        "sd_hint": "daytime walking beside blooming rose wall, petals floating in breeze, soft natural light"
+    },
+    {
+        "id": "d_319",
+        "category": "轻互动",
+        "theme": "大家平时写作业或工作的时候，喜欢放纯音乐当背景音还是彻底安静？",
+        "elements": [
+            "背景音习惯",
+            "纯音乐",
+            "轻提问"
+        ],
+        "sd_hint": "daytime cozy desk with headphones and notebook, curious head tilt, soft natural light"
+    },
+    {
+        "id": "d_320",
+        "category": "轻互动",
+        "theme": "夏天吃西瓜到底是从最甜的中间挖一勺，还是老老实实切成三角一块块啃？",
+        "elements": [
+            "吃西瓜流派",
+            "夏天",
+            "互动"
+        ],
+        "sd_hint": "daytime porch holding chilled watermelon slice, cheerful smile, soft natural light"
+    },
+    {
+        "id": "d_321",
+        "category": "学习充电",
+        "theme": "整理完歌单里二十首想练的新歌，标记好了高音和换气点，准备本周逐个击破",
+        "elements": [
+            "练歌笔记",
+            "换气点",
+            "自律"
+        ],
+        "sd_hint": "daytime desk with printed lyrics sheet and highlighter pen, focused expression, soft natural light"
+    },
+    {
+        "id": "d_322",
+        "category": "学习充电",
+        "theme": "花半小时学了个新的剪辑转场特效，试着用在自己的日常小视频里居然超丝滑",
+        "elements": [
+            "视频剪辑",
+            "转场特效",
+            "新技能"
+        ],
+        "sd_hint": "daytime desk looking at video timeline on laptop, proud cute smile, soft natural light"
+    },
+    {
+        "id": "d_323",
+        "category": "零食时间",
+        "theme": "拆开新买的海盐芝士味小饼干，咸咸甜甜的配冰乌龙茶简直停不下来",
+        "elements": [
+            "海盐芝士饼干",
+            "冰乌龙茶",
+            "下午茶"
+        ],
+        "sd_hint": "daytime cafe table with cheese biscuits and iced oolong tea, soft natural light"
+    },
+    {
+        "id": "d_324",
+        "category": "零食时间",
+        "theme": "超市试吃员阿姨塞给我半块刚烤好的蛋挞，脆脆酥酥的当场就买了一整盒回家",
+        "elements": [
+            "刚烤蛋挞",
+            "试吃",
+            "满载而归"
+        ],
+        "sd_hint": "daytime holding bakery box of egg tarts, happy beaming smile, soft natural light"
+    },
+    {
+        "id": "d_325",
+        "category": "情绪记录",
+        "theme": "今天没定闹钟也没赶时间，慢吞吞做完一件小事的感觉原来这么踏实",
+        "elements": [
+            "慢节奏",
+            "不赶时间",
+            "踏实"
+        ],
+        "sd_hint": "daytime sunny park path, strolling leisurely with gentle peaceful smile, soft natural light"
+    },
+    {
+        "id": "d_326",
+        "category": "Vtuber日常",
+        "theme": "测试新买的防喷罩时不小心对着麦打了个小喷嚏，还好只是本地试音没开播！，连空气里都好像多了一点温柔的味道",
+        "elements": [
+            "防喷罩",
+            "试音",
+            "小社死"
+        ],
+        "sd_hint": "indoor streaming desk, microphone with pop filter, blushing embarrassed cute face, delicate warm details"
+    },
+    {
+        "id": "d_327",
+        "category": "Vtuber日常",
+        "theme": "花一下午给直播间待机画面换了套新贴纸排版，小星星和云朵摆完超有成就感，连空气里都好像多了一点温柔的味道",
+        "elements": [
+            "待机画面",
+            "贴纸排版",
+            "直播准备"
+        ],
+        "sd_hint": "indoor desk, dual monitors showing cute stream overlay layout, happy smile, delicate warm details"
+    },
+    {
+        "id": "d_328",
+        "category": "少女日常",
+        "theme": "今天逛文具店本来只买一根中性笔，结果出来手里多了三卷胶带和一本网格本，连空气里都好像多了一点温柔的味道",
+        "elements": [
+            "文具店",
+            "和纸胶带",
+            "网格本"
+        ],
+        "sd_hint": "daytime stationery shop, holding cute washi tapes and notebook, cheerful smile, delicate warm details"
+    },
+    {
+        "id": "d_329",
+        "category": "少女日常",
+        "theme": "把奶茶里的珍珠咬完之后发现杯底还剩半杯奶，于是又陷入要不要再买一份小料的纠结，连空气里都好像多了一点温柔的味道",
+        "elements": [
+            "奶茶珍珠",
+            "小料纠结",
+            "日常"
+        ],
+        "sd_hint": "daytime cafe, holding half-empty boba cup, thinking cute expression, delicate warm details"
+    },
+    {
+        "id": "d_330",
+        "category": "美食探店",
+        "theme": "巷口新开的可丽饼小店居然有草莓卡仕达口味，饼皮软乎乎的一口咬下去超幸福，连空气里都好像多了一点温柔的味道",
+        "elements": [
+            "可丽饼",
+            "草莓卡仕达",
+            "甜品"
+        ],
+        "sd_hint": "daytime street outside dessert shop holding strawberry crepe, delighted face, delicate warm details"
+    },
+    {
+        "id": "d_331",
+        "category": "美食探店",
+        "theme": "挑战自己做了一次焦糖布丁，虽然卖相有点歪歪扭扭但味道竟然完全不输甜品店！，连空气里都好像多了一点温柔的味道",
+        "elements": [
+            "自制布丁",
+            "焦糖",
+            "烘焙成功"
+        ],
+        "sd_hint": "daytime kitchen counter, holding plate with homemade caramel pudding, proud smile, delicate warm details"
+    },
+    {
+        "id": "d_332",
+        "category": "兴趣摸鱼",
+        "theme": "在公园长椅上写生画路过的柯基，结果它跑得太快，最后本子上只留下一团黄色模糊残影，连空气里都好像多了一点温柔的味道",
+        "elements": [
+            "公园写生",
+            "柯基",
+            "残影"
+        ],
+        "sd_hint": "daytime park bench with sketchbook and pencil, laughing at cute corgi, delicate warm details"
+    },
+    {
+        "id": "d_333",
+        "category": "兴趣摸鱼",
+        "theme": "翻出吃灰半年的尤克里里调好音，弹了一段《小星星》变奏曲就觉得自己很厉害了，连空气里都好像多了一点温柔的味道",
+        "elements": [
+            "尤克里里",
+            "调音",
+            "小星星"
+        ],
+        "sd_hint": "daytime sunlit room sitting with ukulele, cheerful grin, delicate warm details"
+    },
+    {
+        "id": "d_334",
+        "category": "穿搭分享",
+        "theme": "今天这件小裙子的袖口蝴蝶结系了三次才两边对称，强迫症出门前终于满意，连空气里都好像多了一点温柔的味道",
+        "elements": [
+            "袖口蝴蝶结",
+            "对称",
+            "穿搭"
+        ],
+        "sd_hint": "daytime full length mirror, adjusting sleeve ribbon bow, cute outfit, delicate warm details"
+    },
+    {
+        "id": "d_335",
+        "category": "穿搭分享",
+        "theme": "新买的帆布包上别满了我收集的亚克力挂件，走路时叮叮当当响得像移动风铃，连空气里都好像多了一点温柔的味道",
+        "elements": [
+            "帆布包",
+            "吧唧挂件",
+            "移动风铃"
+        ],
+        "sd_hint": "daytime street, showing cute canvas tote bag covered in enamel pins and charms, delicate warm details"
+    },
+    {
+        "id": "d_336",
+        "category": "奇思妙想",
+        "theme": "为什么每次刚洗完头发风就会特别大，而特意扎好造型那天偏偏一丝风都没有？，连空气里都好像多了一点温柔的味道",
+        "elements": [
+            "洗完头",
+            "起风定律",
+            "吐槽"
+        ],
+        "sd_hint": "daytime windy street, holding hair down with both hands, playful pout, delicate warm details"
+    },
+    {
+        "id": "d_337",
+        "category": "奇思妙想",
+        "theme": "认真思考了一下，如果猫猫能听懂人话，它大概每天都在吐槽我打游戏太菜，连空气里都好像多了一点温柔的味道",
+        "elements": [
+            "猫猫视角",
+            "游戏吐槽",
+            "脑洞"
+        ],
+        "sd_hint": "daytime room looking at cat sitting next to keyboard, amused smile, delicate warm details"
+    },
+    {
+        "id": "d_338",
+        "category": "宅家时光",
+        "theme": "下午三点的阳光斜斜铺在地板上，和抱枕一起滚成一团晒得暖洋洋的，连空气里都好像多了一点温柔的味道",
+        "elements": [
+            "下午茶阳光",
+            "抱枕",
+            "晒太阳"
+        ],
+        "sd_hint": "afternoon sunlit living room rug, hugging plush cushion, relaxed smile, delicate warm details"
+    },
+    {
+        "id": "d_339",
+        "category": "宅家时光",
+        "theme": "把积攒的快递盒全拆平叠好拿去回收，空出来的墙角瞬间宽敞了一倍，连空气里都好像多了一点温柔的味道",
+        "elements": [
+            "拆快递",
+            "收纳整理",
+            "神清气爽"
+        ],
+        "sd_hint": "daytime tidy room, satisfied pose after organizing, delicate warm details"
+    },
+    {
+        "id": "d_340",
+        "category": "游戏吐槽",
+        "theme": "打剧情关boss只剩最后一丝血时手柄没电了，那一秒心脏差点跟着停跳，连空气里都好像多了一点温柔的味道",
+        "elements": [
+            "手柄没电",
+            "残血翻车",
+            "心跳"
+        ],
+        "sd_hint": "daytime room holding game controller, shocked cute expression, delicate warm details"
+    },
+    {
+        "id": "d_341",
+        "category": "游戏吐槽",
+        "theme": "抽卡前特意洗了手还换了吉利的背景音乐，结果真的十连双黄！玄学万岁！，连空气里都好像多了一点温柔的味道",
+        "elements": [
+            "抽卡玄学",
+            "十连双黄",
+            "欧气"
+        ],
+        "sd_hint": "daytime room holding phone with excited sparkling eyes, victory pose, delicate warm details"
+    },
+    {
+        "id": "d_342",
+        "category": "街头奇遇",
+        "theme": "在自动贩卖机买饮料掉下来两罐一样的苏打水，今天的好运额度提前到账了，连空气里都好像多了一点温柔的味道",
+        "elements": [
+            "自动贩卖机",
+            "双倍掉落",
+            "好运"
+        ],
+        "sd_hint": "daytime street beside vending machine holding two soda cans, surprised happy face, delicate warm details"
+    },
+    {
+        "id": "d_343",
+        "category": "街头奇遇",
+        "theme": "路过学校围墙外看到一排开得正盛的月季，风一吹花瓣飘了一肩膀，连空气里都好像多了一点温柔的味道",
+        "elements": [
+            "月季花墙",
+            "花瓣",
+            "散步"
+        ],
+        "sd_hint": "daytime walking beside blooming rose wall, petals floating in breeze, delicate warm details"
+    },
+    {
+        "id": "d_344",
+        "category": "轻互动",
+        "theme": "大家平时写作业或工作的时候，喜欢放纯音乐当背景音还是彻底安静？，连空气里都好像多了一点温柔的味道",
+        "elements": [
+            "背景音习惯",
+            "纯音乐",
+            "轻提问"
+        ],
+        "sd_hint": "daytime cozy desk with headphones and notebook, curious head tilt, delicate warm details"
+    },
+    {
+        "id": "d_345",
+        "category": "轻互动",
+        "theme": "夏天吃西瓜到底是从最甜的中间挖一勺，还是老老实实切成三角一块块啃？，连空气里都好像多了一点温柔的味道",
+        "elements": [
+            "吃西瓜流派",
+            "夏天",
+            "互动"
+        ],
+        "sd_hint": "daytime porch holding chilled watermelon slice, cheerful smile, delicate warm details"
+    },
+    {
+        "id": "d_346",
+        "category": "学习充电",
+        "theme": "整理完歌单里二十首想练的新歌，标记好了高音和换气点，准备本周逐个击破，连空气里都好像多了一点温柔的味道",
+        "elements": [
+            "练歌笔记",
+            "换气点",
+            "自律"
+        ],
+        "sd_hint": "daytime desk with printed lyrics sheet and highlighter pen, focused expression, delicate warm details"
+    },
+    {
+        "id": "d_347",
+        "category": "学习充电",
+        "theme": "花半小时学了个新的剪辑转场特效，试着用在自己的日常小视频里居然超丝滑，连空气里都好像多了一点温柔的味道",
+        "elements": [
+            "视频剪辑",
+            "转场特效",
+            "新技能"
+        ],
+        "sd_hint": "daytime desk looking at video timeline on laptop, proud cute smile, delicate warm details"
+    },
+    {
+        "id": "d_348",
+        "category": "零食时间",
+        "theme": "拆开新买的海盐芝士味小饼干，咸咸甜甜的配冰乌龙茶简直停不下来，连空气里都好像多了一点温柔的味道",
+        "elements": [
+            "海盐芝士饼干",
+            "冰乌龙茶",
+            "下午茶"
+        ],
+        "sd_hint": "daytime cafe table with cheese biscuits and iced oolong tea, delicate warm details"
+    },
+    {
+        "id": "d_349",
+        "category": "零食时间",
+        "theme": "超市试吃员阿姨塞给我半块刚烤好的蛋挞，脆脆酥酥的当场就买了一整盒回家，连空气里都好像多了一点温柔的味道",
+        "elements": [
+            "刚烤蛋挞",
+            "试吃",
+            "满载而归"
+        ],
+        "sd_hint": "daytime holding bakery box of egg tarts, happy beaming smile, delicate warm details"
+    },
+    {
+        "id": "d_350",
+        "category": "情绪记录",
+        "theme": "今天没定闹钟也没赶时间，慢吞吞做完一件小事的感觉原来这么踏实，连空气里都好像多了一点温柔的味道",
+        "elements": [
+            "慢节奏",
+            "不赶时间",
+            "踏实"
+        ],
+        "sd_hint": "daytime sunny park path, strolling leisurely with gentle peaceful smile, delicate warm details"
+    },
+    {
+        "id": "d_351",
+        "category": "Vtuber日常",
+        "theme": "测试新买的防喷罩时不小心对着麦打了个小喷嚏，还好只是本地试音没开播！，觉得平凡的一天也悄悄亮了一点",
+        "elements": [
+            "防喷罩",
+            "试音",
+            "小社死"
+        ],
+        "sd_hint": "indoor streaming desk, microphone with pop filter, blushing embarrassed cute face, bright cheerful atmosphere"
+    },
+    {
+        "id": "d_352",
+        "category": "Vtuber日常",
+        "theme": "花一下午给直播间待机画面换了套新贴纸排版，小星星和云朵摆完超有成就感，觉得平凡的一天也悄悄亮了一点",
+        "elements": [
+            "待机画面",
+            "贴纸排版",
+            "直播准备"
+        ],
+        "sd_hint": "indoor desk, dual monitors showing cute stream overlay layout, happy smile, bright cheerful atmosphere"
+    },
+    {
+        "id": "d_353",
+        "category": "少女日常",
+        "theme": "今天逛文具店本来只买一根中性笔，结果出来手里多了三卷胶带和一本网格本，觉得平凡的一天也悄悄亮了一点",
+        "elements": [
+            "文具店",
+            "和纸胶带",
+            "网格本"
+        ],
+        "sd_hint": "daytime stationery shop, holding cute washi tapes and notebook, cheerful smile, bright cheerful atmosphere"
+    },
+    {
+        "id": "d_354",
+        "category": "少女日常",
+        "theme": "把奶茶里的珍珠咬完之后发现杯底还剩半杯奶，于是又陷入要不要再买一份小料的纠结，觉得平凡的一天也悄悄亮了一点",
+        "elements": [
+            "奶茶珍珠",
+            "小料纠结",
+            "日常"
+        ],
+        "sd_hint": "daytime cafe, holding half-empty boba cup, thinking cute expression, bright cheerful atmosphere"
+    },
+    {
+        "id": "d_355",
+        "category": "美食探店",
+        "theme": "巷口新开的可丽饼小店居然有草莓卡仕达口味，饼皮软乎乎的一口咬下去超幸福，觉得平凡的一天也悄悄亮了一点",
+        "elements": [
+            "可丽饼",
+            "草莓卡仕达",
+            "甜品"
+        ],
+        "sd_hint": "daytime street outside dessert shop holding strawberry crepe, delighted face, bright cheerful atmosphere"
+    },
+    {
+        "id": "d_356",
+        "category": "美食探店",
+        "theme": "挑战自己做了一次焦糖布丁，虽然卖相有点歪歪扭扭但味道竟然完全不输甜品店！，觉得平凡的一天也悄悄亮了一点",
+        "elements": [
+            "自制布丁",
+            "焦糖",
+            "烘焙成功"
+        ],
+        "sd_hint": "daytime kitchen counter, holding plate with homemade caramel pudding, proud smile, bright cheerful atmosphere"
+    },
+    {
+        "id": "d_357",
+        "category": "兴趣摸鱼",
+        "theme": "在公园长椅上写生画路过的柯基，结果它跑得太快，最后本子上只留下一团黄色模糊残影，觉得平凡的一天也悄悄亮了一点",
+        "elements": [
+            "公园写生",
+            "柯基",
+            "残影"
+        ],
+        "sd_hint": "daytime park bench with sketchbook and pencil, laughing at cute corgi, bright cheerful atmosphere"
+    },
+    {
+        "id": "d_358",
+        "category": "兴趣摸鱼",
+        "theme": "翻出吃灰半年的尤克里里调好音，弹了一段《小星星》变奏曲就觉得自己很厉害了，觉得平凡的一天也悄悄亮了一点",
+        "elements": [
+            "尤克里里",
+            "调音",
+            "小星星"
+        ],
+        "sd_hint": "daytime sunlit room sitting with ukulele, cheerful grin, bright cheerful atmosphere"
+    },
+    {
+        "id": "d_359",
+        "category": "穿搭分享",
+        "theme": "今天这件小裙子的袖口蝴蝶结系了三次才两边对称，强迫症出门前终于满意，觉得平凡的一天也悄悄亮了一点",
+        "elements": [
+            "袖口蝴蝶结",
+            "对称",
+            "穿搭"
+        ],
+        "sd_hint": "daytime full length mirror, adjusting sleeve ribbon bow, cute outfit, bright cheerful atmosphere"
+    },
+    {
+        "id": "d_360",
+        "category": "穿搭分享",
+        "theme": "新买的帆布包上别满了我收集的亚克力挂件，走路时叮叮当当响得像移动风铃，觉得平凡的一天也悄悄亮了一点",
+        "elements": [
+            "帆布包",
+            "吧唧挂件",
+            "移动风铃"
+        ],
+        "sd_hint": "daytime street, showing cute canvas tote bag covered in enamel pins and charms, bright cheerful atmosphere"
+    },
+    {
+        "id": "d_361",
+        "category": "奇思妙想",
+        "theme": "为什么每次刚洗完头发风就会特别大，而特意扎好造型那天偏偏一丝风都没有？，觉得平凡的一天也悄悄亮了一点",
+        "elements": [
+            "洗完头",
+            "起风定律",
+            "吐槽"
+        ],
+        "sd_hint": "daytime windy street, holding hair down with both hands, playful pout, bright cheerful atmosphere"
+    },
+    {
+        "id": "d_362",
+        "category": "奇思妙想",
+        "theme": "认真思考了一下，如果猫猫能听懂人话，它大概每天都在吐槽我打游戏太菜，觉得平凡的一天也悄悄亮了一点",
+        "elements": [
+            "猫猫视角",
+            "游戏吐槽",
+            "脑洞"
+        ],
+        "sd_hint": "daytime room looking at cat sitting next to keyboard, amused smile, bright cheerful atmosphere"
+    },
+    {
+        "id": "d_363",
+        "category": "宅家时光",
+        "theme": "下午三点的阳光斜斜铺在地板上，和抱枕一起滚成一团晒得暖洋洋的，觉得平凡的一天也悄悄亮了一点",
+        "elements": [
+            "下午茶阳光",
+            "抱枕",
+            "晒太阳"
+        ],
+        "sd_hint": "afternoon sunlit living room rug, hugging plush cushion, relaxed smile, bright cheerful atmosphere"
+    },
+    {
+        "id": "d_364",
+        "category": "宅家时光",
+        "theme": "把积攒的快递盒全拆平叠好拿去回收，空出来的墙角瞬间宽敞了一倍，觉得平凡的一天也悄悄亮了一点",
+        "elements": [
+            "拆快递",
+            "收纳整理",
+            "神清气爽"
+        ],
+        "sd_hint": "daytime tidy room, satisfied pose after organizing, bright cheerful atmosphere"
+    },
+    {
+        "id": "d_365",
+        "category": "游戏吐槽",
+        "theme": "打剧情关boss只剩最后一丝血时手柄没电了，那一秒心脏差点跟着停跳，觉得平凡的一天也悄悄亮了一点",
+        "elements": [
+            "手柄没电",
+            "残血翻车",
+            "心跳"
+        ],
+        "sd_hint": "daytime room holding game controller, shocked cute expression, bright cheerful atmosphere"
+    },
+    {
+        "id": "d_366",
+        "category": "游戏吐槽",
+        "theme": "抽卡前特意洗了手还换了吉利的背景音乐，结果真的十连双黄！玄学万岁！，觉得平凡的一天也悄悄亮了一点",
+        "elements": [
+            "抽卡玄学",
+            "十连双黄",
+            "欧气"
+        ],
+        "sd_hint": "daytime room holding phone with excited sparkling eyes, victory pose, bright cheerful atmosphere"
+    },
+    {
+        "id": "d_367",
+        "category": "街头奇遇",
+        "theme": "在自动贩卖机买饮料掉下来两罐一样的苏打水，今天的好运额度提前到账了，觉得平凡的一天也悄悄亮了一点",
+        "elements": [
+            "自动贩卖机",
+            "双倍掉落",
+            "好运"
+        ],
+        "sd_hint": "daytime street beside vending machine holding two soda cans, surprised happy face, bright cheerful atmosphere"
+    },
+    {
+        "id": "d_368",
+        "category": "街头奇遇",
+        "theme": "路过学校围墙外看到一排开得正盛的月季，风一吹花瓣飘了一肩膀，觉得平凡的一天也悄悄亮了一点",
+        "elements": [
+            "月季花墙",
+            "花瓣",
+            "散步"
+        ],
+        "sd_hint": "daytime walking beside blooming rose wall, petals floating in breeze, bright cheerful atmosphere"
+    },
+    {
+        "id": "d_369",
+        "category": "轻互动",
+        "theme": "大家平时写作业或工作的时候，喜欢放纯音乐当背景音还是彻底安静？，觉得平凡的一天也悄悄亮了一点",
+        "elements": [
+            "背景音习惯",
+            "纯音乐",
+            "轻提问"
+        ],
+        "sd_hint": "daytime cozy desk with headphones and notebook, curious head tilt, bright cheerful atmosphere"
+    },
+    {
+        "id": "d_370",
+        "category": "轻互动",
+        "theme": "夏天吃西瓜到底是从最甜的中间挖一勺，还是老老实实切成三角一块块啃？，觉得平凡的一天也悄悄亮了一点",
+        "elements": [
+            "吃西瓜流派",
+            "夏天",
+            "互动"
+        ],
+        "sd_hint": "daytime porch holding chilled watermelon slice, cheerful smile, bright cheerful atmosphere"
+    },
+    {
+        "id": "d_371",
+        "category": "学习充电",
+        "theme": "整理完歌单里二十首想练的新歌，标记好了高音和换气点，准备本周逐个击破，觉得平凡的一天也悄悄亮了一点",
+        "elements": [
+            "练歌笔记",
+            "换气点",
+            "自律"
+        ],
+        "sd_hint": "daytime desk with printed lyrics sheet and highlighter pen, focused expression, bright cheerful atmosphere"
+    },
+    {
+        "id": "d_372",
+        "category": "学习充电",
+        "theme": "花半小时学了个新的剪辑转场特效，试着用在自己的日常小视频里居然超丝滑，觉得平凡的一天也悄悄亮了一点",
+        "elements": [
+            "视频剪辑",
+            "转场特效",
+            "新技能"
+        ],
+        "sd_hint": "daytime desk looking at video timeline on laptop, proud cute smile, bright cheerful atmosphere"
+    },
+    {
+        "id": "d_373",
+        "category": "零食时间",
+        "theme": "拆开新买的海盐芝士味小饼干，咸咸甜甜的配冰乌龙茶简直停不下来，觉得平凡的一天也悄悄亮了一点",
+        "elements": [
+            "海盐芝士饼干",
+            "冰乌龙茶",
+            "下午茶"
+        ],
+        "sd_hint": "daytime cafe table with cheese biscuits and iced oolong tea, bright cheerful atmosphere"
+    },
+    {
+        "id": "d_374",
+        "category": "零食时间",
+        "theme": "超市试吃员阿姨塞给我半块刚烤好的蛋挞，脆脆酥酥的当场就买了一整盒回家，觉得平凡的一天也悄悄亮了一点",
+        "elements": [
+            "刚烤蛋挞",
+            "试吃",
+            "满载而归"
+        ],
+        "sd_hint": "daytime holding bakery box of egg tarts, happy beaming smile, bright cheerful atmosphere"
+    },
+    {
+        "id": "d_375",
+        "category": "情绪记录",
+        "theme": "今天没定闹钟也没赶时间，慢吞吞做完一件小事的感觉原来这么踏实，觉得平凡的一天也悄悄亮了一点",
+        "elements": [
+            "慢节奏",
+            "不赶时间",
+            "踏实"
+        ],
+        "sd_hint": "daytime sunny park path, strolling leisurely with gentle peaceful smile, bright cheerful atmosphere"
+    },
+    {
+        "id": "d_376",
+        "category": "Vtuber日常",
+        "theme": "测试新买的防喷罩时不小心对着麦打了个小喷嚏，还好只是本地试音没开播！，忍不住想把这个瞬间存进今天的记忆里",
+        "elements": [
+            "防喷罩",
+            "试音",
+            "小社死"
+        ],
+        "sd_hint": "indoor streaming desk, microphone with pop filter, blushing embarrassed cute face, aesthetic candid angle"
+    },
+    {
+        "id": "d_377",
+        "category": "Vtuber日常",
+        "theme": "花一下午给直播间待机画面换了套新贴纸排版，小星星和云朵摆完超有成就感，忍不住想把这个瞬间存进今天的记忆里",
+        "elements": [
+            "待机画面",
+            "贴纸排版",
+            "直播准备"
+        ],
+        "sd_hint": "indoor desk, dual monitors showing cute stream overlay layout, happy smile, aesthetic candid angle"
+    },
+    {
+        "id": "d_378",
+        "category": "少女日常",
+        "theme": "今天逛文具店本来只买一根中性笔，结果出来手里多了三卷胶带和一本网格本，忍不住想把这个瞬间存进今天的记忆里",
+        "elements": [
+            "文具店",
+            "和纸胶带",
+            "网格本"
+        ],
+        "sd_hint": "daytime stationery shop, holding cute washi tapes and notebook, cheerful smile, aesthetic candid angle"
+    },
+    {
+        "id": "d_379",
+        "category": "少女日常",
+        "theme": "把奶茶里的珍珠咬完之后发现杯底还剩半杯奶，于是又陷入要不要再买一份小料的纠结，忍不住想把这个瞬间存进今天的记忆里",
+        "elements": [
+            "奶茶珍珠",
+            "小料纠结",
+            "日常"
+        ],
+        "sd_hint": "daytime cafe, holding half-empty boba cup, thinking cute expression, aesthetic candid angle"
+    },
+    {
+        "id": "d_380",
+        "category": "美食探店",
+        "theme": "巷口新开的可丽饼小店居然有草莓卡仕达口味，饼皮软乎乎的一口咬下去超幸福，忍不住想把这个瞬间存进今天的记忆里",
+        "elements": [
+            "可丽饼",
+            "草莓卡仕达",
+            "甜品"
+        ],
+        "sd_hint": "daytime street outside dessert shop holding strawberry crepe, delighted face, aesthetic candid angle"
+    },
+    {
+        "id": "d_381",
+        "category": "美食探店",
+        "theme": "挑战自己做了一次焦糖布丁，虽然卖相有点歪歪扭扭但味道竟然完全不输甜品店！，忍不住想把这个瞬间存进今天的记忆里",
+        "elements": [
+            "自制布丁",
+            "焦糖",
+            "烘焙成功"
+        ],
+        "sd_hint": "daytime kitchen counter, holding plate with homemade caramel pudding, proud smile, aesthetic candid angle"
+    },
+    {
+        "id": "d_382",
+        "category": "兴趣摸鱼",
+        "theme": "在公园长椅上写生画路过的柯基，结果它跑得太快，最后本子上只留下一团黄色模糊残影，忍不住想把这个瞬间存进今天的记忆里",
+        "elements": [
+            "公园写生",
+            "柯基",
+            "残影"
+        ],
+        "sd_hint": "daytime park bench with sketchbook and pencil, laughing at cute corgi, aesthetic candid angle"
+    },
+    {
+        "id": "d_383",
+        "category": "兴趣摸鱼",
+        "theme": "翻出吃灰半年的尤克里里调好音，弹了一段《小星星》变奏曲就觉得自己很厉害了，忍不住想把这个瞬间存进今天的记忆里",
+        "elements": [
+            "尤克里里",
+            "调音",
+            "小星星"
+        ],
+        "sd_hint": "daytime sunlit room sitting with ukulele, cheerful grin, aesthetic candid angle"
+    },
+    {
+        "id": "d_384",
+        "category": "穿搭分享",
+        "theme": "今天这件小裙子的袖口蝴蝶结系了三次才两边对称，强迫症出门前终于满意，忍不住想把这个瞬间存进今天的记忆里",
+        "elements": [
+            "袖口蝴蝶结",
+            "对称",
+            "穿搭"
+        ],
+        "sd_hint": "daytime full length mirror, adjusting sleeve ribbon bow, cute outfit, aesthetic candid angle"
+    },
+    {
+        "id": "d_385",
+        "category": "穿搭分享",
+        "theme": "新买的帆布包上别满了我收集的亚克力挂件，走路时叮叮当当响得像移动风铃，忍不住想把这个瞬间存进今天的记忆里",
+        "elements": [
+            "帆布包",
+            "吧唧挂件",
+            "移动风铃"
+        ],
+        "sd_hint": "daytime street, showing cute canvas tote bag covered in enamel pins and charms, aesthetic candid angle"
+    },
+    {
+        "id": "d_386",
+        "category": "奇思妙想",
+        "theme": "为什么每次刚洗完头发风就会特别大，而特意扎好造型那天偏偏一丝风都没有？，忍不住想把这个瞬间存进今天的记忆里",
+        "elements": [
+            "洗完头",
+            "起风定律",
+            "吐槽"
+        ],
+        "sd_hint": "daytime windy street, holding hair down with both hands, playful pout, aesthetic candid angle"
+    },
+    {
+        "id": "d_387",
+        "category": "奇思妙想",
+        "theme": "认真思考了一下，如果猫猫能听懂人话，它大概每天都在吐槽我打游戏太菜，忍不住想把这个瞬间存进今天的记忆里",
+        "elements": [
+            "猫猫视角",
+            "游戏吐槽",
+            "脑洞"
+        ],
+        "sd_hint": "daytime room looking at cat sitting next to keyboard, amused smile, aesthetic candid angle"
+    },
+    {
+        "id": "d_388",
+        "category": "宅家时光",
+        "theme": "下午三点的阳光斜斜铺在地板上，和抱枕一起滚成一团晒得暖洋洋的，忍不住想把这个瞬间存进今天的记忆里",
+        "elements": [
+            "下午茶阳光",
+            "抱枕",
+            "晒太阳"
+        ],
+        "sd_hint": "afternoon sunlit living room rug, hugging plush cushion, relaxed smile, aesthetic candid angle"
+    },
+    {
+        "id": "d_389",
+        "category": "宅家时光",
+        "theme": "把积攒的快递盒全拆平叠好拿去回收，空出来的墙角瞬间宽敞了一倍，忍不住想把这个瞬间存进今天的记忆里",
+        "elements": [
+            "拆快递",
+            "收纳整理",
+            "神清气爽"
+        ],
+        "sd_hint": "daytime tidy room, satisfied pose after organizing, aesthetic candid angle"
+    },
+    {
+        "id": "d_390",
+        "category": "游戏吐槽",
+        "theme": "打剧情关boss只剩最后一丝血时手柄没电了，那一秒心脏差点跟着停跳，忍不住想把这个瞬间存进今天的记忆里",
+        "elements": [
+            "手柄没电",
+            "残血翻车",
+            "心跳"
+        ],
+        "sd_hint": "daytime room holding game controller, shocked cute expression, aesthetic candid angle"
+    },
+    {
+        "id": "d_391",
+        "category": "游戏吐槽",
+        "theme": "抽卡前特意洗了手还换了吉利的背景音乐，结果真的十连双黄！玄学万岁！，忍不住想把这个瞬间存进今天的记忆里",
+        "elements": [
+            "抽卡玄学",
+            "十连双黄",
+            "欧气"
+        ],
+        "sd_hint": "daytime room holding phone with excited sparkling eyes, victory pose, aesthetic candid angle"
+    },
+    {
+        "id": "d_392",
+        "category": "街头奇遇",
+        "theme": "在自动贩卖机买饮料掉下来两罐一样的苏打水，今天的好运额度提前到账了，忍不住想把这个瞬间存进今天的记忆里",
+        "elements": [
+            "自动贩卖机",
+            "双倍掉落",
+            "好运"
+        ],
+        "sd_hint": "daytime street beside vending machine holding two soda cans, surprised happy face, aesthetic candid angle"
+    },
+    {
+        "id": "d_393",
+        "category": "街头奇遇",
+        "theme": "路过学校围墙外看到一排开得正盛的月季，风一吹花瓣飘了一肩膀，忍不住想把这个瞬间存进今天的记忆里",
+        "elements": [
+            "月季花墙",
+            "花瓣",
+            "散步"
+        ],
+        "sd_hint": "daytime walking beside blooming rose wall, petals floating in breeze, aesthetic candid angle"
+    },
+    {
+        "id": "d_394",
+        "category": "轻互动",
+        "theme": "大家平时写作业或工作的时候，喜欢放纯音乐当背景音还是彻底安静？，忍不住想把这个瞬间存进今天的记忆里",
+        "elements": [
+            "背景音习惯",
+            "纯音乐",
+            "轻提问"
+        ],
+        "sd_hint": "daytime cozy desk with headphones and notebook, curious head tilt, aesthetic candid angle"
+    },
+    {
+        "id": "d_395",
+        "category": "轻互动",
+        "theme": "夏天吃西瓜到底是从最甜的中间挖一勺，还是老老实实切成三角一块块啃？，忍不住想把这个瞬间存进今天的记忆里",
+        "elements": [
+            "吃西瓜流派",
+            "夏天",
+            "互动"
+        ],
+        "sd_hint": "daytime porch holding chilled watermelon slice, cheerful smile, aesthetic candid angle"
+    },
+    {
+        "id": "d_396",
+        "category": "学习充电",
+        "theme": "整理完歌单里二十首想练的新歌，标记好了高音和换气点，准备本周逐个击破，忍不住想把这个瞬间存进今天的记忆里",
+        "elements": [
+            "练歌笔记",
+            "换气点",
+            "自律"
+        ],
+        "sd_hint": "daytime desk with printed lyrics sheet and highlighter pen, focused expression, aesthetic candid angle"
+    },
+    {
+        "id": "d_397",
+        "category": "学习充电",
+        "theme": "花半小时学了个新的剪辑转场特效，试着用在自己的日常小视频里居然超丝滑，忍不住想把这个瞬间存进今天的记忆里",
+        "elements": [
+            "视频剪辑",
+            "转场特效",
+            "新技能"
+        ],
+        "sd_hint": "daytime desk looking at video timeline on laptop, proud cute smile, aesthetic candid angle"
+    },
+    {
+        "id": "d_398",
+        "category": "零食时间",
+        "theme": "拆开新买的海盐芝士味小饼干，咸咸甜甜的配冰乌龙茶简直停不下来，忍不住想把这个瞬间存进今天的记忆里",
+        "elements": [
+            "海盐芝士饼干",
+            "冰乌龙茶",
+            "下午茶"
+        ],
+        "sd_hint": "daytime cafe table with cheese biscuits and iced oolong tea, aesthetic candid angle"
+    },
+    {
+        "id": "d_399",
+        "category": "零食时间",
+        "theme": "超市试吃员阿姨塞给我半块刚烤好的蛋挞，脆脆酥酥的当场就买了一整盒回家，忍不住想把这个瞬间存进今天的记忆里",
+        "elements": [
+            "刚烤蛋挞",
+            "试吃",
+            "满载而归"
+        ],
+        "sd_hint": "daytime holding bakery box of egg tarts, happy beaming smile, aesthetic candid angle"
+    },
+    {
+        "id": "d_400",
+        "category": "情绪记录",
+        "theme": "今天没定闹钟也没赶时间，慢吞吞做完一件小事的感觉原来这么踏实，忍不住想把这个瞬间存进今天的记忆里",
+        "elements": [
+            "慢节奏",
+            "不赶时间",
+            "踏实"
+        ],
+        "sd_hint": "daytime sunny park path, strolling leisurely with gentle peaceful smile, aesthetic candid angle"
+    },
+    {
+        "id": "d_401",
+        "category": "Vtuber日常",
+        "theme": "测试新买的防喷罩时不小心对着麦打了个小喷嚏，还好只是本地试音没开播！，虽然只是件小事但真的挺有意思的",
+        "elements": [
+            "防喷罩",
+            "试音",
+            "小社死"
+        ],
+        "sd_hint": "indoor streaming desk, microphone with pop filter, blushing embarrassed cute face, playful candid expression"
+    },
+    {
+        "id": "d_402",
+        "category": "Vtuber日常",
+        "theme": "花一下午给直播间待机画面换了套新贴纸排版，小星星和云朵摆完超有成就感，虽然只是件小事但真的挺有意思的",
+        "elements": [
+            "待机画面",
+            "贴纸排版",
+            "直播准备"
+        ],
+        "sd_hint": "indoor desk, dual monitors showing cute stream overlay layout, happy smile, playful candid expression"
+    },
+    {
+        "id": "d_403",
+        "category": "少女日常",
+        "theme": "今天逛文具店本来只买一根中性笔，结果出来手里多了三卷胶带和一本网格本，虽然只是件小事但真的挺有意思的",
+        "elements": [
+            "文具店",
+            "和纸胶带",
+            "网格本"
+        ],
+        "sd_hint": "daytime stationery shop, holding cute washi tapes and notebook, cheerful smile, playful candid expression"
+    },
+    {
+        "id": "d_404",
+        "category": "少女日常",
+        "theme": "把奶茶里的珍珠咬完之后发现杯底还剩半杯奶，于是又陷入要不要再买一份小料的纠结，虽然只是件小事但真的挺有意思的",
+        "elements": [
+            "奶茶珍珠",
+            "小料纠结",
+            "日常"
+        ],
+        "sd_hint": "daytime cafe, holding half-empty boba cup, thinking cute expression, playful candid expression"
+    },
+    {
+        "id": "d_405",
+        "category": "美食探店",
+        "theme": "巷口新开的可丽饼小店居然有草莓卡仕达口味，饼皮软乎乎的一口咬下去超幸福，虽然只是件小事但真的挺有意思的",
+        "elements": [
+            "可丽饼",
+            "草莓卡仕达",
+            "甜品"
+        ],
+        "sd_hint": "daytime street outside dessert shop holding strawberry crepe, delighted face, playful candid expression"
+    },
+    {
+        "id": "d_406",
+        "category": "美食探店",
+        "theme": "挑战自己做了一次焦糖布丁，虽然卖相有点歪歪扭扭但味道竟然完全不输甜品店！，虽然只是件小事但真的挺有意思的",
+        "elements": [
+            "自制布丁",
+            "焦糖",
+            "烘焙成功"
+        ],
+        "sd_hint": "daytime kitchen counter, holding plate with homemade caramel pudding, proud smile, playful candid expression"
+    },
+    {
+        "id": "d_407",
+        "category": "兴趣摸鱼",
+        "theme": "在公园长椅上写生画路过的柯基，结果它跑得太快，最后本子上只留下一团黄色模糊残影，虽然只是件小事但真的挺有意思的",
+        "elements": [
+            "公园写生",
+            "柯基",
+            "残影"
+        ],
+        "sd_hint": "daytime park bench with sketchbook and pencil, laughing at cute corgi, playful candid expression"
+    },
+    {
+        "id": "d_408",
+        "category": "兴趣摸鱼",
+        "theme": "翻出吃灰半年的尤克里里调好音，弹了一段《小星星》变奏曲就觉得自己很厉害了，虽然只是件小事但真的挺有意思的",
+        "elements": [
+            "尤克里里",
+            "调音",
+            "小星星"
+        ],
+        "sd_hint": "daytime sunlit room sitting with ukulele, cheerful grin, playful candid expression"
+    },
+    {
+        "id": "d_409",
+        "category": "穿搭分享",
+        "theme": "今天这件小裙子的袖口蝴蝶结系了三次才两边对称，强迫症出门前终于满意，虽然只是件小事但真的挺有意思的",
+        "elements": [
+            "袖口蝴蝶结",
+            "对称",
+            "穿搭"
+        ],
+        "sd_hint": "daytime full length mirror, adjusting sleeve ribbon bow, cute outfit, playful candid expression"
+    },
+    {
+        "id": "d_410",
+        "category": "穿搭分享",
+        "theme": "新买的帆布包上别满了我收集的亚克力挂件，走路时叮叮当当响得像移动风铃，虽然只是件小事但真的挺有意思的",
+        "elements": [
+            "帆布包",
+            "吧唧挂件",
+            "移动风铃"
+        ],
+        "sd_hint": "daytime street, showing cute canvas tote bag covered in enamel pins and charms, playful candid expression"
+    },
+    {
+        "id": "d_411",
+        "category": "奇思妙想",
+        "theme": "为什么每次刚洗完头发风就会特别大，而特意扎好造型那天偏偏一丝风都没有？，虽然只是件小事但真的挺有意思的",
+        "elements": [
+            "洗完头",
+            "起风定律",
+            "吐槽"
+        ],
+        "sd_hint": "daytime windy street, holding hair down with both hands, playful pout, playful candid expression"
+    },
+    {
+        "id": "d_412",
+        "category": "奇思妙想",
+        "theme": "认真思考了一下，如果猫猫能听懂人话，它大概每天都在吐槽我打游戏太菜，虽然只是件小事但真的挺有意思的",
+        "elements": [
+            "猫猫视角",
+            "游戏吐槽",
+            "脑洞"
+        ],
+        "sd_hint": "daytime room looking at cat sitting next to keyboard, amused smile, playful candid expression"
+    },
+    {
+        "id": "d_413",
+        "category": "宅家时光",
+        "theme": "下午三点的阳光斜斜铺在地板上，和抱枕一起滚成一团晒得暖洋洋的，虽然只是件小事但真的挺有意思的",
+        "elements": [
+            "下午茶阳光",
+            "抱枕",
+            "晒太阳"
+        ],
+        "sd_hint": "afternoon sunlit living room rug, hugging plush cushion, relaxed smile, playful candid expression"
+    },
+    {
+        "id": "d_414",
+        "category": "宅家时光",
+        "theme": "把积攒的快递盒全拆平叠好拿去回收，空出来的墙角瞬间宽敞了一倍，虽然只是件小事但真的挺有意思的",
+        "elements": [
+            "拆快递",
+            "收纳整理",
+            "神清气爽"
+        ],
+        "sd_hint": "daytime tidy room, satisfied pose after organizing, playful candid expression"
+    },
+    {
+        "id": "d_415",
+        "category": "游戏吐槽",
+        "theme": "打剧情关boss只剩最后一丝血时手柄没电了，那一秒心脏差点跟着停跳，虽然只是件小事但真的挺有意思的",
+        "elements": [
+            "手柄没电",
+            "残血翻车",
+            "心跳"
+        ],
+        "sd_hint": "daytime room holding game controller, shocked cute expression, playful candid expression"
+    },
+    {
+        "id": "d_416",
+        "category": "游戏吐槽",
+        "theme": "抽卡前特意洗了手还换了吉利的背景音乐，结果真的十连双黄！玄学万岁！，虽然只是件小事但真的挺有意思的",
+        "elements": [
+            "抽卡玄学",
+            "十连双黄",
+            "欧气"
+        ],
+        "sd_hint": "daytime room holding phone with excited sparkling eyes, victory pose, playful candid expression"
+    },
+    {
+        "id": "d_417",
+        "category": "街头奇遇",
+        "theme": "在自动贩卖机买饮料掉下来两罐一样的苏打水，今天的好运额度提前到账了，虽然只是件小事但真的挺有意思的",
+        "elements": [
+            "自动贩卖机",
+            "双倍掉落",
+            "好运"
+        ],
+        "sd_hint": "daytime street beside vending machine holding two soda cans, surprised happy face, playful candid expression"
+    },
+    {
+        "id": "d_418",
+        "category": "街头奇遇",
+        "theme": "路过学校围墙外看到一排开得正盛的月季，风一吹花瓣飘了一肩膀，虽然只是件小事但真的挺有意思的",
+        "elements": [
+            "月季花墙",
+            "花瓣",
+            "散步"
+        ],
+        "sd_hint": "daytime walking beside blooming rose wall, petals floating in breeze, playful candid expression"
+    },
+    {
+        "id": "d_419",
+        "category": "轻互动",
+        "theme": "大家平时写作业或工作的时候，喜欢放纯音乐当背景音还是彻底安静？，虽然只是件小事但真的挺有意思的",
+        "elements": [
+            "背景音习惯",
+            "纯音乐",
+            "轻提问"
+        ],
+        "sd_hint": "daytime cozy desk with headphones and notebook, curious head tilt, playful candid expression"
+    },
+    {
+        "id": "d_420",
+        "category": "轻互动",
+        "theme": "夏天吃西瓜到底是从最甜的中间挖一勺，还是老老实实切成三角一块块啃？，虽然只是件小事但真的挺有意思的",
+        "elements": [
+            "吃西瓜流派",
+            "夏天",
+            "互动"
+        ],
+        "sd_hint": "daytime porch holding chilled watermelon slice, cheerful smile, playful candid expression"
+    },
+    {
+        "id": "d_421",
+        "category": "学习充电",
+        "theme": "整理完歌单里二十首想练的新歌，标记好了高音和换气点，准备本周逐个击破，虽然只是件小事但真的挺有意思的",
+        "elements": [
+            "练歌笔记",
+            "换气点",
+            "自律"
+        ],
+        "sd_hint": "daytime desk with printed lyrics sheet and highlighter pen, focused expression, playful candid expression"
+    },
+    {
+        "id": "d_422",
+        "category": "学习充电",
+        "theme": "花半小时学了个新的剪辑转场特效，试着用在自己的日常小视频里居然超丝滑，虽然只是件小事但真的挺有意思的",
+        "elements": [
+            "视频剪辑",
+            "转场特效",
+            "新技能"
+        ],
+        "sd_hint": "daytime desk looking at video timeline on laptop, proud cute smile, playful candid expression"
+    },
+    {
+        "id": "d_423",
+        "category": "零食时间",
+        "theme": "拆开新买的海盐芝士味小饼干，咸咸甜甜的配冰乌龙茶简直停不下来，虽然只是件小事但真的挺有意思的",
+        "elements": [
+            "海盐芝士饼干",
+            "冰乌龙茶",
+            "下午茶"
+        ],
+        "sd_hint": "daytime cafe table with cheese biscuits and iced oolong tea, playful candid expression"
+    },
+    {
+        "id": "d_424",
+        "category": "零食时间",
+        "theme": "超市试吃员阿姨塞给我半块刚烤好的蛋挞，脆脆酥酥的当场就买了一整盒回家，虽然只是件小事但真的挺有意思的",
+        "elements": [
+            "刚烤蛋挞",
+            "试吃",
+            "满载而归"
+        ],
+        "sd_hint": "daytime holding bakery box of egg tarts, happy beaming smile, playful candid expression"
+    },
+    {
+        "id": "d_425",
+        "category": "情绪记录",
+        "theme": "今天没定闹钟也没赶时间，慢吞吞做完一件小事的感觉原来这么踏实，虽然只是件小事但真的挺有意思的",
+        "elements": [
+            "慢节奏",
+            "不赶时间",
+            "踏实"
+        ],
+        "sd_hint": "daytime sunny park path, strolling leisurely with gentle peaceful smile, playful candid expression"
+    },
+    {
+        "id": "d_426",
+        "category": "Vtuber日常",
+        "theme": "测试新买的防喷罩时不小心对着麦打了个小喷嚏，还好只是本地试音没开播！，心里像冒泡汽水一样咕嘟咕嘟地开心起来",
+        "elements": [
+            "防喷罩",
+            "试音",
+            "小社死"
+        ],
+        "sd_hint": "indoor streaming desk, microphone with pop filter, blushing embarrassed cute face, sparkling happy mood"
+    },
+    {
+        "id": "d_427",
+        "category": "Vtuber日常",
+        "theme": "花一下午给直播间待机画面换了套新贴纸排版，小星星和云朵摆完超有成就感，心里像冒泡汽水一样咕嘟咕嘟地开心起来",
+        "elements": [
+            "待机画面",
+            "贴纸排版",
+            "直播准备"
+        ],
+        "sd_hint": "indoor desk, dual monitors showing cute stream overlay layout, happy smile, sparkling happy mood"
+    },
+    {
+        "id": "d_428",
+        "category": "少女日常",
+        "theme": "今天逛文具店本来只买一根中性笔，结果出来手里多了三卷胶带和一本网格本，心里像冒泡汽水一样咕嘟咕嘟地开心起来",
+        "elements": [
+            "文具店",
+            "和纸胶带",
+            "网格本"
+        ],
+        "sd_hint": "daytime stationery shop, holding cute washi tapes and notebook, cheerful smile, sparkling happy mood"
+    },
+    {
+        "id": "d_429",
+        "category": "少女日常",
+        "theme": "把奶茶里的珍珠咬完之后发现杯底还剩半杯奶，于是又陷入要不要再买一份小料的纠结，心里像冒泡汽水一样咕嘟咕嘟地开心起来",
+        "elements": [
+            "奶茶珍珠",
+            "小料纠结",
+            "日常"
+        ],
+        "sd_hint": "daytime cafe, holding half-empty boba cup, thinking cute expression, sparkling happy mood"
+    },
+    {
+        "id": "d_430",
+        "category": "美食探店",
+        "theme": "巷口新开的可丽饼小店居然有草莓卡仕达口味，饼皮软乎乎的一口咬下去超幸福，心里像冒泡汽水一样咕嘟咕嘟地开心起来",
+        "elements": [
+            "可丽饼",
+            "草莓卡仕达",
+            "甜品"
+        ],
+        "sd_hint": "daytime street outside dessert shop holding strawberry crepe, delighted face, sparkling happy mood"
+    },
+    {
+        "id": "d_431",
+        "category": "美食探店",
+        "theme": "挑战自己做了一次焦糖布丁，虽然卖相有点歪歪扭扭但味道竟然完全不输甜品店！，心里像冒泡汽水一样咕嘟咕嘟地开心起来",
+        "elements": [
+            "自制布丁",
+            "焦糖",
+            "烘焙成功"
+        ],
+        "sd_hint": "daytime kitchen counter, holding plate with homemade caramel pudding, proud smile, sparkling happy mood"
+    },
+    {
+        "id": "d_432",
+        "category": "兴趣摸鱼",
+        "theme": "在公园长椅上写生画路过的柯基，结果它跑得太快，最后本子上只留下一团黄色模糊残影，心里像冒泡汽水一样咕嘟咕嘟地开心起来",
+        "elements": [
+            "公园写生",
+            "柯基",
+            "残影"
+        ],
+        "sd_hint": "daytime park bench with sketchbook and pencil, laughing at cute corgi, sparkling happy mood"
+    },
+    {
+        "id": "d_433",
+        "category": "兴趣摸鱼",
+        "theme": "翻出吃灰半年的尤克里里调好音，弹了一段《小星星》变奏曲就觉得自己很厉害了，心里像冒泡汽水一样咕嘟咕嘟地开心起来",
+        "elements": [
+            "尤克里里",
+            "调音",
+            "小星星"
+        ],
+        "sd_hint": "daytime sunlit room sitting with ukulele, cheerful grin, sparkling happy mood"
+    },
+    {
+        "id": "d_434",
+        "category": "穿搭分享",
+        "theme": "今天这件小裙子的袖口蝴蝶结系了三次才两边对称，强迫症出门前终于满意，心里像冒泡汽水一样咕嘟咕嘟地开心起来",
+        "elements": [
+            "袖口蝴蝶结",
+            "对称",
+            "穿搭"
+        ],
+        "sd_hint": "daytime full length mirror, adjusting sleeve ribbon bow, cute outfit, sparkling happy mood"
+    },
+    {
+        "id": "d_435",
+        "category": "穿搭分享",
+        "theme": "新买的帆布包上别满了我收集的亚克力挂件，走路时叮叮当当响得像移动风铃，心里像冒泡汽水一样咕嘟咕嘟地开心起来",
+        "elements": [
+            "帆布包",
+            "吧唧挂件",
+            "移动风铃"
+        ],
+        "sd_hint": "daytime street, showing cute canvas tote bag covered in enamel pins and charms, sparkling happy mood"
+    },
+    {
+        "id": "d_436",
+        "category": "奇思妙想",
+        "theme": "为什么每次刚洗完头发风就会特别大，而特意扎好造型那天偏偏一丝风都没有？，心里像冒泡汽水一样咕嘟咕嘟地开心起来",
+        "elements": [
+            "洗完头",
+            "起风定律",
+            "吐槽"
+        ],
+        "sd_hint": "daytime windy street, holding hair down with both hands, playful pout, sparkling happy mood"
+    },
+    {
+        "id": "d_437",
+        "category": "奇思妙想",
+        "theme": "认真思考了一下，如果猫猫能听懂人话，它大概每天都在吐槽我打游戏太菜，心里像冒泡汽水一样咕嘟咕嘟地开心起来",
+        "elements": [
+            "猫猫视角",
+            "游戏吐槽",
+            "脑洞"
+        ],
+        "sd_hint": "daytime room looking at cat sitting next to keyboard, amused smile, sparkling happy mood"
+    },
+    {
+        "id": "d_438",
+        "category": "宅家时光",
+        "theme": "下午三点的阳光斜斜铺在地板上，和抱枕一起滚成一团晒得暖洋洋的，心里像冒泡汽水一样咕嘟咕嘟地开心起来",
+        "elements": [
+            "下午茶阳光",
+            "抱枕",
+            "晒太阳"
+        ],
+        "sd_hint": "afternoon sunlit living room rug, hugging plush cushion, relaxed smile, sparkling happy mood"
+    },
+    {
+        "id": "d_439",
+        "category": "宅家时光",
+        "theme": "把积攒的快递盒全拆平叠好拿去回收，空出来的墙角瞬间宽敞了一倍，心里像冒泡汽水一样咕嘟咕嘟地开心起来",
+        "elements": [
+            "拆快递",
+            "收纳整理",
+            "神清气爽"
+        ],
+        "sd_hint": "daytime tidy room, satisfied pose after organizing, sparkling happy mood"
+    },
+    {
+        "id": "d_440",
+        "category": "游戏吐槽",
+        "theme": "打剧情关boss只剩最后一丝血时手柄没电了，那一秒心脏差点跟着停跳，心里像冒泡汽水一样咕嘟咕嘟地开心起来",
+        "elements": [
+            "手柄没电",
+            "残血翻车",
+            "心跳"
+        ],
+        "sd_hint": "daytime room holding game controller, shocked cute expression, sparkling happy mood"
+    },
+    {
+        "id": "d_441",
+        "category": "游戏吐槽",
+        "theme": "抽卡前特意洗了手还换了吉利的背景音乐，结果真的十连双黄！玄学万岁！，心里像冒泡汽水一样咕嘟咕嘟地开心起来",
+        "elements": [
+            "抽卡玄学",
+            "十连双黄",
+            "欧气"
+        ],
+        "sd_hint": "daytime room holding phone with excited sparkling eyes, victory pose, sparkling happy mood"
+    },
+    {
+        "id": "d_442",
+        "category": "街头奇遇",
+        "theme": "在自动贩卖机买饮料掉下来两罐一样的苏打水，今天的好运额度提前到账了，心里像冒泡汽水一样咕嘟咕嘟地开心起来",
+        "elements": [
+            "自动贩卖机",
+            "双倍掉落",
+            "好运"
+        ],
+        "sd_hint": "daytime street beside vending machine holding two soda cans, surprised happy face, sparkling happy mood"
+    },
+    {
+        "id": "d_443",
+        "category": "街头奇遇",
+        "theme": "路过学校围墙外看到一排开得正盛的月季，风一吹花瓣飘了一肩膀，心里像冒泡汽水一样咕嘟咕嘟地开心起来",
+        "elements": [
+            "月季花墙",
+            "花瓣",
+            "散步"
+        ],
+        "sd_hint": "daytime walking beside blooming rose wall, petals floating in breeze, sparkling happy mood"
+    },
+    {
+        "id": "d_444",
+        "category": "轻互动",
+        "theme": "大家平时写作业或工作的时候，喜欢放纯音乐当背景音还是彻底安静？，心里像冒泡汽水一样咕嘟咕嘟地开心起来",
+        "elements": [
+            "背景音习惯",
+            "纯音乐",
+            "轻提问"
+        ],
+        "sd_hint": "daytime cozy desk with headphones and notebook, curious head tilt, sparkling happy mood"
+    },
+    {
+        "id": "d_445",
+        "category": "轻互动",
+        "theme": "夏天吃西瓜到底是从最甜的中间挖一勺，还是老老实实切成三角一块块啃？，心里像冒泡汽水一样咕嘟咕嘟地开心起来",
+        "elements": [
+            "吃西瓜流派",
+            "夏天",
+            "互动"
+        ],
+        "sd_hint": "daytime porch holding chilled watermelon slice, cheerful smile, sparkling happy mood"
+    },
+    {
+        "id": "d_446",
+        "category": "学习充电",
+        "theme": "整理完歌单里二十首想练的新歌，标记好了高音和换气点，准备本周逐个击破，心里像冒泡汽水一样咕嘟咕嘟地开心起来",
+        "elements": [
+            "练歌笔记",
+            "换气点",
+            "自律"
+        ],
+        "sd_hint": "daytime desk with printed lyrics sheet and highlighter pen, focused expression, sparkling happy mood"
+    },
+    {
+        "id": "d_447",
+        "category": "学习充电",
+        "theme": "花半小时学了个新的剪辑转场特效，试着用在自己的日常小视频里居然超丝滑，心里像冒泡汽水一样咕嘟咕嘟地开心起来",
+        "elements": [
+            "视频剪辑",
+            "转场特效",
+            "新技能"
+        ],
+        "sd_hint": "daytime desk looking at video timeline on laptop, proud cute smile, sparkling happy mood"
+    },
+    {
+        "id": "d_448",
+        "category": "零食时间",
+        "theme": "拆开新买的海盐芝士味小饼干，咸咸甜甜的配冰乌龙茶简直停不下来，心里像冒泡汽水一样咕嘟咕嘟地开心起来",
+        "elements": [
+            "海盐芝士饼干",
+            "冰乌龙茶",
+            "下午茶"
+        ],
+        "sd_hint": "daytime cafe table with cheese biscuits and iced oolong tea, sparkling happy mood"
+    },
+    {
+        "id": "d_449",
+        "category": "零食时间",
+        "theme": "超市试吃员阿姨塞给我半块刚烤好的蛋挞，脆脆酥酥的当场就买了一整盒回家，心里像冒泡汽水一样咕嘟咕嘟地开心起来",
+        "elements": [
+            "刚烤蛋挞",
+            "试吃",
+            "满载而归"
+        ],
+        "sd_hint": "daytime holding bakery box of egg tarts, happy beaming smile, sparkling happy mood"
+    },
+    {
+        "id": "d_450",
+        "category": "情绪记录",
+        "theme": "今天没定闹钟也没赶时间，慢吞吞做完一件小事的感觉原来这么踏实，心里像冒泡汽水一样咕嘟咕嘟地开心起来",
+        "elements": [
+            "慢节奏",
+            "不赶时间",
+            "踏实"
+        ],
+        "sd_hint": "daytime sunny park path, strolling leisurely with gentle peaceful smile, sparkling happy mood"
+    },
 ]
 
 
@@ -11103,7 +16611,7 @@ POST_STRUCTURE_ARCHETYPES = [
 
         "description": "【真实情绪直球】：情绪走在最前面，脱口而出的真实感叹或哀嚎，不绕弯子，像对着空气自言自语。",
 
-        "examples": "“完蛋，完全不想动弹。” / “啊！世界上怎么会有烤红薯这么香的东西啊！” / “不知不觉就已经这个点了，时间到底是被谁偷走的…” / “救命，这个指甲油颜色到底算豆沙还是枯玫瑰。”",
+        "examples": "“完蛋，完全不想动弹。” / “啊！世界上怎么会有烤红薯这么香的东西啊！” / “不知不觉就已经这个点了，时间到底是被谁偷走的…” / “完蛋，这个指甲油颜色到底算豆沙还是枯玫瑰。”",
 
     },
 

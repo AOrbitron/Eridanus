@@ -28,6 +28,7 @@ except ImportError:
     ensure_art_anchor = None
 
 from run.ai_generated_art.service.prompt_optimizer import (
+    build_wardrobe_context,
     clamp_resolution_to_bounds,
     get_llm_config,
     map_aspect_ratio_to_resolution,
@@ -235,7 +236,12 @@ def safe_parse_json(resp: httpx.Response) -> Any:
     raise RuntimeError(f"服务端响应不是有效 JSON (状态码 {resp.status_code}): {preview}")
 
 
-async def optimize_prompt_with_llm(user_prompt: str, config) -> Dict[str, Any]:
+async def optimize_prompt_with_llm(
+    user_prompt: str,
+    config,
+    is_about_bot: bool = False,
+    wardrobe_ctx: Optional[Dict[str, str]] = None,
+) -> Dict[str, Any]:
     """
     实验性功能：调用主回复模型 (gemini-3.8-flash 或 core_reply) 对生图节点和提示词进行智能控制。
     输出标准结构字典：positive_prompt, negative_prompt, width, height, steps, cfg, sampler_name, scheduler, lora_name, lora_strength
@@ -265,10 +271,19 @@ async def optimize_prompt_with_llm(user_prompt: str, config) -> Dict[str, Any]:
         for item in KNOWN_LORAS
     ])
 
+    wardrobe_rule = ""
+    if is_about_bot and wardrobe_ctx:
+        wardrobe_rule = f"""
+   【智能选装与衣橱联动】：
+   - 当前衣橱着装（{wardrobe_ctx.get('current_outfit_name') or '默认'}）："{wardrobe_ctx.get('current_outfit_tags', '')}"
+   - 衣橱可选套装目录（格式：套装名 [分类]: 描述 | tags）：
+{wardrobe_ctx.get('wardrobe_catalog') or '（暂无）'}
+   - 规则：1) 未指定新服饰时保留当前着装；2) 描述了特定风格/局部特征（如“花嫁”、“荷叶边的日常裙子”等）时，先在目录中按语义匹配最贴合套装并选用其 tags，严格区分 [daily] 日常裙装与 [sleepwear] 睡裙；3) 指定了目录外全新服饰时忽略当前着装并按用户要求输出精准服装 tags，切勿混拼冲突服饰。"""
+
     system_instruction = f"""你是一个顶级的二次元动漫绘图与 ComfyUI 参数调控专家。你的任务是根据用户的中文或英文绘图要求，控制生成最完美的二次元插画节点参数。
 服务端当前搭载 **WAI-NSFW-Illustrious v17.0 (SDXL Illustrious)** 大模型。请遵循以下专业规则：
 1. positive_prompt 必须完全转化为纯正、流畅的 **Danbooru 风格英文逗号分隔 tags**（例如 masterpiece, best quality, extremely detailed, 1girl, ...），绝不可包含任何中文或自然语言长段落。
-   【核心规范·角色与着装保护】：若输入的提示词中已包含角色外貌锚点（如 grey hair, gradient hair, blue hair, light purple-light blue mixed eyes, (Side swept hair:1.6), ahoge, bangs, middle long hair, (round face:1.2) 等）或画风与服装设定（如 (Rella:1.2), (chen bin:1.3), virtual youtuber, (starshadowmagician:1.2), lineart, (hand-drawn:1.3), (sketch:1.2), Picasso style, Van Gogh's almond blossoms, 开衫、百褶裙、吊带裙、睡裙等），必须完整严密保留这些核心设定标签，绝不可丢弃或改写！
+   【核心规范·角色与着装保护】：若输入的提示词中已包含角色外貌锚点（如 grey hair, gradient hair, blue hair, light purple-light blue mixed eyes, (Side swept hair:1.6), ahoge, bangs, middle long hair, (round face:1.2) 等）或画风与服装设定（如 (Rella:1.2), (chen bin:1.3), virtual youtuber, (starshadowmagician:1.2), lineart, (hand-drawn:1.3), (sketch:1.2), Picasso style, Van Gogh's almond blossoms 等），必须完整严密保留这些核心设定标签，绝不可丢弃或改写！{wardrobe_rule}
 2. negative_prompt 给出标准 SDXL/Illustrious 负面标签（需包含多指、多手、多腿、肢体畸形及低画质过滤，如 lowres, bad anatomy, bad hands, extra fingers, too many fingers, extra arms, extra legs, extra limbs, fused fingers, missing fingers, text, error, worst quality, low quality, jpeg artifacts, signature, watermark, blurry）。
 3. 比例与尺寸推荐（所有宽高比必须严格在 {min_aligned} 到 {max_aligned} 之间，且为 64 的倍数）：
    - 竖图/全身/立绘：width={rec_v_w}, height={rec_v_h} 或 width={min_aligned}, height={max_aligned}
@@ -896,6 +911,7 @@ async def comfyui_draw(
 
     # 2. 正向提示词装配与衣橱联动
     positive_prompt = prompt
+    wm_ctx = build_wardrobe_context(wm, is_about_bot=is_about_bot) if wm else None
 
     if is_about_bot:
         if wm:
@@ -909,17 +925,29 @@ async def comfyui_draw(
             outfit_tags = ""
             art_anchor = None
 
-        # 如果用户提示词中已经明确指定了具体服装 (例如睡裙、睡衣、泳装、卫衣等)，则不强行叠加默认常服以防服饰冲突
-        has_custom_clothing = any(
-            kw in positive_prompt.lower()
-            for kw in [
-                "睡裙", "睡衣", "nightgown", "pajama", "sleepwear", "吊带裙", "泳装", "比基尼", "swimsuit",
-                "bikini", "礼服", "dress", "旗袍", "汉服", "制服", "uniform", "cosplay", "lo裙", "lolita",
-                "hoodie", "卫衣", "水手服", "汉元素", "洋装", "jacket", "skirt"
-            ]
-        )
-        if has_custom_clothing:
-            outfit_tags = ""
+        # 仅在未开启主模型控制时使用本地启发式防冲突；开启主模型控制时保留完整衣橱上下文交由 LLM 语义选装
+        if not llm_control:
+            # 优先尝试直接命中衣橱套装名
+            matched_catalog_tags = ""
+            if wm and hasattr(wm, "get_outfits"):
+                prompt_cf = positive_prompt.casefold()
+                for o_key, o_obj in (wm.get_outfits() or {}).items():
+                    if o_key and o_key.casefold() in prompt_cf and isinstance(o_obj, dict) and o_obj.get("clothing_tags"):
+                        matched_catalog_tags = o_obj["clothing_tags"]
+                        break
+            if matched_catalog_tags:
+                outfit_tags = matched_catalog_tags
+            else:
+                has_custom_clothing = any(
+                    kw in positive_prompt.lower()
+                    for kw in [
+                        "睡裙", "睡衣", "nightgown", "pajama", "sleepwear", "吊带裙", "泳装", "比基尼", "swimsuit",
+                        "bikini", "礼服", "dress", "旗袍", "汉服", "制服", "uniform", "cosplay", "lo裙", "lolita",
+                        "hoodie", "卫衣", "水手服", "汉元素", "洋装", "jacket", "skirt"
+                    ]
+                )
+                if has_custom_clothing:
+                    outfit_tags = ""
 
         # 避免提示词中重复包含角色基础锚点或当前服装
         components = []
@@ -982,7 +1010,12 @@ async def comfyui_draw(
     # 3.3 实验性功能：主回复模型控制生图
     if llm_control:
         try:
-            optimized = await optimize_prompt_with_llm(positive_prompt, config)
+            optimized = await optimize_prompt_with_llm(
+                positive_prompt,
+                config,
+                is_about_bot=is_about_bot,
+                wardrobe_ctx=wm_ctx,
+            )
             positive_prompt = optimized.get("positive_prompt", positive_prompt)
             opt_neg = optimized.get("negative_prompt", "")
             # 始终保留衣橱系统的防畸变/防角/防兽耳核心负面约束，防止 LLM 覆盖丢失

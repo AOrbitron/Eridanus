@@ -87,14 +87,6 @@ outfits_v7:  # 衣橱服饰库：涵盖四季日常私服、特色礼服、汉�
     occasion: convention, gothic party
     clothing_tags: gothic lolita, dark victorian aesthetic, black and purple frilled dress, layered skirt, lace bonnet, cross pendant choker, rose embroidery, mysterious elegant atmosphere
     full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored hair, blue hair, light purple-light blue mixed eyes, (Side swept hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), gothic lolita, dark victorian aesthetic, black and purple frilled dress, layered skirt, lace bonnet, cross pendant choker, rose embroidery, mysterious elegant atmosphere, (Rella:1.2), (chen bin:1.3), virtual youtuber, (starshadowmagician:1.2), masterpiece, extremely detailed, lineart, (hand-drawn:1.3), (sketch:1.2), Picasso style, Van Gogh's almond blossoms, <lora:DeniaV1-Nuclear1811-IL:0.3>
-  运动活力:
-    name: 运动活力
-    description: 运动休闲连帽卫衣与短裤（户外/慢跑/活力充沛）
-    category: sport
-    season: spring/autumn
-    occasion: jogging, fitness, outdoor
-    clothing_tags: sportswear, sporty zip hoodie, white athletic tank top, running dolphin shorts, sneakers, ponytail, active lifestyle, city park running trail
-    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored hair, blue hair, light purple-light blue mixed eyes, (Side swept hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), sportswear, sporty zip hoodie, white athletic tank top, running dolphin shorts, sneakers, ponytail, active lifestyle, city park running trail, (Rella:1.2), (chen bin:1.3), virtual youtuber, (starshadowmagician:1.2), masterpiece, extremely detailed, lineart, (hand-drawn:1.3), (sketch:1.2), Picasso style, Van Gogh's almond blossoms, <lora:DeniaV1-Nuclear1811-IL:0.3>
   日系水手服:
     name: 日系水手服
     description: 经典藏青百褶裙日系水手服（青春校园、微风拂动）
@@ -104,14 +96,6 @@ outfits_v7:  # 衣橱服饰库：涵盖四季日常私服、特色礼服、汉�
     clothing_tags: sailor uniform, pleated navy skirt, white sailor collar blouse, small red ribbon bow at chest, white knee-high socks, brown loafers
     full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored hair, blue hair, light purple-light blue mixed eyes, (Side swept hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), sailor uniform, pleated navy skirt, white sailor collar blouse, small red ribbon bow at chest, white knee-high socks, brown loafers, (Rella:1.2), (chen bin:1.3), virtual youtuber, (starshadowmagician:1.2), masterpiece, extremely detailed, lineart, (hand-drawn:1.3), (sketch:1.2), Picasso style, Van Gogh's almond blossoms, <lora:DeniaV1-Nuclear1811-IL:0.3>
     preview_negative: scarf, muffler, neck wrap, cape, cloak
-  清雅汉元素:
-    name: 清雅汉元素
-    description: 改良国风汉元素轻纱仙女裙（飘逸雪纺、灵动温婉）
-    category: special
-    season: spring/summer
-    occasion: festival, scenic travel
-    clothing_tags: hanfu-inspired dress, modern modified hanfu, flowing chiffon sleeves, pastel teal and white gradients, delicate floral embroidery, traditional ribbon tassels, classical pavilion
-    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored hair, blue hair, light purple-light blue mixed eyes, (Side swept hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), hanfu-inspired dress, modern modified hanfu, flowing chiffon sleeves, pastel teal and white gradients, delicate floral embroidery, traditional ribbon tassels, classical pavilion, (Rella:1.2), (chen bin:1.3), virtual youtuber, (starshadowmagician:1.2), masterpiece, extremely detailed, lineart, (hand-drawn:1.3), (sketch:1.2), Picasso style, Van Gogh's almond blossoms, <lora:DeniaV1-Nuclear1811-IL:0.3>
   春日碎花连衣裙:
     name: 春日碎花连衣裙
     description: 清新碎花雪纺细吊带长裙，单穿无外搭，锁骨细颈链
@@ -140,25 +124,6 @@ outfits_v7:  # 衣橱服饰库：涵盖四季日常私服、特色礼服、汉�
     full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored hair, blue hair, light purple-light blue mixed eyes, (Side swept hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), (white two-piece bikini:1.5), (white triangle bikini top:1.3), matching white tie-side bikini bottoms, small scalloped lace edging on bikini cups, small white ribbon bows, bare midriff, navel, bare legs, full body, standing, arms relaxed at sides, simple light grey background, (Rella:1.2), (chen bin:1.3), virtual youtuber, (starshadowmagician:1.2), masterpiece, extremely detailed, lineart, (hand-drawn:1.3), (sketch:1.2), Picasso style, Van Gogh's almond blossoms, <lora:DeniaV1-Nuclear1811-IL:0.3>
     preview_negative: cover-up, wrap, robe, jacket, blue bikini, pink bikini, nightdress, babydoll, dress, skirt, one-piece swimsuit, camisole, lace bodysuit, covered midriff, cropped, upper body, portrait
     preview_background: full body, standing, arms relaxed at sides, simple light grey background
-  夏祭金鱼浴衣:
-    name: 夏祭金鱼浴衣
-    description: 深蓝金鱼与水波纹样浴衣，红色花纹腰带，木屐；不绑定场景或道具
-    category: festival
-    season: summer
-    occasion: festival, evening, fireworks
-    no_hat: true
-    clothing_tags: navy blue cotton yukata, orange goldfish and water ripple print on yukata fabric, red floral obi sash, wooden geta sandals
-    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored hair, blue hair, light purple-light blue mixed eyes, (Side swept hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), navy blue cotton yukata, orange goldfish and water ripple print on yukata fabric, red floral obi sash, wooden geta sandals, full body, standing, simple light grey studio background, (Rella:1.2), (chen bin:1.3), virtual youtuber, (starshadowmagician:1.2), masterpiece, extremely detailed, lineart, (hand-drawn:1.3), (sketch:1.2), Picasso style, Van Gogh's almond blossoms, <lora:DeniaV1-Nuclear1811-IL:0.3>
-    preview_background: full body, standing, simple light grey studio background
-    preview_negative: fireworks, lanterns, festival stalls, pond, river, standing in water, floating fish
-  清凉无袖网球裙:
-    name: 清凉无袖网球裙
-    description: 夏日清爽白绿配色无袖立领网球服与百褶超短裙（阳光球场、元气运动）
-    category: sport
-    season: summer
-    occasion: sports, tennis, summer
-    clothing_tags: sporty tennis uniform, sleeveless white polo shirt with green collar trim, pleated tennis miniskirt, white wristbands, athletic socks, white sneakers, sunny outdoor tennis court, sweat drop, dynamic athletic pose
-    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored hair, blue hair, light purple-light blue mixed eyes, (Side swept hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), sporty tennis uniform, sleeveless white polo shirt with green collar trim, pleated tennis miniskirt, white wristbands, athletic socks, white sneakers, sunny outdoor tennis court, sweat drop, dynamic athletic pose, (Rella:1.2), (chen bin:1.3), virtual youtuber, (starshadowmagician:1.2), masterpiece, extremely detailed, lineart, (hand-drawn:1.3), (sketch:1.2), Picasso style, Van Gogh's almond blossoms, <lora:DeniaV1-Nuclear1811-IL:0.3>
   露肩雪纺一字领:
     name: 露肩雪纺一字领
     description: 一字领露肩荷叶雪纺上衣搭配浅色牛仔短裙与缎带颈饰（清爽甜美、小资街头）
@@ -241,14 +206,6 @@ outfits_v7:  # 衣橱服饰库：涵盖四季日常私服、特色礼服、汉�
     no_hat: true
     clothing_tags: cute ruffled cooking apron, pastel gingham plaid apron over casual white t-shirt, rolled up sleeves, flour smudge on cheek, holding tray of fresh baked chocolate cookies, cozy kitchen background, proud happy smile
     full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored hair, blue hair, light purple-light blue mixed eyes, (Side swept hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), cute ruffled cooking apron, pastel gingham plaid apron over casual white t-shirt, rolled up sleeves, flour smudge on cheek, holding tray of fresh baked chocolate cookies, cozy kitchen background, proud happy smile, (Rella:1.2), (chen bin:1.3), virtual youtuber, (starshadowmagician:1.2), masterpiece, extremely detailed, lineart, (hand-drawn:1.3), (sketch:1.2), Picasso style, Van Gogh's almond blossoms, <lora:DeniaV1-Nuclear1811-IL:0.3>
-  户外露营冲锋衣:
-    name: 户外露营冲锋衣
-    description: 户外山野拼色防风防水三合一冲锋衣搭工装裤（山系露营、篝火帐篷星空）
-    category: sport
-    season: spring/autumn
-    occasion: camping, outdoor, hiking
-    clothing_tags: outdoor mountain techwear, color-blocked windbreaker camping jacket, khaki cargo pants, mountain boots, camping backpack, wilderness campfire background, starry night sky, cozy tent
-    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored hair, blue hair, light purple-light blue mixed eyes, (Side swept hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), outdoor mountain techwear, color-blocked windbreaker camping jacket, khaki cargo pants, mountain boots, camping backpack, wilderness campfire background, starry night sky, cozy tent, (Rella:1.2), (chen bin:1.3), virtual youtuber, (starshadowmagician:1.2), masterpiece, extremely detailed, lineart, (hand-drawn:1.3), (sketch:1.2), Picasso style, Van Gogh's almond blossoms, <lora:DeniaV1-Nuclear1811-IL:0.3>
   游乐园兔耳背带裤:
     name: 游乐园兔耳背带裤
     description: 游乐园萌系浅色牛仔背带长裤内搭印花黄T恤与毛绒兔耳发箍（摩天轮、爆米花桶）
@@ -265,16 +222,6 @@ outfits_v7:  # 衣橱服饰库：涵盖四季日常私服、特色礼服、汉�
     occasion: stage, dance, formal
     clothing_tags: black swan ballet dress, intricate lace embroidered corset bodice, stiff layered tulle ballet tutu, delicate black feather hair accessory, silk ballet pointe shoes, theater stage spotlight, dramatic graceful pose
     full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored hair, blue hair, light purple-light blue mixed eyes, (Side swept hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), black swan ballet dress, intricate lace embroidered corset bodice, stiff layered tulle ballet tutu, delicate black feather hair accessory, silk ballet pointe shoes, theater stage spotlight, dramatic graceful pose, (Rella:1.2), (chen bin:1.3), virtual youtuber, (starshadowmagician:1.2), masterpiece, extremely detailed, lineart, (hand-drawn:1.3), (sketch:1.2), Picasso style, Van Gogh's almond blossoms, <lora:DeniaV1-Nuclear1811-IL:0.3>
-  正统和风振袖礼服:
-    name: 正统和风振袖礼服
-    description: 华丽庄重红白金纹正统振袖和服配华贵锦缎腰封（成人礼/新年参拜、樱花发饰，免帽）
-    category: special
-    season: all
-    occasion: ceremony, new year, shrine
-    no_hat: true
-    clothing_tags: traditional Japanese formal furisode kimono, long flowing sleeves, vibrant red and gold floral embroidery, luxurious brocade obi sash, elegant kanzashi cherry blossom hair ornament, traditional shrine garden background, dignified graceful aura
-    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored hair, blue hair, light purple-light blue mixed eyes, (Side swept hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), traditional Japanese formal furisode kimono, long flowing sleeves, vibrant red and gold floral embroidery, luxurious brocade obi sash, elegant kanzashi cherry blossom hair ornament, traditional shrine garden background, dignified graceful aura, (Rella:1.2), (chen bin:1.3), virtual youtuber, (starshadowmagician:1.2), masterpiece, extremely detailed, lineart, (hand-drawn:1.3), (sketch:1.2), Picasso style, Van Gogh's almond blossoms, <lora:DeniaV1-Nuclear1811-IL:0.3>
-
   洛丽塔梦幻荷叶边睡裙:
     name: 洛丽塔梦幻荷叶边睡裙
     description: 洛丽塔风多层轻纱蓬蓬睡裙（蕾丝缎带与蝴蝶结，梦幻甜美，免帽）
@@ -394,15 +341,6 @@ outfits_v7:  # 衣橱服饰库：涵盖四季日常私服、特色礼服、汉�
     full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored hair, blue hair, light purple-light blue mixed eyes, (Side swept hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), mint green halter-neck nightgown, delicate lace trimmed bodice, side cutouts, ultra short sheer chiffon flutter skirt, bare back, collarbone, bare shoulders, refreshing alluring bedtime mood, breezy night window, (Rella:1.2), (chen bin:1.3), virtual youtuber, (starshadowmagician:1.2), masterpiece, extremely detailed, lineart, (hand-drawn:1.3), (sketch:1.2), Picasso style, Van Gogh's almond blossoms, <lora:DeniaV1-Nuclear1811-IL:0.3>
 
   # —— [特色职人/工作/合作款服饰] ——
-  赛车维修站连体服:
-    name: 赛车维修站连体服
-    description: 赛车维修站专业Pit房技工连体服，带有荧光反光条、多功能工具腰包与扳手
-    category: special
-    season: all
-    occasion: racing, workshop, garage
-    no_hat: false
-    clothing_tags: professional pit crew racing jumpsuit, rolled-up sleeves, neon yellow reflective safety stripes, leather tool belt with spanner, dark grey mechanic overalls, fingerless driving gloves, high-top racing boots, bright garage workshop with tools on wall
-    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored hair, blue hair, light purple-light blue mixed eyes, (Side swept hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), professional pit crew racing jumpsuit, rolled-up sleeves, neon yellow reflective safety stripes, leather tool belt with spanner, dark grey mechanic overalls, fingerless driving gloves, high-top racing boots, bright garage workshop with tools on wall, (Rella:1.2), (chen bin:1.3), virtual youtuber, (starshadowmagician:1.2), masterpiece, extremely detailed, lineart, (hand-drawn:1.3), (sketch:1.2), Picasso style, Van Gogh's almond blossoms, <lora:DeniaV1-Nuclear1811-IL:0.3>
   涂鸦机修工装背带裤:
     name: 涂鸦机修工装背带裤
     description: 街头机修个性背带工装裤，微量机油痕与亮色涂鸦，手持棘轮扳手
@@ -412,15 +350,6 @@ outfits_v7:  # 衣橱服饰库：涵盖四季日常私服、特色礼服、汉�
     no_hat: false
     clothing_tags: distressed denim mechanic overalls, worn over fitted black crop top, colorful graffiti spray paint splatters, slight engine grease smudge on cheek, holding ratcheting socket wrench, canvas utility pouch, work boots, messy urban workshop
     full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored hair, blue hair, light purple-light blue mixed eyes, (Side swept hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), distressed denim mechanic overalls, worn over fitted black crop top, colorful graffiti spray paint splatters, slight engine grease smudge on cheek, holding ratcheting socket wrench, canvas utility pouch, work boots, messy urban workshop, (Rella:1.2), (chen bin:1.3), virtual youtuber, (starshadowmagician:1.2), masterpiece, extremely detailed, lineart, (hand-drawn:1.3), (sketch:1.2), Picasso style, Van Gogh's almond blossoms, <lora:DeniaV1-Nuclear1811-IL:0.3>
-  电子极客焊接工装:
-    name: 电子极客焊接工装
-    description: 电子极客工坊装束，额头推戴复古防风护目镜，耐磨帆布围裙与工作台
-    category: special
-    season: spring/autumn
-    occasion: maker, electronics, indoor
-    no_hat: false
-    clothing_tags: protective retro welding goggles resting on forehead, heavy khaki canvas workshop apron, grey henley shirt with sleeves pushed up, anti-static gloves, soldering iron on bench, wooden electronics workbench with circuit boards and wires
-    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored hair, blue hair, light purple-light blue mixed eyes, (Side swept hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), protective retro welding goggles resting on forehead, heavy khaki canvas workshop apron, grey henley shirt with sleeves pushed up, anti-static gloves, soldering iron on bench, wooden electronics workbench with circuit boards and wires, (Rella:1.2), (chen bin:1.3), virtual youtuber, (starshadowmagician:1.2), masterpiece, extremely detailed, lineart, (hand-drawn:1.3), (sketch:1.2), Picasso style, Van Gogh's almond blossoms, <lora:DeniaV1-Nuclear1811-IL:0.3>
   春雨透明轻便雨衣:
     name: 春雨透明轻便雨衣
     description: 细雨透明PVC连帽雨衣，内搭粉彩卫衣，手撑透明雨伞与雨中水坑倒影
@@ -530,15 +459,6 @@ outfits_v7:  # 衣橱服饰库：涵盖四季日常私服、特色礼服、汉�
     no_hat: false
     clothing_tags: soft heather grey loose-fit wool cardigan, milk-tea colored accordion pleated maxi skirt, white silk blouse, thin gold-framed round reading glasses, holding vintage hardcover book, tall wooden library bookshelves filled with books
     full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored hair, blue hair, light purple-light blue mixed eyes, (Side swept hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), soft heather grey loose-fit wool cardigan, milk-tea colored accordion pleated maxi skirt, white silk blouse, thin gold-framed round reading glasses, holding vintage hardcover book, tall wooden library bookshelves filled with books, (Rella:1.2), (chen bin:1.3), virtual youtuber, (starshadowmagician:1.2), masterpiece, extremely detailed, lineart, (hand-drawn:1.3), (sketch:1.2), Picasso style, Van Gogh's almond blossoms, <lora:DeniaV1-Nuclear1811-IL:0.3>
-  街头滑板少年风卫衣:
-    name: 街头滑板少年风卫衣
-    description: 街头滑板宽版印花连帽卫衣配束脚工装裤与护膝，脚踩滑板，滑板公园
-    category: sport
-    season: spring/autumn
-    occasion: skatepark, extreme sport, street
-    no_hat: false
-    clothing_tags: oversized charcoal black graphic skate hoodie, baggy cargo track pants, durable skate knee pads, chunky skate sneakers, one foot resting on grip-taped skateboard, concrete skatepark with ramps and graffiti walls
-    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored hair, blue hair, light purple-light blue mixed eyes, (Side swept hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), oversized charcoal black graphic skate hoodie, baggy cargo track pants, durable skate knee pads, chunky skate sneakers, one foot resting on grip-taped skateboard, concrete skatepark with ramps and graffiti walls, (Rella:1.2), (chen bin:1.3), virtual youtuber, (starshadowmagician:1.2), masterpiece, extremely detailed, lineart, (hand-drawn:1.3), (sketch:1.2), Picasso style, Van Gogh's almond blossoms, <lora:DeniaV1-Nuclear1811-IL:0.3>
   中秋织金马面裙云肩:
     name: 中秋织金马面裙云肩
     description: 中秋国风古典朱红织金马面裙配如意如意云肩与立领短衫，凭栏赏圆月
@@ -645,5 +565,93 @@ outfits_v7:  # 衣橱服饰库：涵盖四季日常私服、特色礼服、汉�
     occasion: school, campus, casual
     clothing_tags: crisp white button-up collared shirt, slightly open top button, dark grey pleated miniskirt, (semi-sheer lace trim on skirt hem:1.2), translucent organza hemline, thin black ribbon necktie, collarbone, white crew socks, black retro loafer shoes, sunlit classroom hallway
     full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored hair, blue hair, light purple-light blue mixed eyes, (Side swept hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), crisp white button-up collared shirt, slightly open top button, dark grey pleated miniskirt, (semi-sheer lace trim on skirt hem:1.2), translucent organza hemline, thin black ribbon necktie, collarbone, white crew socks, black retro loafer shoes, sunlit classroom hallway, (Rella:1.2), (chen bin:1.3), virtual youtuber, (starshadowmagician:1.2), masterpiece, extremely detailed, lineart, (hand-drawn:1.3), (sketch:1.2), Picasso style, Van Gogh's almond blossoms, <lora:DeniaV1-Nuclear1811-IL:0.3>
+  草莓奶昔双马尾蓬蓬裙:
+    name: 草莓奶昔双马尾蓬蓬裙
+    description: 粉白奶油草莓印花A字蓬蓬连衣裙，心形蕾丝领口与蝴蝶结泡泡袖，配白色花边中筒袜与红色漆皮玛丽珍鞋，元气甜美
+    category: daily
+    season: spring/summer
+    occasion: date, cafe, park, daily
+    clothing_tags: strawberry print pastel pink babydoll dress, square neckline with delicate lace trim, puff short sleeves with satin ribbons, fluffy A-line flared skirt, strawberry hairpins, white ruffle crew socks, red Mary Jane shoes
+    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored hair, blue hair, light purple-light blue mixed eyes, (Side swept hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), strawberry print pastel pink babydoll dress, square neckline with delicate lace trim, puff short sleeves with satin ribbons, fluffy A-line flared skirt, strawberry hairpins, white ruffle crew socks, red Mary Jane shoes, (Rella:1.2), (chen bin:1.3), virtual youtuber, (starshadowmagician:1.2), masterpiece, extremely detailed, lineart, (hand-drawn:1.3), (sketch:1.2), Picasso style, Van Gogh's almond blossoms, <lora:DeniaV1-Nuclear1811-IL:0.3>
+  云朵绵羊软萌连帽裙:
+    name: 云朵绵羊软萌连帽裙
+    description: 奶白色羊羔绒垂耳绵羊连帽卫衣裙，胸口毛绒绵羊刺绣、袖口与裙摆带蓬松毛球，配淡蓝格纹百褶内衬与软萌中筒袜
+    category: daily
+    season: autumn/winter
+    occasion: casual, home, date, daily
+    clothing_tags: fluffy cream fleece hoodie dress, cute floppy sheep ear hood, pom-pom drawstrings, pastel blue plaid pleated hem peek, cozy oversized sleeves, white fuzzy thigh-high socks, soft pastel cute style
+    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored hair, blue hair, light purple-light blue mixed eyes, (Side swept hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), fluffy cream fleece hoodie dress, cute floppy sheep ear hood, pom-pom drawstrings, pastel blue plaid pleated hem peek, cozy oversized sleeves, white fuzzy thigh-high socks, soft pastel cute style, (Rella:1.2), (chen bin:1.3), virtual youtuber, (starshadowmagician:1.2), masterpiece, extremely detailed, lineart, (hand-drawn:1.3), (sketch:1.2), Picasso style, Van Gogh's almond blossoms, <lora:DeniaV1-Nuclear1811-IL:0.3>
+  海盐苏打水手泡泡袖裙:
+    name: 海盐苏打水手泡泡袖裙
+    description: 冰蓝与纯白撞色短款水手领连衣裙，胸前双色丝带蝴蝶结、轻盈泡泡短袖与高腰百褶裙摆，清爽可爱
+    category: daily
+    season: summer
+    occasion: seaside, street, campus, daily
+    clothing_tags: pastel sky blue and white sailor collar dress, puff short sleeves, cute double-layered ribbon bow on chest, high-waisted pleated flared skirt, white trim stripes, ankle socks, white loafers, refreshing cute look
+    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored hair, blue hair, light purple-light blue mixed eyes, (Side swept hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), pastel sky blue and white sailor collar dress, puff short sleeves, cute double-layered ribbon bow on chest, high-waisted pleated flared skirt, white trim stripes, ankle socks, white loafers, refreshing cute look, (Rella:1.2), (chen bin:1.3), virtual youtuber, (starshadowmagician:1.2), masterpiece, extremely detailed, lineart, (hand-drawn:1.3), (sketch:1.2), Picasso style, Van Gogh's almond blossoms, <lora:DeniaV1-Nuclear1811-IL:0.3>
+  蜜糖布丁小熊背带裙:
+    name: 蜜糖布丁小熊背带裙
+    description: 焦糖奶油色灯芯绒背带短裙内搭荷叶边泡泡袖白衬衫，胸前小熊刺绣口袋，配焦糖贝雷帽与复古乐福鞋
+    category: daily
+    season: all
+    occasion: cafe, campus, date, daily
+    clothing_tags: caramel cream corduroy suspender jumper skirt, cute bear embroidery pocket, white square-neck ruffled blouse underneath, puff sleeves, caramel beret, beige knee-high socks, cute retro loafers
+    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored hair, blue hair, light purple-light blue mixed eyes, (Side swept hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), caramel cream corduroy suspender jumper skirt, cute bear embroidery pocket, white square-neck ruffled blouse underneath, puff sleeves, caramel beret, beige knee-high socks, cute retro loafers, (Rella:1.2), (chen bin:1.3), virtual youtuber, (starshadowmagician:1.2), masterpiece, extremely detailed, lineart, (hand-drawn:1.3), (sketch:1.2), Picasso style, Van Gogh's almond blossoms, <lora:DeniaV1-Nuclear1811-IL:0.3>
+  星月糖果魔法少女日常装:
+    name: 星月糖果魔法少女日常装
+    description: 淡紫渐变星空网纱拼接短裙，胸前星星金属扣丝带结、微露肩星空网纱袖、荷叶边甜心领与星星发夹，甜美梦幻又适合日常出街
+    category: daily
+    season: spring/autumn
+    occasion: date, street, park, daily
+    clothing_tags: pastel lavender starry tulle layered dress, off-shoulder sheer starry sleeves, sweetheart neckline, ribbon bow with golden star charm, crescent moon motifs, star hairclips, white sheer socks, pastel Mary Jane shoes
+    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored hair, blue hair, light purple-light blue mixed eyes, (Side swept hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), pastel lavender starry tulle layered dress, off-shoulder sheer starry sleeves, sweetheart neckline, ribbon bow with golden star charm, crescent moon motifs, star hairclips, white sheer socks, pastel Mary Jane shoes, (Rella:1.2), (chen bin:1.3), virtual youtuber, (starshadowmagician:1.2), masterpiece, extremely detailed, lineart, (hand-drawn:1.3), (sketch:1.2), Picasso style, Van Gogh's almond blossoms, <lora:DeniaV1-Nuclear1811-IL:0.3>
+  草莓牛奶棉质吊带睡裙:
+    name: 草莓牛奶棉质吊带睡裙
+    description: 粉白草莓牛奶配色纯棉细吊带睡裙，胸口小草莓刺绣与白色蕾丝花边裙摆，软糯透气
+    category: sleepwear
+    season: spring/summer
+    occasion: bedroom, night, lounge
+    clothing_tags: pastel pink cotton camisole nightgown, tiny strawberry embroidery, delicate white lace hem, thin shoulder straps, cozy home sleepwear
+    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored hair, blue hair, light purple-light blue mixed eyes, (Side swept hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), pastel pink cotton camisole nightgown, tiny strawberry embroidery, delicate white lace hem, thin shoulder straps, cozy home sleepwear, (Rella:1.2), (chen bin:1.3), virtual youtuber, (starshadowmagician:1.2), masterpiece, extremely detailed, lineart, (hand-drawn:1.3), (sketch:1.2), Picasso style, Van Gogh's almond blossoms, <lora:DeniaV1-Nuclear1811-IL:0.3>
+  冰蓝丝绸挂脖露肩睡裙:
+    name: 冰蓝丝绸挂脖露肩睡裙
+    description: 清凉冰蓝色柔滑丝绸挂脖露肩睡裙，领口系白色细缎带蝴蝶结，垂坠感轻盈优雅
+    category: sleepwear
+    season: summer
+    occasion: bedroom, night, lounge
+    clothing_tags: ice blue satin halter nightgown, bare shoulders, white thin satin ribbon bow at neckline, soft silk sheen, flowing skirt hem, elegant sleepwear
+    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored hair, blue hair, light purple-light blue mixed eyes, (Side swept hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), ice blue satin halter nightgown, bare shoulders, white thin satin ribbon bow at neckline, soft silk sheen, flowing skirt hem, elegant sleepwear, (Rella:1.2), (chen bin:1.3), virtual youtuber, (starshadowmagician:1.2), masterpiece, extremely detailed, lineart, (hand-drawn:1.3), (sketch:1.2), Picasso style, Van Gogh's almond blossoms, <lora:DeniaV1-Nuclear1811-IL:0.3>
+  奶油云朵泡泡袖家居睡裙:
+    name: 奶油云朵泡泡袖家居睡裙
+    description: 奶油白华夫格纹理泡泡袖宽松睡裙，方领木耳边设计与袖口蝴蝶结绑带，温柔居家
+    category: sleepwear
+    season: spring/autumn
+    occasion: bedroom, night, lounge
+    clothing_tags: cream waffle-knit puff sleeve nightgown, square neckline with lettuce-edge trim, ribbon ties on cuffs, loose comfortable silhouette, soft homewear
+    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored hair, blue hair, light purple-light blue mixed eyes, (Side swept hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), cream waffle-knit puff sleeve nightgown, square neckline with lettuce-edge trim, ribbon ties on cuffs, loose comfortable silhouette, soft homewear, (Rella:1.2), (chen bin:1.3), virtual youtuber, (starshadowmagician:1.2), masterpiece, extremely detailed, lineart, (hand-drawn:1.3), (sketch:1.2), Picasso style, Van Gogh's almond blossoms, <lora:DeniaV1-Nuclear1811-IL:0.3>
+  紫罗兰星纱薄款吊带睡裙:
+    name: 紫罗兰星纱薄款吊带睡裙
+    description: 淡紫罗兰渐变薄纱层叠吊带睡裙，点缀细闪星尘纹样与荷叶边下摆，梦幻晚安款
+    category: sleepwear
+    season: all
+    occasion: bedroom, night
+    clothing_tags: pastel lavender sheer tulle layered camisole nightgown, subtle starlight motifs, ruffled hemline, delicate ribbons, dreamy sleepwear
+    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored hair, blue hair, light purple-light blue mixed eyes, (Side swept hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), pastel lavender sheer tulle layered camisole nightgown, subtle starlight motifs, ruffled hemline, delicate ribbons, dreamy sleepwear, (Rella:1.2), (chen bin:1.3), virtual youtuber, (starshadowmagician:1.2), masterpiece, extremely detailed, lineart, (hand-drawn:1.3), (sketch:1.2), Picasso style, Van Gogh's almond blossoms, <lora:DeniaV1-Nuclear1811-IL:0.3>
+  奶白针织小开衫吊带睡裙:
+    name: 奶白针织小开衫吊带睡裙
+    description: 奶白色轻薄镂空短款针织开衫外搭米白蕾丝吊带睡裙，微凉夜晚的温柔居家叠穿
+    category: sleepwear
+    season: autumn/winter
+    occasion: bedroom, night, lounge
+    clothing_tags: lightweight cream open-knit short cardigan over off-white lace camisole nightgown, cozy layered sleepwear, soft warm indoor look
+    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored hair, blue hair, light purple-light blue mixed eyes, (Side swept hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), lightweight cream open-knit short cardigan over off-white lace camisole nightgown, cozy layered sleepwear, soft warm indoor look, (Rella:1.2), (chen bin:1.3), virtual youtuber, (starshadowmagician:1.2), masterpiece, extremely detailed, lineart, (hand-drawn:1.3), (sketch:1.2), Picasso style, Van Gogh's almond blossoms, <lora:DeniaV1-Nuclear1811-IL:0.3>
+  樱桃格纹蝴蝶结短睡裙:
+    name: 樱桃格纹蝴蝶结短睡裙
+    description: 奶红浅粉细格纹纯棉短款吊带睡裙，胸前小樱桃图案与白色荷叶边肩带，俏皮可爱
+    category: sleepwear
+    season: spring/summer
+    occasion: bedroom, night, lounge
+    clothing_tags: pastel pink gingham short camisole nightdress, cute cherry print on chest, white ruffled shoulder straps, satin bow accent, playful cute sleepwear
+    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored hair, blue hair, light purple-light blue mixed eyes, (Side swept hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), pastel pink gingham short camisole nightdress, cute cherry print on chest, white ruffled shoulder straps, satin bow accent, playful cute sleepwear, (Rella:1.2), (chen bin:1.3), virtual youtuber, (starshadowmagician:1.2), masterpiece, extremely detailed, lineart, (hand-drawn:1.3), (sketch:1.2), Picasso style, Van Gogh's almond blossoms, <lora:DeniaV1-Nuclear1811-IL:0.3>
 current_outfit_no_hat: false
 today_default_no_hat: false

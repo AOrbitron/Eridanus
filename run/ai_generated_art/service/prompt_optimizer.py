@@ -93,6 +93,55 @@ def map_aspect_ratio_to_resolution(
     return clamp_resolution_to_bounds(default_w, default_h, min_dim, max_dim)
 
 
+DEFAULT_NEGATIVE_PROMPT_FALLBACK = (
+    "lowres, bad anatomy, bad proportions, bad hands, poorly drawn hands, mutated hands, malformed hands, "
+    "extra fingers, too many fingers, extra digit, fewer digits, missing fingers, fused fingers, "
+    "extra arms, extra legs, extra limbs, missing arms, missing legs, fused limbs, malformed limbs, "
+    "disconnected limbs, floating limbs, long neck, poorly drawn face, asymmetric eyes, cross-eyed, "
+    "duplicate, clone, multiple views, text, error, cropped, worst quality, low quality, normal quality, "
+    "jpeg artifacts, scan artifacts, film grain, chromatic aberration, signature, watermark, username, "
+    "logo, dated, blurry, out of focus"
+)
+
+
+def build_wardrobe_context(wm: Any, is_about_bot: bool = False) -> Dict[str, str]:
+    """提取衣橱锚点、当前着装与完整可选套装目录摘要，供 LLM 语义选装。"""
+    ctx = {
+        "char_anchor": "",
+        "art_anchor": "",
+        "negative_prompt": DEFAULT_NEGATIVE_PROMPT_FALLBACK,
+        "current_outfit_name": "",
+        "current_outfit_tags": "",
+        "wardrobe_catalog": "",
+    }
+    if not wm:
+        return ctx
+
+    ctx["negative_prompt"] = wm.get_negative_prompt() or DEFAULT_NEGATIVE_PROMPT_FALLBACK
+    if not is_about_bot:
+        return ctx
+
+    ctx["char_anchor"] = wm.get_character_anchor() or ""
+    ctx["art_anchor"] = wm.get_art_anchor() or ""
+    outfit_info = wm.get_current_outfit() or {}
+    ctx["current_outfit_name"] = outfit_info.get("name", "") or ""
+    ctx["current_outfit_tags"] = outfit_info.get("clothing_tags", "") or ""
+
+    outfits = wm.get_outfits() if hasattr(wm, "get_outfits") else {}
+    catalog_lines = []
+    for key, obj in (outfits or {}).items():
+        if not isinstance(obj, dict):
+            continue
+        tags = (obj.get("clothing_tags") or "").strip()
+        if not tags:
+            continue
+        cat = (obj.get("category") or "").strip()
+        desc = (obj.get("description") or "").strip()
+        catalog_lines.append(f"- {key} [{cat}]: {desc} | tags: {tags}")
+    ctx["wardrobe_catalog"] = "\n".join(catalog_lines)
+    return ctx
+
+
 async def optimize_prompt_for_sd(
     user_prompt: str,
     config: Any,
@@ -108,41 +157,27 @@ async def optimize_prompt_for_sd(
     4. 步数 steps 自主决定在 28 - 60 区间；
     5. 调用统一的顶层 `llm_config` 执行模型转换，附带完备的离线规则兜底。
     """
-    # 1. 尝试获取衣橱锚点
-    char_anchor = ""
-    outfit_tags = ""
-    art_anchor = ""
-    negative_prompt = (
-        "lowres, bad anatomy, bad proportions, bad hands, poorly drawn hands, mutated hands, malformed hands, "
-        "extra fingers, too many fingers, extra digit, fewer digits, missing fingers, fused fingers, "
-        "extra arms, extra legs, extra limbs, missing arms, missing legs, fused limbs, malformed limbs, "
-        "disconnected limbs, floating limbs, long neck, poorly drawn face, asymmetric eyes, cross-eyed, "
-        "duplicate, clone, multiple views, text, error, cropped, worst quality, low quality, normal quality, "
-        "jpeg artifacts, scan artifacts, film grain, chromatic aberration, signature, watermark, username, "
-        "logo, dated, blurry, out of focus"
-    )
-
+    # 1. 尝试获取衣橱锚点与完整套装目录（交由 LLM 语义选装，避免关键字误杀）
+    wm_ctx = {
+        "char_anchor": "",
+        "art_anchor": "",
+        "negative_prompt": DEFAULT_NEGATIVE_PROMPT_FALLBACK,
+        "current_outfit_name": "",
+        "current_outfit_tags": "",
+        "wardrobe_catalog": "",
+    }
     try:
         from run.wardrobe.wardrobe_manager import get_wardrobe_manager
         wm = get_wardrobe_manager() if get_wardrobe_manager else None
-        if wm:
-            negative_prompt = wm.get_negative_prompt() or negative_prompt
-            if is_about_bot:
-                char_anchor = wm.get_character_anchor() or ""
-                art_anchor = wm.get_art_anchor() or ""
-                # 自定义服装检查：若提示词指定了睡裙、泳衣等具体服饰，不叠加日常开衫
-                has_custom_clothing = any(
-                    kw in user_prompt.lower()
-                    for kw in [
-                        "睡裙", "睡衣", "nightgown", "pajama", "sleepwear", "吊带裙", "泳装", "比基尼", "swimsuit",
-                        "bikini", "礼服", "dress", "旗袍", "汉服", "制服", "uniform", "cosplay", "lo裙", "lolita"
-                    ]
-                )
-                if not has_custom_clothing:
-                    outfit_info = wm.get_current_outfit()
-                    outfit_tags = outfit_info.get("clothing_tags", "") if outfit_info else ""
+        wm_ctx = build_wardrobe_context(wm, is_about_bot=is_about_bot)
     except Exception as e:
         logger.debug(f"[SD Optimizer] 读取衣橱系统异常: {e}")
+
+    char_anchor = wm_ctx["char_anchor"]
+    outfit_tags = wm_ctx["current_outfit_tags"]
+    current_outfit_name = wm_ctx["current_outfit_name"]
+    wardrobe_catalog = wm_ctx["wardrobe_catalog"]
+    negative_prompt = wm_ctx["negative_prompt"]
 
     # 2. 从配置读取 SD 分辨率映射区间并自适应对齐
     cfg_dict = {}
@@ -174,14 +209,24 @@ async def optimize_prompt_for_sd(
     # 3. 准备调用 LLM 转换为纯 Danbooru 词条
     llm = get_llm_config(config)
 
+    wardrobe_rule = ""
+    if is_about_bot:
+        wardrobe_rule = f"""
+   - 当前衣橱着装（{current_outfit_name or '默认'}）："{outfit_tags}"
+   - 衣橱可选套装目录（格式：套装名 [分类]: 描述 | tags）：
+{wardrobe_catalog or '（暂无）'}
+   - 【智能选装规则】：
+     1) 若用户未指定特定服装或未要求换装，请完整保留当前衣橱着装 tags；
+     2) 若用户描述了特定服饰风格或局部特征（如“花嫁”、“荷叶边的日常裙子”、“牛仔吊带裙”、“蛋糕裙”等），请先在【衣橱可选套装目录】中按语义匹配最贴合的套装，直接选用该套装的 tags；**严格区分 [daily] 日常裙装 与 [sleepwear] 睡裙，绝不能把日常荷叶边裙误选为睡裙**；
+     3) 若用户明确指定了衣橱目录中不存在的全新服饰（如“比基尼”、“宇航服”），请**忽略当前衣橱着装**，直接按用户要求输出精准的 Danbooru 服装 tags，切勿将当前常服开衫/百褶裙与新服装混拼冲突！"""
+
     system_instruction = f"""你是一个专精于 Stable Diffusion (SD/SDXL) 的动漫提示词优化专家。
 【极端重要规则】：
 1. SD 模型（如 SDXL、WaiIllustrious、NoobAI）无法识别中文，也无法理解自然语言完整句子。
 2. 你必须将用户的绘图要求完全转换为【纯英文逗号分隔的 Danbooru tag 词条】（例如: masterpiece, best quality, 1girl, solo, nightgown, frills, sitting, on bed, looking at viewer）。
 3. 严禁输出任何中文字符！严禁输出自然语言段落！
 4. 【角色与设定保护】：
-   - 角色核心外貌锚点（若有）："{char_anchor}"。必须原样保留在最前面并保持英文 tag 格式！
-   - 当前着装设定（若有）："{outfit_tags}"。若用户未要求换装，请保留此服装 tags；若用户要求了特定服饰（如睡裙/泳装），将其转化为精准的 Danbooru 服装 tags！
+   - 角色核心外貌锚点（若有）："{char_anchor}"。必须原样保留在最前面并保持英文 tag 格式！{wardrobe_rule}
 5. 【参数规范】：
    - width 与 height 必须在 {min_aligned} 到 {max_aligned} 之间（已预设为 width={width}, height={height}，可根据构图微调至 {min_aligned}~{max_aligned} 内 64 的倍数）。
    - 采样步数 steps 必须自主选在 28 到 60 之间（默认推荐 30~45）。
@@ -264,11 +309,18 @@ async def optimize_prompt_for_sd(
     fallback_tags = ["masterpiece", "best quality", "aesthetic", "highly detailed"]
     if char_anchor:
         fallback_tags.append(char_anchor)
-    if outfit_tags:
+    prompt_lower = user_prompt.lower()
+    has_custom_clothing = any(
+        kw in prompt_lower
+        for kw in [
+            "睡裙", "睡衣", "nightgown", "pajama", "sleepwear", "泳装", "比基尼", "swimsuit",
+            "bikini", "礼服", "旗袍", "汉服", "制服", "uniform", "cosplay", "lo裙", "lolita"
+        ]
+    )
+    if outfit_tags and not has_custom_clothing:
         fallback_tags.append(outfit_tags)
 
     # 简单提取常用词
-    prompt_lower = user_prompt.lower()
     if any(k in prompt_lower for k in ["睡裙", "nightgown"]):
         fallback_tags.append("pure white ruffled nightgown, thin shoulder straps, delicate frills")
     if any(k in prompt_lower for k in ["床", "bed", "bedroom"]):
