@@ -269,7 +269,7 @@ async def optimize_prompt_with_llm(user_prompt: str, config) -> Dict[str, Any]:
 服务端当前搭载 **WAI-NSFW-Illustrious v17.0 (SDXL Illustrious)** 大模型。请遵循以下专业规则：
 1. positive_prompt 必须完全转化为纯正、流畅的 **Danbooru 风格英文逗号分隔 tags**（例如 masterpiece, best quality, extremely detailed, 1girl, ...），绝不可包含任何中文或自然语言长段落。
    【核心规范·角色与着装保护】：若输入的提示词中已包含角色外貌锚点（如 grey hair, gradient hair, blue hair, light purple-light blue mixed eyes, (Side swept hair:1.6), ahoge, bangs, middle long hair, (round face:1.2) 等）或画风与服装设定（如 (Rella:1.2), (chen bin:1.3), virtual youtuber, (starshadowmagician:1.2), lineart, (hand-drawn:1.3), (sketch:1.2), Picasso style, Van Gogh's almond blossoms, 开衫、百褶裙、吊带裙、睡裙等），必须完整严密保留这些核心设定标签，绝不可丢弃或改写！
-2. negative_prompt 给出标准 SDXL/Illustrious 负面标签（如 lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry）。
+2. negative_prompt 给出标准 SDXL/Illustrious 负面标签（需包含多指、多手、多腿、肢体畸形及低画质过滤，如 lowres, bad anatomy, bad hands, extra fingers, too many fingers, extra arms, extra legs, extra limbs, fused fingers, missing fingers, text, error, worst quality, low quality, jpeg artifacts, signature, watermark, blurry）。
 3. 比例与尺寸推荐（所有宽高比必须严格在 {min_aligned} 到 {max_aligned} 之间，且为 64 的倍数）：
    - 竖图/全身/立绘：width={rec_v_w}, height={rec_v_h} 或 width={min_aligned}, height={max_aligned}
    - 横图/场景/壁纸：width={rec_h_w}, height={rec_h_h} 或 width={max_aligned}, height={min_aligned}
@@ -341,7 +341,11 @@ async def optimize_prompt_with_llm(user_prompt: str, config) -> Dict[str, Any]:
     # 回退到基础默认解析 (尺寸受 resolution_min~resolution_max 约束, 步数 28-60)
     return {
         "positive_prompt": f"masterpiece, best quality, aesthetic, {user_prompt}",
-        "negative_prompt": "worst quality, low quality, blurry, bad anatomy",
+        "negative_prompt": (
+            "lowres, bad anatomy, bad proportions, bad hands, poorly drawn hands, mutated hands, malformed hands, "
+            "extra fingers, too many fingers, extra digit, fewer digits, missing fingers, fused fingers, "
+            "extra arms, extra legs, extra limbs, missing arms, missing legs, fused limbs, worst quality, low quality, blurry"
+        ),
         "width": def_w,
         "height": def_h,
         "steps": comfy_cfg.get("default_steps", 32),
@@ -882,7 +886,12 @@ async def comfyui_draw(
     else:
         negative_prompt = comfy_cfg.get(
             "default_negative_prompt",
-            "lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry"
+            "lowres, bad anatomy, bad proportions, bad hands, poorly drawn hands, mutated hands, malformed hands, "
+            "extra fingers, too many fingers, extra digit, fewer digits, missing fingers, fused fingers, "
+            "extra arms, extra legs, extra limbs, missing arms, missing legs, fused limbs, malformed limbs, "
+            "disconnected limbs, floating limbs, long neck, poorly drawn face, asymmetric eyes, cross-eyed, "
+            "duplicate, clone, multiple views, text, error, cropped, worst quality, low quality, normal quality, "
+            "jpeg artifacts, scan artifacts, film grain, chromatic aberration, signature, watermark, username, logo, dated, blurry, out of focus"
         )
 
     # 2. 正向提示词装配与衣橱联动

@@ -49,8 +49,13 @@ DEFAULT_ART_ANCHOR = (
 )
 
 DEFAULT_NEGATIVE_PROMPT = (
-    "lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, "
-    "cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry, nsfw"
+    "lowres, bad anatomy, bad proportions, bad hands, poorly drawn hands, mutated hands, malformed hands, "
+    "extra fingers, too many fingers, extra digit, fewer digits, missing fingers, fused fingers, "
+    "extra arms, extra legs, extra limbs, missing arms, missing legs, fused limbs, malformed limbs, "
+    "disconnected limbs, floating limbs, long neck, poorly drawn face, asymmetric eyes, cross-eyed, "
+    "duplicate, clone, multiple views, text, error, cropped, worst quality, low quality, normal quality, "
+    "jpeg artifacts, scan artifacts, film grain, chromatic aberration, signature, watermark, username, "
+    "logo, dated, blurry, out of focus, nsfw"
 )
 
 

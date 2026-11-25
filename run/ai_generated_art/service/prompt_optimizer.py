@@ -113,8 +113,13 @@ async def optimize_prompt_for_sd(
     outfit_tags = ""
     art_anchor = ""
     negative_prompt = (
-        "lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, "
-        "cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry"
+        "lowres, bad anatomy, bad proportions, bad hands, poorly drawn hands, mutated hands, malformed hands, "
+        "extra fingers, too many fingers, extra digit, fewer digits, missing fingers, fused fingers, "
+        "extra arms, extra legs, extra limbs, missing arms, missing legs, fused limbs, malformed limbs, "
+        "disconnected limbs, floating limbs, long neck, poorly drawn face, asymmetric eyes, cross-eyed, "
+        "duplicate, clone, multiple views, text, error, cropped, worst quality, low quality, normal quality, "
+        "jpeg artifacts, scan artifacts, film grain, chromatic aberration, signature, watermark, username, "
+        "logo, dated, blurry, out of focus"
     )
 
     try:
@@ -181,12 +186,12 @@ async def optimize_prompt_for_sd(
    - width 与 height 必须在 {min_aligned} 到 {max_aligned} 之间（已预设为 width={width}, height={height}，可根据构图微调至 {min_aligned}~{max_aligned} 内 64 的倍数）。
    - 采样步数 steps 必须自主选在 28 到 60 之间（默认推荐 30~45）。
    - cfg 推荐 4.5 到 7.0。
-   - negative_prompt 输出纯英文 Danbooru 负面 tags。
+   - negative_prompt 输出纯英文 Danbooru 负面 tags（需包含多指/多手/多腿/肢体畸形及低画质过滤，如 extra fingers, too many fingers, extra arms, extra legs, bad anatomy, bad hands）。
 
 你必须仅输出合法的 JSON 格式，不要包含任何 markdown 代码块以外的解释：
 {{
   "positive_prompt": "masterpiece, best quality, aesthetic, 1girl, solo, ...",
-  "negative_prompt": "lowres, bad anatomy, bad hands, text, error, ...",
+  "negative_prompt": "lowres, bad anatomy, bad hands, extra fingers, extra arms, extra legs, text, error, ...",
   "width": {width},
   "height": {height},
   "steps": 32,
@@ -232,7 +237,13 @@ async def optimize_prompt_for_sd(
                 res_steps = max(28, min(60, res_steps))
 
                 pos = parsed.get("positive_prompt", "")
-                neg = parsed.get("negative_prompt", negative_prompt)
+                opt_neg = parsed.get("negative_prompt", "")
+                if opt_neg and negative_prompt:
+                    existing = {t.strip().casefold() for t in negative_prompt.split(",") if t.strip()}
+                    extra_neg = [t.strip() for t in opt_neg.split(",") if t.strip() and t.strip().casefold() not in existing]
+                    neg = f"{negative_prompt}, {', '.join(extra_neg)}" if extra_neg else negative_prompt
+                else:
+                    neg = opt_neg or negative_prompt
 
                 # 确保无中文遗留
                 pos_cleaned = re.sub(r"[\u4e00-\u9fa5]+", "", pos)
@@ -346,7 +357,10 @@ async def optimize_prompt_for_img2img(
                 parsed_steps = int(parsed.get("steps", 32))
                 return {
                     "positive_prompt": parsed.get("positive_prompt", user_prompt),
-                    "negative_prompt": parsed.get("negative_prompt", "lowres, bad anatomy, bad hands, blurry, messy hair"),
+                    "negative_prompt": parsed.get(
+                        "negative_prompt",
+                        "lowres, bad anatomy, bad hands, extra fingers, extra arms, extra legs, extra limbs, fused fingers, blurry, messy hair"
+                    ),
                     "denoise": max(0.2, min(0.85, parsed_denoise)),
                     "steps": max(28, min(60, parsed_steps)),
                     "cfg": float(parsed.get("cfg", 5.5))
@@ -356,7 +370,7 @@ async def optimize_prompt_for_img2img(
 
     return {
         "positive_prompt": f"masterpiece, best quality, aesthetic, {user_prompt}",
-        "negative_prompt": "lowres, bad anatomy, bad hands, blurry, messy hair",
+        "negative_prompt": "lowres, bad anatomy, bad hands, extra fingers, extra arms, extra legs, extra limbs, fused fingers, blurry, messy hair",
         "denoise": denoise,
         "steps": 32,
         "cfg": 5.5
