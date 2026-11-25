@@ -428,7 +428,7 @@ class EpisodeRetrieval:
         plan = build_query(query_text, user_id_str, recent_context or [], now, config=cfg, is_group=is_group)
         raw_vec = None
         ctx_vec = None
-        if query_text and not plan.skip:
+        if query_text:
             cache_ttl = float(cfg.get("query_cache_seconds", 300.0))
             max_cache_size = max(1, int(cfg.get("query_cache_size", 256)))
             if plan.text and plan.text != plan.original:
@@ -444,7 +444,7 @@ class EpisodeRetrieval:
         # 3. 双路语义召回 + BM25 混合匹配 + 时间衰减融合排序
         # -------------------------------------------------------------
         top_candidates = []
-        if query_text and not plan.skip and (raw_vec is not None or ctx_vec is not None or plan.keywords):
+        if query_text and (raw_vec is not None or ctx_vec is not None or plan.keywords):
             placeholders = ",".join("?" for _ in unique_scopes)
             query_sql = f"""
                 SELECT id, scope, text, vector, created, ended, user_id, fact_type, category, target_id, target_name

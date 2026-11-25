@@ -144,12 +144,9 @@ def build_query(query, user_id, context, now, config=None, is_group=False):
         if owner is not None and uid != owner:
             continue
         normalized.append((role, value.strip()))
-    simple = re.sub(r"[\W_]+", "", query.lower())
-    skip = config.get("mode", "adaptive") == "adaptive" and not deictic and bool(re.fullmatch(
-        r"(?:嗯+|哦+|好+|好的|知道了|收到|谢谢|哈哈+|早安|晚安|你好|嗨|hello|hi|ok|thanks)", simple))
-    # 只要当前存在活跃对话上下文且未跳过检索，直接按时间倒序选取最近几轮供双路融合使用，
-    # 不再依赖脆弱的长度阈值或关键词规则猜测是否需要上下文。
-    if not skip and normalized:
+    # 不再按寒暄/短语列表跳过检索，任何非空消息都参与记忆召回
+    skip = False
+    if normalized:
         max_ctx = max(1, int(config.get("context_messages", 4)))
         selected = [(role, text[:300]) for role, text in reversed(normalized[-max_ctx:])]
     selected.reverse()
