@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import List, Dict, Optional, Any
 
 from framework_common.utils.system_logger import get_logger
+from run.core_reply.service.memory_guard import is_bot_refusal_fact
 
 logger = get_logger(__name__)
 
@@ -473,6 +474,9 @@ class MemorySlotManager:
             return False
 
         clean_content = content.strip()[:self.slot_max_chars]
+        if is_bot_refusal_fact(clean_content):
+            logger.info(f"[MemorySlots] 拦截拒绝锁死类内容写入用户 {user_id} 槽位 {slot_id}: {clean_content}")
+            return False
         if not category:
             bps = self.get_user_blueprints()
             category = bps[slot_id - 1]["category"] if slot_id <= len(bps) else f"槽位{slot_id}"
@@ -533,6 +537,9 @@ class MemorySlotManager:
             return False
 
         clean_content = content.strip()[:self.slot_max_chars]
+        if is_bot_refusal_fact(clean_content):
+            logger.info(f"[MemorySlots] 拦截拒绝锁死类内容写入全局槽位 {slot_id}: {clean_content}")
+            return False
         if not category:
             bps = self.get_global_blueprints()
             category = bps[slot_id - 1]["category"] if slot_id <= len(bps) else f"槽位{slot_id}"
@@ -630,6 +637,9 @@ class MemorySlotManager:
             return False
 
         clean_content = content.strip()[:self.slot_max_chars]
+        if is_bot_refusal_fact(clean_content):
+            logger.info(f"[MemorySlots] 拦截拒绝锁死类内容写入群 {group_id} 槽位 {slot_id}: {clean_content}")
+            return False
         if not category:
             bps = self.get_group_blueprints()
             category = bps[slot_id - 1]["category"] if slot_id <= len(bps) else f"槽位{slot_id}"
@@ -743,7 +753,7 @@ class MemorySlotManager:
         lines = []
         for s in slots:
             content = s.get("content", "").strip()
-            if content:
+            if content and not is_bot_refusal_fact(content):
                 cat = s.get("category", "").strip() or f"槽位{s['slot_id']}"
                 lines.append(f"- [{cat}] {content}")
         return "\n".join(lines)
@@ -756,7 +766,7 @@ class MemorySlotManager:
         lines = []
         for s in slots:
             content = s.get("content", "").strip()
-            if content:
+            if content and not is_bot_refusal_fact(content):
                 cat = s.get("category", "").strip() or f"生活记忆{s['slot_id']}"
                 lines.append(f"- [{cat}] {content}")
         return "\n".join(lines)

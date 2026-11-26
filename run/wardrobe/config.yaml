@@ -479,14 +479,6 @@ outfits_v7:  # 衣橱服饰库：涵盖四季日常私服、特色礼服、汉�
     full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored hair, blue hair, light purple-light blue mixed eyes, (Side swept hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), festive vibrant red velvet Tang suit jacket with gold frog buttons, cozy white faux fur trim collar, matching hooded red winter capelet with white pom-poms, embroidered black pleated skirt, holding glowing paper rabbit lantern, night lantern festival street, (Rella:1.2), (chen bin:1.3), virtual youtuber, (starshadowmagician:1.2), masterpiece, extremely detailed, lineart, (hand-drawn:1.3), (sketch:1.2), Picasso style, Van Gogh's almond blossoms, <lora:DeniaV1-Nuclear1811-IL:0.3>
 
   # —— [保留日常私服（已更新 season 为春秋跨季）] ——
-  甜心猫耳奶绒开衫:
-    name: 甜心猫耳奶绒开衫
-    description: 软糯米白羊羔绒针织开衫搭配嫩粉百褶短裙，可爱小猫刺绣与软萌毛球配饰，甜美治愈日常私服
-    category: daily
-    season: spring/autumn
-    occasion: casual, sweet, daily
-    clothing_tags: soft fluffy cream oversized knit cardigan, cute cat embroidery, pastel pink pleated mini skirt, white collared inner shirt, knee-high socks, playful youthful style, cozy sweet daily wear
-    full_prompt: 1girl, teenager, solo, grey hair, gradient hair, multicolored hair, blue hair, light purple-light blue mixed eyes, (Side swept hair:1.6), ahoge, bangs, middle long hair, (round face:1.2), soft fluffy cream oversized knit cardigan, cute cat embroidery, pastel pink pleated mini skirt, white collared inner shirt, knee-high socks, playful youthful style, cozy sweet daily wear, (Rella:1.2), (chen bin:1.3), virtual youtuber, (starshadowmagician:1.2), masterpiece, extremely detailed, lineart, (hand-drawn:1.3), (sketch:1.2), Picasso style, Van Gogh's almond blossoms, <lora:DeniaV1-Nuclear1811-IL:0.3>
   法式小碎花吊带连衣裙:
     name: 法式小碎花吊带连衣裙
     description: 清新鹅黄法式复古碎花细吊带收腰连衣裙，内搭泡泡短袖薄纱衬衫，配锁骨珍珠细链

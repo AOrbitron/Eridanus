@@ -13,6 +13,7 @@ import httpx
 import numpy as np
 
 from framework_common.utils.system_logger import get_logger
+from run.core_reply.service.memory_guard import is_bot_refusal_fact, is_conflict_refusal_episode
 
 logger = get_logger(__name__)
 
@@ -27,6 +28,7 @@ FACT_EXTRACT_SYSTEM_PROMPT = """你是一个高效、客观的长期记忆提取
 2. group: 本群特有的社群定位、群专属黑话/梗文化、共同话题、重大集体事件。
    - 群内黑话记录 category: "slang"，每个词条单独ADD，content包含词语、含义及适用语境，禁止绑定到所有群成员。
 3. bot: Bot自身经历的独立事件、明确认同的个性/习惯、生活状态与重大足迹。普通用户的昵称、撒娇、闲聊或短暂互动不是Bot自我经历，应归属user或忽略；仅真正改变Bot自身状态的关系事件才可归属bot。
+4. 【严格禁止提取“拒绝/冲突/风控”态度的事实】：严禁将对话中Bot某次拒绝用户请求、因风控/情绪产生争执、冷战吵架或“Bot设定不给/拒绝X且不会改变立场”之类的临时对抗姿态提取为 `bot` 或 `user` 事实！记忆系统只记录客观生活与正面关系，绝不把一次拒绝固化成永久人设钢印。
 
 操作类型判断规则：
 - ADD: 首次获知的新事实、新偏好或新经历。
@@ -210,16 +212,18 @@ class EpisodeArchive:
                     """, (scope, self._namespace)).fetchone()
                     if last_ep and (last_ep[0] or "").strip() == episode_text:
                         return
+                    episode_cat = "conflict" if is_conflict_refusal_episode(episode_text) else "conversation"
                     db.execute("""
                         INSERT INTO memories (
                             scope, text, created, ended, user_id, message_id, namespace,
                             fact_type, category, target_id, target_name, updated_at
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, 'episode', 'conversation', ?, ?, ?)
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, 'episode', ?, ?, ?, ?)
                     """, (
                         scope, episode_text, buf[0]["ts"], buf[-1]["ts"],
                         str(user_id) if user_id else None,
                         buf[-1].get("message_id"),
                         self._namespace,
+                        episode_cat,
                         str(group_id) if is_group else str(user_id),
                         f"群{group_id}" if is_group else "私聊",
                         now
@@ -325,6 +329,9 @@ class EpisodeArchive:
         action = str(fact.get("action", "ADD")).upper().strip()
         content = str(fact.get("content", "")).strip()
         if not content:
+            return
+        if action in ("ADD", "UPDATE") and is_bot_refusal_fact(content):
+            self._log("[MaiReply RAG] 拦截拒绝锁死类事实写入: %s", content)
             return
 
         target_id = str(fact.get("target_id", "")).strip()

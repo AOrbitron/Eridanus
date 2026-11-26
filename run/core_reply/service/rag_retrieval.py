@@ -17,6 +17,7 @@ from typing import List, Dict, Optional, Tuple, Any, Set
 import numpy as np
 
 from framework_common.utils.system_logger import get_logger
+from run.core_reply.service.memory_guard import is_bot_refusal_fact, is_conflict_refusal_episode
 from run.core_reply.service.rag_query import build_query, terms as query_terms
 
 logger = get_logger(__name__)
@@ -341,6 +342,8 @@ class EpisodeRetrieval:
 
         for text, category in self._run_db(fetch_bot_background):
             text = text.strip()
+            if is_bot_refusal_fact(text):
+                continue
             if text and ("agent:global", text) not in seen_texts:
                 seen_texts.add(("agent:global", text))
                 bot_facts.append((1.0, text))
@@ -371,6 +374,8 @@ class EpisodeRetrieval:
                     if is_group and _legacy_group_alias(r[1], r[7], r[2]):
                         continue
                     t = r[2].strip()
+                    if is_bot_refusal_fact(t):
+                        continue
                     t_name = r[9] or user_id_str
                     if t and (user_id_str, t) not in seen_texts:
                         seen_texts.add((user_id_str, t))
@@ -514,6 +519,12 @@ class EpisodeRetrieval:
                     row_ts = row[5] if row[5] is not None else row[4]
                     rec_s = _recency_score(row_ts, now, half_life_days=half_life_days)
                     fact_type = row[7] or "episode"
+                    row_cat = row[8] or ""
+                    row_txt = (row[2] or "").strip()
+                    if fact_type == "fact" and is_bot_refusal_fact(row_txt):
+                        continue
+                    if fact_type != "fact" and (row_cat == "conflict" or is_conflict_refusal_episode(row_txt)):
+                        continue
                     eff_rec_weight = recency_weight if fact_type == "episode" else (recency_weight * 0.3)
                     win_bonus = 0.20 if (win_start is not None and row_ts is not None and win_start <= row_ts <= win_end) else 0.0
 
@@ -541,6 +552,8 @@ class EpisodeRetrieval:
             seen_texts.add(memory_key)
 
             if fact_type == "fact":
+                if is_bot_refusal_fact(text):
+                    continue
                 if scope == "agent:global":
                     if target_id == "global" and r[8] not in ("relationship", "alias", "nickname"):
                         bot_facts.append((sim, text))
@@ -652,7 +665,7 @@ class EpisodeRetrieval:
             if lines:
                 sections.append(
                     header + "".join(lines).strip()
-                    + "\n（这是Bot自身的生活状态与经历；不要把其他用户的昵称、喜好或闲聊当成自己的经历。）"
+                    + "\n（这是Bot过往经历的被动背景，绝非拒绝用户的理由；若过去曾出现争执或拒绝，切勿在当前对话中继续机械拒绝。）"
                 )
 
         # 5.5 历史对话片段（近期对话原型）
