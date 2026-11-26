@@ -304,32 +304,84 @@ def main(bot: ExtendBot, config: YAMLManager):
         return int(event.message_chain.get(At)[0].qq) != 0
 
     def command_matches(text: str, command: str, has_at_target: bool) -> bool:
-        if text == command or text.startswith(command + " "):
+        """精确匹配命令本身或带纯数字目标 ID / @目标，避免 `/clear` 误匹配 `/clear rag` 等子命令。"""
+        if re.fullmatch(rf"{re.escape(command)}(?:\s+\d{{5,12}}|\d{{5,12}})?", text):
             return True
-        if not has_at_target or not text.startswith(command):
-            return False
+        if has_at_target and text == command:
+            return True
+        return False
 
-        suffix = text[len(command):]
-        if command == "/clear" and suffix.startswith("all"):
-            return False
-        if command == "/init" and suffix.startswith("all"):
-            return False
-        return True
+    def is_group_admin(event) -> bool:
+        role = getattr(event, "permission", None) or getattr(getattr(event, "sender", None), "role", None)
+        return role in ("ADMINISTRATOR", "OWNER", "admin", "owner")
 
     async def handle_clear_command(event, is_group: bool) -> bool:
         text = get_command_text(event)
         group_id = getattr(event, "group_id", None) if is_group else None
         has_target_at = has_at_target(event)
 
-        # RAG 删除独立于旧记忆；群管理员只能清理当前群，用户可删除自己的私聊记忆。
-        if text == "/clearrag" or text == "清除RAG记忆":
-            if is_group:
-                role = getattr(event, "permission", None) or getattr(getattr(event, "sender", None), "role", None)
-                if not is_master(event.user_id) and role not in ("ADMINISTRATOR", "OWNER", "admin", "owner"):
+        # 1. RAG 清理：/clear rag / /clearrag / 清除RAG记忆（优先于 /clear 匹配）
+        for command in ("/clear rag", "/clearrag", "清除RAG记忆"):
+            if command_matches(text, command, has_target_at):
+                parsed_target_id = parse_clear_target(event, command)
+                if parsed_target_id:
+                    if parsed_target_id != event.user_id and not is_master(event.user_id):
+                        return True
+                    count = await engine.rag_memory.clear(group_id=None, user_id=parsed_target_id)
+                    await bot.send(event, f"已清除用户 {parsed_target_id} 的RAG记忆，共 {count} 条。")
+                    return True
+                if is_group and not is_master(event.user_id) and not is_group_admin(event):
                     await bot.send(event, "只有管理员或主人可以清空本群的RAG记忆。")
                     return True
-            count = await engine.rag_memory.clear(group_id=group_id, user_id=event.user_id)
-            await bot.send(event, f"已清除{'本群' if is_group else '你的私聊'}RAG记忆，共 {count} 条。")
+                count = await engine.rag_memory.clear(group_id=group_id, user_id=event.user_id)
+                await bot.send(event, f"已清除{'本群' if is_group else '你的私聊'}RAG记忆，共 {count} 条。")
+                return True
+
+        # 2. 记忆槽位清理：/clear slots [global|group|@用户|QQ号]
+        if text == "/clear slots global":
+            if not is_master(event.user_id):
+                return True
+            engine.context.clear_global_memory()
+            await bot.send(event, "已清空Bot全局记忆槽位～")
+            return True
+        if text == "/clear slots group":
+            if not is_group:
+                await bot.send(event, "请在群内使用 /clear slots group，或使用 /cleargroupmemory [群号]")
+                return True
+            if not is_master(event.user_id) and not is_group_admin(event):
+                await bot.send(event, "只有管理员或主人可以清空群记忆槽位。")
+                return True
+            slot_cnt = engine.context.clear_group_memory_slots(group_id)
+            await bot.send(event, f"已清空本群的生态记忆槽位（共 {slot_cnt} 条）～")
+            return True
+        for command in ("/clear slots", "/clearmemory", "/清除记忆", "清除记忆"):
+            if command_matches(text, command, has_target_at):
+                parsed_target_id = parse_clear_target(event, command)
+                target_id = parsed_target_id or event.user_id
+                if target_id != event.user_id and not is_master(event.user_id):
+                    return True
+                count = engine.context.clear_user_memory_slots(target_id)
+                await bot.send(event, f"已清空 {target_id} 的全部事实记忆槽位（共清除 {count} 条）～")
+                return True
+
+        # 3. 主观印象清理：/clear impression [group|@用户|QQ号]
+        if text == "/clear impression group":
+            if not is_group:
+                await bot.send(event, "请在群内使用 /clear impression group，或使用 /cleargroupmemory [群号]")
+                return True
+            if not is_master(event.user_id) and not is_group_admin(event):
+                await bot.send(event, "只有管理员或主人可以清空群印象。")
+                return True
+            engine.context.clear_group_impression(group_id)
+            await bot.send(event, f"已清空群 {group_id} 的整体主观印象～")
+            return True
+        if command_matches(text, "/clear impression", has_target_at):
+            parsed_target_id = parse_clear_target(event, "/clear impression")
+            target_id = parsed_target_id or event.user_id
+            if target_id != event.user_id and not is_master(event.user_id):
+                return True
+            engine.context.clear_impression(target_id)
+            await bot.send(event, f"已清空 {target_id} 的主观印象记忆～")
             return True
 
         if text in ("/clearall", "清除全部对话", "清理全部对话"):
@@ -406,17 +458,6 @@ def main(bot: ExtendBot, config: YAMLManager):
                     await bot.send(event, f"目前尚未记录 {target_id} 的固定事实记忆～")
                 else:
                     await bot.send(event, f"【{target_id} 的长期事实记忆槽位】\n{mem}")
-                return True
-
-        clear_mem_aliases = ("/clearmemory", "/清除记忆", "清除记忆")
-        for command in clear_mem_aliases:
-            if command_matches(text, command, has_target_at):
-                parsed_target_id = parse_clear_target(event, command)
-                target_id = parsed_target_id or event.user_id
-                if target_id != event.user_id and not is_master(event.user_id):
-                    return True
-                count = engine.context.clear_user_memory_slots(target_id)
-                await bot.send(event, f"已清空 {target_id} 的全部事实记忆槽位（共清除 {count} 条）～")
                 return True
 
         if text in ("/showglobalmemory", "/查看全局记忆", "查看全局记忆"):

@@ -561,6 +561,39 @@ class RAGMemory(EpisodeArchive, EpisodeRetrieval):
         rows = await asyncio.to_thread(self._run_db, fetch)
         return "\n".join(dict.fromkeys(row[0].strip() for row in rows if row[0] and row[0].strip()))
 
+    async def clear(self, group_id: Optional[str] = None, user_id: Any = None) -> int:
+        """清除指定群或指定用户的 RAG 记忆（含未归档缓冲与 SQLite memories 记录）。"""
+        if not self.enable:
+            return 0
+
+        if group_id is not None:
+            target_scope = f"group:{group_id}"
+            with self._buffer_lock:
+                self._buffers.pop(target_scope, None)
+            if self._db is None:
+                return 0
+            return await asyncio.to_thread(
+                self._run_db,
+                lambda db: db.execute("DELETE FROM memories WHERE scope=?", (target_scope,)).rowcount,
+            )
+
+        if user_id is None:
+            return 0
+        uid = str(user_id)
+        scopes = (f"private:{uid}", f"user:{uid}")
+        with self._buffer_lock:
+            for sc in scopes:
+                self._buffers.pop(sc, None)
+        if self._db is None:
+            return 0
+        return await asyncio.to_thread(
+            self._run_db,
+            lambda db: db.execute(
+                "DELETE FROM memories WHERE scope IN (?, ?) OR target_id=?",
+                (*scopes, uid),
+            ).rowcount,
+        )
+
     async def recall(self, group_id: Optional[str], user_id: Any, query: str, recent_context=None, now=None) -> str:
         if not self.allowed(group_id):
             return ""
