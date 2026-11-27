@@ -27,8 +27,10 @@ def get_llm_config(config: Any) -> Dict[str, Any]:
     if not isinstance(llm_cfg, dict):
         llm_cfg = {}
 
-    base_url = (llm_cfg.get("base_url") or "").strip().rstrip("/")
-    apikey = (llm_cfg.get("apikey") or "").strip()
+    base_url = (llm_cfg.get("base_url") or "").strip().strip('"\'“”‘’`').rstrip("/")
+    apikey = (llm_cfg.get("apikey") or "").strip().strip('"\'“”‘’`')
+    if apikey.lower().startswith("bearer "):
+        apikey = apikey[7:].strip().strip('"\'“”‘’`')
     model = (llm_cfg.get("model") or "").strip()
     temperature = llm_cfg.get("temperature", 0.7)
 
@@ -38,8 +40,11 @@ def get_llm_config(config: Any) -> Dict[str, Any]:
             cr_cfg = getattr(config.core_reply, "config", {}) or {}
             cr_llm = cr_cfg.get("llm_config") or cr_cfg.get("api") or {}
             if isinstance(cr_llm, dict):
-                base_url = base_url or (cr_llm.get("base_url") or cr_llm.get("api_base") or "").strip().rstrip("/")
-                apikey = apikey or (cr_llm.get("apikey") or cr_llm.get("api_key") or "").strip()
+                base_url = base_url or (cr_llm.get("base_url") or cr_llm.get("api_base") or "").strip().strip('"\'“”‘’`').rstrip("/")
+                raw_cr_key = (cr_llm.get("apikey") or cr_llm.get("api_key") or "").strip().strip('"\'“”‘’`')
+                if raw_cr_key.lower().startswith("bearer "):
+                    raw_cr_key = raw_cr_key[7:].strip().strip('"\'“”‘’`')
+                apikey = apikey or raw_cr_key
                 model = model or (cr_llm.get("model") or "").strip()
         except Exception:
             pass

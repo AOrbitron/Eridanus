@@ -3,8 +3,10 @@ import httpx
 from framework_common.framework_util.yamlLoader import YAMLManager
 
 same_manager = YAMLManager.get_instance()
-apikey=same_manager.ai_generated_art.config["ai绘画"]["apikey"]
-eridanus_headers={"Authorization": f"Bearer {apikey}"}
+apikey = str(same_manager.ai_generated_art.config["ai绘画"].get("apikey") or "").strip().strip('"\'“”‘’`')
+if apikey.lower().startswith("bearer "):
+    apikey = apikey[7:].strip().strip('"\'“”‘’`')
+eridanus_headers = {"Authorization": f"Bearer {apikey}"} if apikey and apikey.isascii() else {}
 
 same_manager = YAMLManager.get_instance()
 aiDrawController = same_manager.ai_generated_art.config.get("ai绘画")

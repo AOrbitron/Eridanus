@@ -57,15 +57,18 @@ async def call_comfyui(bot, event, config, prompt):
     group_id = getattr(event, "group_id", getattr(event, "user_id", None))
     try:
         img_path = await comfyui_draw(prompt, config, groupid=group_id)
-        if img_path:
-            if img_path.startswith("审核api"):
+        if img_path is False:
+            msg = await bot.send(event, "杂鱼，色图不给你喵~", True)
+            await delay_recall(bot, msg)
+        elif img_path:
+            if str(img_path).startswith("审核api"):
                 msg = await bot.send(event, img_path, True)
                 await delay_recall(bot, msg)
             else:
                 await bot.send(event, [Text("ComfyUI："), Image(file=img_path)], True)
                 return img_path
     except Exception as e:
-        bot.logger.error(f"ComfyUI 绘图失败: {e}")
+        bot.logger.error(f"ComfyUI 绘图失败: {e}\n{traceback.format_exc()}")
 
 
 async def call_gptimage2(bot, event, config, prompt):

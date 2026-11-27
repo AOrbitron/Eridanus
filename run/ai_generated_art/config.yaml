@@ -12,14 +12,14 @@ llm_config:
 
 # ComfyUI 绘图配置 (默认 Illustrious / WAI-NSFW-Illustrious v17.0 SDXL 架构)
 comfyui:
-  url: "" # ComfyUI 服务地址或网关地址（支持填网关 http://api.apollodorus.xyz/comfyui 或直连穿透 URL，兼容 base_url 字段）
-  apikey: "" # 若填写网关地址，请填入在网关申请的 API Key（直连无需填写）
+  url: "" # ComfyUI 服务地址或网关地址（支持网关地址、直连地址 http://ip:port，或 ComfyUI-Login 带 token 链接 http://ip:port/?token=xxx，兼容 base_url 字段）
+  apikey: "" # 网关 API Key 或 ComfyUI-Login 插件的 API Token（直接填纯文本，请勿携带中文引号“”；无鉴权直连可留空）
   comfyui画图: true # 是否开启 ComfyUI 后端
   主模型控制生图: false # 实验性功能：是否调用主回复模型/配置的LLM来智能解析提示词、匹配LoRA及生成节点
-  default_ckpt: "waiIllustriousSDXL_v170.safetensors" # 默认 Illustrious/SDXL 一体化 Checkpoint 底模
-  default_unet: "waiIllustriousSDXL_v170.safetensors" # 兼容字段：指向默认底模文件名
+  default_ckpt: "waiIllustriousSDXL_v170.safetensors" # 默认底模文件名（支持自动扫描服务端模型子目录，无需手写如 Illustrious\ 前缀）
+  default_unet: "waiIllustriousSDXL_v170.safetensors" # 兼容字段：指向默认底模文件名（同样支持自动匹配子目录路径）
   clip_skip: -2 # Illustrious/SDXL 推荐 Clip Skip 2 (-2)
-  default_lora: "DeniaV1-Nuclear1811-IL.safetensors" # 默认/兜底 LoRA 模型
+  default_lora: "DeniaV1-Nuclear1811-IL.safetensors" # 默认/兜底 LoRA 模型（支持自动匹配子目录路径；若服务端未安装会自动跳过）
   default_lora_strength: 0.3 # 默认 LoRA 权重
   # 固定链式加载的 LoRA 列表（默认留空，由衣橱 art_anchor 中的 <lora:DeniaV1-Nuclear1811-IL:0.3> 自动提取串联，避免重复叠加）
   fixed_loras: []

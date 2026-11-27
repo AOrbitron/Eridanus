@@ -1,13 +1,16 @@
 import asyncio
+import base64
 import hashlib
 import io
 import json
 import os
 import random
 import re
+import time
 import traceback
 from pathlib import Path
 from typing import Dict, Any, Optional, Tuple, List, Union
+from urllib.parse import parse_qsl, urlsplit, urlunsplit
 
 import httpx
 from PIL import Image
@@ -374,62 +377,496 @@ async def optimize_prompt_with_llm(
     }
 
 
-# 服务端能力缓存（避免每次生图重复请求 /object_info）
-_SERVER_CAPABILITIES_CACHE: Dict[str, Dict[str, Any]] = {}
+# 服务端能力缓存（避免每次生图重复请求服务端模型/节点列表，带 TTL 防陈旧）
+_SERVER_CAPABILITIES_CACHE: Dict[Tuple[str, str], Dict[str, Any]] = {}
+_SERVER_CAPABILITIES_TTL_SECONDS = 300.0
+_SERVER_CAPABILITIES_REFRESH_MIN_AGE = 30.0
+
+_QUOTE_CHARS = '"\'“”‘’「」『』《》`'
+_INVISIBLE_CHARS = "\u200b\u200c\u200d\ufeff\u00a0\r\n\t"
+_MODEL_EXTS = (".safetensors", ".ckpt", ".pt", ".pth", ".bin", ".gguf")
 
 
-async def get_server_capabilities(base_url: str, apikey: str = "") -> Dict[str, Any]:
-    """查询并缓存 ComfyUI 服务端已安装节点与调度器能力，以实现无缝兼容适配"""
-    key = base_url.rstrip("/")
-    if key in _SERVER_CAPABILITIES_CACHE:
-        return _SERVER_CAPABILITIES_CACHE[key]
+def sanitize_header_token(raw_token: Any) -> str:
+    """
+    清洗 ComfyUI API Key / Token：
+    - 去除首尾空白、零宽字符、误粘贴的中英文引号（如 “...” / "..." / '...'）；
+    - 自动剥离误填写的重复 'Bearer ' 前缀；
+    - 校验最终 Token 必须为纯 ASCII，防止 httpx 构造 Authorization 头时抛出晦涩的 UnicodeEncodeError。
+    """
+    if raw_token is None:
+        return ""
+    token = str(raw_token)
+    strip_set = " " + _INVISIBLE_CHARS + _QUOTE_CHARS
+    while True:
+        cleaned = token.strip(strip_set)
+        if cleaned.lower().startswith("bearer "):
+            cleaned = cleaned[7:].strip(strip_set)
+        if cleaned == token:
+            break
+        token = cleaned
 
-    caps = {
+    if token and not token.isascii():
+        bad_chars = [(idx, ch, f"U+{ord(ch):04X}") for idx, ch in enumerate(token) if ord(ch) >= 128]
+        sample = ", ".join(f"第{i + 1}位 '{c}' ({code})" for i, c, code in bad_chars[:3])
+        raise ValueError(
+            f"ComfyUI apikey 包含非 ASCII 字符（{sample}），HTTP Authorization 请求头仅支持 ASCII 字符。"
+            "请检查配置文件中是否混入了中文引号“”或多余中文字符。"
+        )
+    return token
+
+
+def parse_comfyui_connection(comfy_cfg: Dict[str, Any]) -> Tuple[str, str]:
+    """
+    统一解析 ComfyUI 连接地址与鉴权 Token（兼容网关直连与 ComfyUI-Login 插件）：
+    - 支持 url / base_url 留尾斜杠或误粘贴 /login 后缀；
+    - 支持直接把 ComfyUI-Login 链接写成 http://host:port/?token=xxx（自动提取 token 并还原基础 URL）；
+    - 自动清洗 url 与 apikey 首尾误粘贴的中英文引号、空格与 Bearer 前缀。
+    """
+    strip_set = " " + _INVISIBLE_CHARS + _QUOTE_CHARS
+    raw_url = str(comfy_cfg.get("base_url") or comfy_cfg.get("url") or "http://127.0.0.1:7860").strip(strip_set)
+    if not raw_url:
+        raw_url = "http://127.0.0.1:7860"
+
+    raw_apikey = comfy_cfg.get("apikey") or ""
+    query_token = ""
+
+    parts = urlsplit(raw_url)
+    if parts.scheme and parts.netloc:
+        if parts.query:
+            for k, v in parse_qsl(parts.query, keep_blank_values=False):
+                if k.strip().lower() in ("token", "apikey", "api_key") and v.strip():
+                    query_token = v.strip()
+                    break
+        clean_path = parts.path.rstrip("/")
+        if clean_path.lower().endswith("/login"):
+            clean_path = clean_path[:-6].rstrip("/")
+        base_url = urlunsplit((parts.scheme, parts.netloc, clean_path, "", "")).rstrip("/")
+    else:
+        base_url = raw_url.rstrip("/")
+
+    apikey = sanitize_header_token(raw_apikey) if str(raw_apikey or "").strip() else ""
+    if not apikey and query_token:
+        apikey = sanitize_header_token(query_token)
+
+    return base_url, apikey
+
+
+def build_comfyui_headers(apikey: str = "", accept: str = "application/json, */*") -> Dict[str, str]:
+    """构建符合 ComfyUI / ComfyUI-Login 规范的 HTTP 请求头"""
+    clean_key = sanitize_header_token(apikey)
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept": accept,
+    }
+    if clean_key:
+        headers["Authorization"] = f"Bearer {clean_key}"
+    return headers
+
+
+def _extract_combo_options(node_obj: Any, field_name: str) -> List[str]:
+    """从 ComfyUI /object_info 节点定义中提取下拉可选项列表（兼容经典列表格式与 V3 COMBO 格式）"""
+    if not isinstance(node_obj, dict):
+        return []
+    req = node_obj.get("input", {}).get("required", {})
+    if not isinstance(req, dict):
+        return []
+    spec = req.get(field_name)
+    if not isinstance(spec, list) or not spec:
+        return []
+    first = spec[0]
+    if isinstance(first, list):
+        return [str(x) for x in first if isinstance(x, str)]
+    if first == "COMBO" and len(spec) > 1 and isinstance(spec[1], dict):
+        opts = spec[1].get("options")
+        if isinstance(opts, list):
+            return [str(x) for x in opts if isinstance(x, str)]
+    return []
+
+
+def _norm_asset_path(name: str) -> str:
+    return (name or "").strip().replace("\\", "/").strip("/").casefold()
+
+
+def _strip_model_ext(path_str: str) -> str:
+    low = path_str.casefold()
+    for ext in _MODEL_EXTS:
+        if low.endswith(ext):
+            return path_str[:-len(ext)]
+    return path_str
+
+
+def _collapse_asset_key(name: str) -> str:
+    return re.sub(r"[\s_\-.]+", "", _strip_model_ext(name).casefold())
+
+
+def resolve_comfyui_asset_path(
+    target_name: str,
+    available_items: List[str],
+    preferred_subdirs: Optional[List[str]] = None,
+) -> Tuple[str, bool]:
+    """
+    根据 ComfyUI 服务端返回的真实模型/LoRA 列表自动补全子目录与路径分隔符。
+    示例：
+      - 输入 'waiIllustriousSDXL_v170.safetensors' 或 'waiIllustriousSDXL_v170'
+        -> 自动匹配 'Illustrious\\waiIllustriousSDXL_v170.safetensors'
+      - 输入 'Illustrious/waiIllustriousSDXL_v170.safetensors'
+        -> 自动修正分隔符为服务端真实值 'Illustrious\\waiIllustriousSDXL_v170.safetensors'
+      - 输入 '明日方舟/Archetto3outfits'
+        -> 自动匹配 'Anima\\人物\\明日方舟\\Archetto3outfits.safetensors'
+    返回 (matched_or_original_name, is_matched)。
+    """
+    if not target_name or not available_items:
+        return target_name, False
+
+    raw = str(target_name).strip().strip(_QUOTE_CHARS)
+    if not raw:
+        return target_name, False
+
+    # 1. 精确一致
+    if raw in available_items:
+        return raw, True
+
+    norm_q = _norm_asset_path(raw)
+    norm_q_no_ext = _strip_model_ext(norm_q)
+    base_q = norm_q.rsplit("/", 1)[-1]
+    base_q_no_ext = _strip_model_ext(base_q)
+    collapsed_q = _collapse_asset_key(base_q)
+    pref_tokens = [p.casefold() for p in (preferred_subdirs or []) if p]
+
+    def _pick_best(candidates: List[str]) -> str:
+        if len(candidates) == 1:
+            return candidates[0]
+
+        def _score(cand: str) -> Tuple[int, int, int, str]:
+            norm_c = _norm_asset_path(cand)
+            dir_part = norm_c.rsplit("/", 1)[0] if "/" in norm_c else ""
+            pref_rank = 1
+            if pref_tokens and dir_part:
+                dir_segments = dir_part.split("/")
+                if any(any(pt in seg for pt in pref_tokens) for seg in dir_segments):
+                    pref_rank = 0
+            depth = norm_c.count("/")
+            return (pref_rank, depth, len(cand), norm_c)
+
+        return min(candidates, key=_score)
+
+    prepared = []
+    for cand in available_items:
+        if not isinstance(cand, str) or not cand:
+            continue
+        nc = _norm_asset_path(cand)
+        nc_no_ext = _strip_model_ext(nc)
+        bc = nc.rsplit("/", 1)[-1]
+        bc_no_ext = _strip_model_ext(bc)
+        prepared.append((cand, nc, nc_no_ext, bc, bc_no_ext))
+
+    # 2. 路径归一化一致（兼容 / 与 \ 及大小写）
+    hits = [c for c, nc, _, _, _ in prepared if nc == norm_q]
+    if hits:
+        return _pick_best(hits), True
+
+    # 3. 路径归一化一致（忽略后缀名）
+    hits = [c for c, _, nc_ne, _, _ in prepared if nc_ne == norm_q_no_ext]
+    if hits:
+        return _pick_best(hits), True
+
+    # 4. 子路径后缀匹配（如用户写了 '明日方舟/Archetto3outfits'）
+    if "/" in norm_q:
+        hits = [
+            c for c, nc, nc_ne, _, _ in prepared
+            if nc.endswith("/" + norm_q) or nc_ne.endswith("/" + norm_q_no_ext)
+        ]
+        if hits:
+            return _pick_best(hits), True
+
+    # 5. 文件名精确匹配（含后缀）
+    hits = [c for c, _, _, bc, _ in prepared if bc == base_q]
+    if hits:
+        return _pick_best(hits), True
+
+    # 6. 文件名去后缀精确匹配（如 waiIllustriousSDXL_v170 -> Illustrious\waiIllustriousSDXL_v170.safetensors）
+    hits = [c for c, _, _, _, bc_ne in prepared if bc_ne == base_q_no_ext]
+    if hits:
+        return _pick_best(hits), True
+
+    # 7. 忽略分隔符（空格/下划线/连字符）后的文件名精确匹配
+    if len(collapsed_q) >= 4:
+        hits = [c for c, _, _, _, bc_ne in prepared if _collapse_asset_key(bc_ne) == collapsed_q]
+        if hits:
+            return _pick_best(hits), True
+
+    # 8. 唯一无歧义子串匹配（仅针对长度 >= 4 且仅命中唯一候选时启用，避免误匹配无关模型）
+    if len(base_q_no_ext) >= 4:
+        hits = [c for c, _, _, _, bc_ne in prepared if base_q_no_ext in bc_ne]
+        if len(hits) == 1:
+            return hits[0], True
+        if len(hits) > 1 and pref_tokens:
+            pref_hits = [
+                c for c in hits
+                if "/" in _norm_asset_path(c)
+                and any(pt in _norm_asset_path(c).rsplit("/", 1)[0] for pt in pref_tokens)
+            ]
+            if len(pref_hits) == 1:
+                return pref_hits[0], True
+
+    return target_name, False
+
+
+async def get_server_capabilities(
+    base_url: str,
+    apikey: str = "",
+    force_refresh: bool = False,
+) -> Dict[str, Any]:
+    """
+    查询并缓存 ComfyUI 服务端已安装节点、调度器与可用模型/LoRA 列表。
+    优先并发请求轻量级单节点 /object_info/{node}（总计仅数十 KB，避免下载数十 MB 的全量 /object_info 超时），
+    并在不支持单节点查询的网关上自动降级到 /models/{folder} 或全量 /object_info。
+    """
+    clean_url, clean_key = parse_comfyui_connection({"base_url": base_url, "apikey": apikey})
+    key_sig = hashlib.sha256(clean_key.encode("ascii")).hexdigest()[:12] if clean_key else ""
+    cache_key = (clean_url, key_sig)
+
+    now = time.monotonic()
+    cached = _SERVER_CAPABILITIES_CACHE.get(cache_key)
+    if not force_refresh and cached and (now - cached["ts"]) < _SERVER_CAPABILITIES_TTL_SECONDS:
+        return cached["caps"]
+
+    caps: Dict[str, Any] = {
         "has_teacache": False,
         "has_easycache": False,
         "has_remap_lora": False,
         "has_beta57": False,
+        "available_ckpts": [],
         "available_unets": [],
         "available_loras": [],
+        "available_clips": [],
+        "available_vaes": [],
+        "_fetched_at": now,
     }
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-    }
-    if apikey:
-        headers["Authorization"] = f"Bearer {apikey}"
+    headers = build_comfyui_headers(clean_key)
+    probe_ok = False
+
+    def _populate_from_object_info(info: Dict[str, Any]) -> None:
+        if "AnimaTeaCache" in info:
+            caps["has_teacache"] = True
+        if "EasyCache" in info:
+            caps["has_easycache"] = True
+        if "AnimaLoRARemapTagLoader" in info:
+            caps["has_remap_lora"] = True
+        if "KSampler" in info:
+            sched_list = _extract_combo_options(info.get("KSampler"), "scheduler")
+            if sched_list:
+                caps["has_beta57"] = "beta57" in sched_list
+        if "CheckpointLoaderSimple" in info:
+            ckpts = _extract_combo_options(info.get("CheckpointLoaderSimple"), "ckpt_name")
+            if ckpts:
+                caps["available_ckpts"] = ckpts
+        if "UNETLoader" in info:
+            unets = _extract_combo_options(info.get("UNETLoader"), "unet_name")
+            if unets:
+                caps["available_unets"] = unets
+        if "LoraLoader" in info:
+            loras = _extract_combo_options(info.get("LoraLoader"), "lora_name")
+            if loras:
+                caps["available_loras"] = loras
+        if "CLIPLoader" in info:
+            clips = _extract_combo_options(info.get("CLIPLoader"), "clip_name")
+            if clips:
+                caps["available_clips"] = clips
+        if "VAELoader" in info:
+            vaes = _extract_combo_options(info.get("VAELoader"), "vae_name")
+            if vaes:
+                caps["available_vaes"] = vaes
+
     try:
-        async with httpx.AsyncClient(timeout=10.0, headers=headers, verify=False) as client:
-            resp = await client.get(f"{key}/object_info")
-            if resp.status_code == 200:
-                info = safe_parse_json(resp)
-                if isinstance(info, dict):
-                    caps["has_teacache"] = "AnimaTeaCache" in info
-                    caps["has_easycache"] = "EasyCache" in info
-                    caps["has_remap_lora"] = "AnimaLoRARemapTagLoader" in info
-                    sched_list = (
-                        info.get("KSampler", {})
-                        .get("input", {})
-                        .get("required", {})
-                        .get("scheduler", [[]])[0]
-                    )
-                    if isinstance(sched_list, list):
-                        caps["has_beta57"] = "beta57" in sched_list
-                    caps["available_unets"] = (
-                        info.get("UNETLoader", {})
-                        .get("input", {})
-                        .get("required", {})
-                        .get("unet_name", [[]])[0]
-                    )
-                    caps["available_loras"] = (
-                        info.get("LoraLoader", {})
-                        .get("input", {})
-                        .get("required", {})
-                        .get("lora_name", [[]])[0]
-                    )
-                    _SERVER_CAPABILITIES_CACHE[key] = caps
-    except Exception:
-        pass
+        async with httpx.AsyncClient(timeout=15.0, headers=headers, verify=False) as client:
+            sem = asyncio.Semaphore(4)
+
+            async def _fetch_node(node_name: str) -> Optional[Dict[str, Any]]:
+                async with sem:
+                    for attempt in range(2):
+                        try:
+                            r = await client.get(f"{clean_url}/object_info/{node_name}")
+                            if r.status_code == 200:
+                                parsed = safe_parse_json(r)
+                                if isinstance(parsed, dict) and node_name in parsed:
+                                    return parsed
+                                return None
+                            if r.status_code in (401, 403, 404):
+                                return None
+                        except Exception:
+                            pass
+                        if attempt == 0:
+                            await asyncio.sleep(0.3)
+                return None
+
+            target_nodes = [
+                "CheckpointLoaderSimple",
+                "UNETLoader",
+                "LoraLoader",
+                "CLIPLoader",
+                "VAELoader",
+                "KSampler",
+                "AnimaTeaCache",
+                "EasyCache",
+                "AnimaLoRARemapTagLoader",
+            ]
+            node_results = await asyncio.gather(*(_fetch_node(n) for n in target_nodes))
+            for nr in node_results:
+                if isinstance(nr, dict) and nr:
+                    probe_ok = True
+                    _populate_from_object_info(nr)
+
+            # 降级 1：针对未通过 /object_info/{node} 获取到的模型分类，按需补查轻量 /models/{folder} 接口
+            missing_folders = [
+                (cap_key, folder)
+                for cap_key, folder in (
+                    ("available_ckpts", "checkpoints"),
+                    ("available_unets", "diffusion_models"),
+                    ("available_loras", "loras"),
+                    ("available_clips", "text_encoders"),
+                    ("available_vaes", "vae"),
+                )
+                if not caps[cap_key]
+            ]
+            if missing_folders:
+                async def _fetch_models(folder: str) -> List[str]:
+                    async with sem:
+                        try:
+                            r = await client.get(f"{clean_url}/models/{folder}")
+                            if r.status_code == 200:
+                                parsed = safe_parse_json(r)
+                                if isinstance(parsed, list):
+                                    return [str(x) for x in parsed if isinstance(x, str)]
+                        except Exception:
+                            pass
+                    return []
+
+                folder_results = await asyncio.gather(*(_fetch_models(folder) for _, folder in missing_folders))
+                for (cap_key, _), items in zip(missing_folders, folder_results):
+                    if items:
+                        caps[cap_key] = items
+                        probe_ok = True
+
+            # 降级 2：兼容仅暴露全量 /object_info 的旧版服务或测试 Mock
+            if not probe_ok:
+                resp = await client.get(f"{clean_url}/object_info", timeout=25.0)
+                if resp.status_code == 200:
+                    info = safe_parse_json(resp)
+                    if isinstance(info, dict) and info:
+                        probe_ok = True
+                        _populate_from_object_info(info)
+    except Exception as e:
+        logger.debug(f"[ComfyUI] 探测服务端能力失败 ({clean_url}): {e}")
+
+    if probe_ok:
+        _SERVER_CAPABILITIES_CACHE[cache_key] = {"ts": now, "caps": caps}
     return caps
+
+
+async def _resolve_workflow_assets(
+    base_url: str,
+    apikey: str,
+    ckpt: str,
+    clip: str,
+    vae: str,
+    active_loras: List[Dict[str, Any]],
+) -> Tuple[Dict[str, Any], str, str, str, List[Dict[str, Any]], bool]:
+    """
+    结合 ComfyUI 服务端实际文件目录，自动补全底模 (ckpt/unet)、CLIP、VAE 与 LoRA 的完整子目录路径。
+    - 例如配置 'waiIllustriousSDXL_v170.safetensors' -> 自动解析为 'Illustrious\\waiIllustriousSDXL_v170.safetensors'；
+    - 自动识别模型实际位于 checkpoints 还是 diffusion_models/unet；
+    - 若服务端已返回可用 LoRA 列表但某个自动注入/配置的 LoRA 不存在，则记录告警并跳过，避免整个工作流因单个缺失 LoRA 报错。
+    """
+    caps = await get_server_capabilities(base_url, apikey=apikey)
+
+    def _do_resolve(c: Dict[str, Any]) -> Tuple[str, bool, bool, str, str, List[Dict[str, Any]]]:
+        avail_ckpts = c.get("available_ckpts") or []
+        avail_unets = c.get("available_unets") or []
+        avail_loras = c.get("available_loras") or []
+        avail_clips = c.get("available_clips") or []
+        avail_vaes = c.get("available_vaes") or []
+
+        is_anima = _is_anima_model(ckpt)
+        resolved_ckpt = ckpt
+        ckpt_matched = False
+
+        if is_anima:
+            if avail_unets:
+                resolved_ckpt, ckpt_matched = resolve_comfyui_asset_path(
+                    ckpt, avail_unets, preferred_subdirs=["anima"]
+                )
+            if not ckpt_matched and avail_ckpts:
+                alt_ckpt, alt_ok = resolve_comfyui_asset_path(
+                    ckpt, avail_ckpts, preferred_subdirs=["anima", "illustrious", "noob"]
+                )
+                if alt_ok:
+                    resolved_ckpt = alt_ckpt
+                    ckpt_matched = True
+                    is_anima = False
+        else:
+            if avail_ckpts:
+                resolved_ckpt, ckpt_matched = resolve_comfyui_asset_path(
+                    ckpt, avail_ckpts, preferred_subdirs=["illustrious", "il", "noob", "sdxl"]
+                )
+            if not ckpt_matched and avail_unets:
+                alt_unet, alt_ok = resolve_comfyui_asset_path(
+                    ckpt, avail_unets, preferred_subdirs=["anima", "illustrious"]
+                )
+                if alt_ok:
+                    resolved_ckpt = alt_unet
+                    ckpt_matched = True
+                    is_anima = True
+
+        resolved_clip = clip
+        resolved_vae = vae
+        if is_anima:
+            if avail_clips and clip:
+                resolved_clip, _ = resolve_comfyui_asset_path(clip, avail_clips)
+            if avail_vaes and vae:
+                resolved_vae, _ = resolve_comfyui_asset_path(vae, avail_vaes)
+
+        lora_pref = ["anima"] if is_anima else ["illustrious", "il", "sdxl", "noob"]
+        resolved_loras: List[Dict[str, Any]] = []
+        lora_renames: List[Tuple[str, str]] = []
+        seen_loras = set()
+        for l_item in active_loras:
+            raw_ln = str(l_item.get("name") or "").strip()
+            if not raw_ln:
+                continue
+            strength = float(l_item.get("strength", 0.8))
+            if avail_loras:
+                final_ln, ok = resolve_comfyui_asset_path(raw_ln, avail_loras, preferred_subdirs=lora_pref)
+                if not ok:
+                    logger.warning(f"[ComfyUI] 服务端未找到 LoRA '{raw_ln}'，已自动跳过加载")
+                    continue
+                if final_ln != raw_ln:
+                    lora_renames.append((raw_ln, final_ln))
+            else:
+                final_ln = raw_ln
+            norm_key = _norm_asset_path(final_ln)
+            if norm_key not in seen_loras:
+                seen_loras.add(norm_key)
+                resolved_loras.append({"name": final_ln, "strength": strength})
+
+        return resolved_ckpt, ckpt_matched, is_anima, resolved_clip, resolved_vae, resolved_loras, lora_renames
+
+    resolved_ckpt, ckpt_matched, is_anima, resolved_clip, resolved_vae, resolved_loras, lora_renames = _do_resolve(caps)
+
+    # 若底模在缓存列表中未命中且缓存距今超过 30 秒，主动刷新一次列表（兼容用户刚往服务器拷入新模型）
+    has_model_catalog = bool(caps.get("available_ckpts") or caps.get("available_unets"))
+    cache_age = time.monotonic() - float(caps.get("_fetched_at", 0.0))
+    if has_model_catalog and not ckpt_matched and cache_age >= _SERVER_CAPABILITIES_REFRESH_MIN_AGE:
+        caps = await get_server_capabilities(base_url, apikey=apikey, force_refresh=True)
+        resolved_ckpt, ckpt_matched, is_anima, resolved_clip, resolved_vae, resolved_loras, lora_renames = _do_resolve(caps)
+
+    if resolved_ckpt != ckpt:
+        logger.info(f"[ComfyUI] 自动匹配底模路径: '{ckpt}' -> '{resolved_ckpt}'")
+    for orig_ln, res_ln in lora_renames:
+        logger.info(f"[ComfyUI] 自动匹配 LoRA 路径: '{orig_ln}' -> '{res_ln}'")
+
+    return caps, resolved_ckpt, resolved_clip, resolved_vae, resolved_loras, is_anima
 
 
 def _is_anima_model(model_name: str) -> bool:
@@ -516,6 +953,7 @@ def build_illustrious_workflow(
     cache_type: Optional[str] = None,
     teacache_thresh: float = 0.35,
     use_remap_lora: bool = False,
+    force_is_anima: Optional[bool] = None,
 ) -> Dict[str, Any]:
     """
     构建 ComfyUI API Prompt 节点图（默认 Illustrious/SDXL CheckpointLoaderSimple 架构；
@@ -525,7 +963,7 @@ def build_illustrious_workflow(
         seed = random.randint(1, 10**14)
 
     target_model = ckpt_name or unet_name
-    is_anima = _is_anima_model(target_model)
+    is_anima = _is_anima_model(target_model) if force_is_anima is None else bool(force_is_anima)
     is_29b = is_anima and ("29b" in target_model.lower() or "2.9b" in target_model.lower())
 
     prompt_nodes: Dict[str, Any] = {}
@@ -688,14 +1126,15 @@ def build_comfyui_img2img_workflow(
     vae_name: str = "qwen_image_vae.safetensors",
     clip_skip: int = -2,
     loras: Optional[List[Dict[str, Any]]] = None,
-    filename_prefix: str = "ComfyUI_Img2Img"
+    filename_prefix: str = "ComfyUI_Img2Img",
+    force_is_anima: Optional[bool] = None,
 ) -> Dict[str, Any]:
     """构建标准 ComfyUI 以图生图 (img2img) 节点工作流（兼容 Illustrious Checkpoint 与 Anima 架构）"""
     if seed == -1:
         seed = random.randint(1, 10**14)
 
     target_model = ckpt_name or unet_name
-    is_anima = _is_anima_model(target_model)
+    is_anima = _is_anima_model(target_model) if force_is_anima is None else bool(force_is_anima)
 
     prompt_nodes: Dict[str, Any] = {}
     if is_anima:
@@ -795,15 +1234,12 @@ async def upload_image_to_comfyui(
     else:
         raise ValueError(f"无法识别的图片来源: {type(img_source)}")
 
-    upload_url = f"{base_url}/upload/image"
+    clean_url, clean_key = parse_comfyui_connection({"base_url": base_url, "apikey": apikey})
+    upload_url = f"{clean_url}/upload/image"
     files = {"image": (filename, raw_bytes, "image/png")}
     data = {"overwrite": "true", "subfolder": "", "type": "input"}
 
-    client_headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-    }
-    if apikey:
-        client_headers["Authorization"] = f"Bearer {apikey}"
+    client_headers = build_comfyui_headers(clean_key)
 
     async with httpx.AsyncClient(timeout=30.0, headers=client_headers, verify=False) as client:
         resp = await client.post(upload_url, files=files, data=data)
@@ -832,8 +1268,7 @@ async def comfyui_draw(
     draw_cfg = config.ai_generated_art.config.get("ai绘画", {})
     comfy_cfg = config.ai_generated_art.config.get("comfyui", {})
 
-    base_url = (comfy_cfg.get("base_url") or comfy_cfg.get("url") or "http://127.0.0.1:7860").rstrip("/")
-    apikey = str(comfy_cfg.get("apikey") or "").strip()
+    base_url, apikey = parse_comfyui_connection(comfy_cfg)
     timeout = float(comfy_cfg.get("timeout", 300))
     llm_control = comfy_cfg.get("主模型控制生图", False)
 
@@ -1074,11 +1509,17 @@ async def comfyui_draw(
     hires_denoise = float(comfy_cfg.get("hires_denoise", 0.38))
     hires_steps = int(comfy_cfg.get("hires_steps", 15))
 
-    # 探测服务端能力：仅当加载 Anima 模型时按需启用 TeaCache / 2.9B LoRA 重映射与 beta57 兼容回退
-    is_anima = _is_anima_model(ckpt)
+    # 探测服务端能力并自动匹配底模 / CLIP / VAE / LoRA 的真实子目录路径
+    caps, ckpt, clip, vae, active_loras, is_anima = await _resolve_workflow_assets(
+        base_url=base_url,
+        apikey=apikey,
+        ckpt=ckpt,
+        clip=clip,
+        vae=vae,
+        active_loras=active_loras,
+    )
     enable_cache = comfy_cfg.get("enable_teacache", False) and is_anima
     teacache_thresh = float(comfy_cfg.get("teacache_thresh", 0.35))
-    caps = await get_server_capabilities(base_url, apikey=apikey)
 
     cache_type = None
     if enable_cache:
@@ -1114,6 +1555,7 @@ async def comfyui_draw(
         cache_type=cache_type,
         teacache_thresh=teacache_thresh,
         use_remap_lora=use_remap_lora,
+        force_is_anima=is_anima,
     )
 
     return await _execute_comfyui_workflow(
@@ -1125,6 +1567,7 @@ async def comfyui_draw(
         groupid=groupid,
         config=config,
         client_prefix="eridanus",
+        apikey=apikey,
     )
 
 
@@ -1137,17 +1580,16 @@ async def _execute_comfyui_workflow(
     groupid: Optional[int],
     config: Any = None,
     client_prefix: str = "eridanus",
+    apikey: Optional[str] = None,
 ) -> Union[str, bool, None]:
     """统一提交 ComfyUI API 工作流、轮询完成状态、下载并无损解密图像，返回缓存文件路径"""
     client_id = f"{client_prefix}_{random_str(8)}"
     payload = {"prompt": workflow, "client_id": client_id}
-    client_headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8"
-    }
-    apikey = str(comfy_cfg.get("apikey") or "").strip()
-    if apikey:
-        client_headers["Authorization"] = f"Bearer {apikey}"
+    parsed_url, parsed_key = parse_comfyui_connection(
+        {"base_url": base_url, "apikey": comfy_cfg.get("apikey") if apikey is None else apikey}
+    )
+    base_url = parsed_url
+    client_headers = build_comfyui_headers(parsed_key)
     audit_required = requires_nsfw_audit(draw_cfg, groupid)
 
     try:
@@ -1163,7 +1605,11 @@ async def _execute_comfyui_workflow(
                         pass
                 if not err_text:
                     err_text = prompt_resp.content[:300].decode("utf-8", errors="replace")
-                raise RuntimeError(f"ComfyUI /prompt 响应错误 ({prompt_resp.status_code}): {err_text}")
+                if prompt_resp.status_code in (401, 403):
+                    raise RuntimeError(
+                        f"ComfyUI 鉴权失败 ({prompt_resp.status_code})，请检查 ComfyUI-Login 或网关 apikey 是否正确（切勿包含中文引号“”）: {err_text[:200]}"
+                    )
+                raise RuntimeError(f"ComfyUI /prompt 响应错误 ({prompt_resp.status_code}): {err_text[:500]}")
 
             prompt_data = safe_parse_json(prompt_resp)
             if isinstance(prompt_data, dict):
@@ -1172,7 +1618,20 @@ async def _execute_comfyui_workflow(
                     err_msg = err_val.get("message") or str(err_val) if isinstance(err_val, dict) else str(err_val)
                     raise RuntimeError(f"ComfyUI /prompt 报错: {err_msg}")
                 if "node_errors" in prompt_data and prompt_data["node_errors"]:
-                    raise RuntimeError(f"ComfyUI 节点验证失败: {prompt_data['node_errors']}")
+                    # 精简 node_errors，避免把数百个模型名全部吐到错误消息里
+                    brief_errs = []
+                    for nid, nerr in prompt_data["node_errors"].items():
+                        if isinstance(nerr, dict):
+                            ctype = nerr.get("class_type", nid)
+                            msgs = [
+                                (e.get("details") or e.get("message") or str(e))[:220]
+                                for e in (nerr.get("errors") or [])
+                                if isinstance(e, dict)
+                            ]
+                            brief_errs.append(f"{ctype}({nid}): {'; '.join(msgs) or str(nerr)[:220]}")
+                        else:
+                            brief_errs.append(f"{nid}: {str(nerr)[:220]}")
+                    raise RuntimeError(f"ComfyUI 节点验证失败: {' | '.join(brief_errs)}")
 
             prompt_id = prompt_data.get("prompt_id") if prompt_data else None
             if not prompt_id:
@@ -1191,6 +1650,10 @@ async def _execute_comfyui_workflow(
                         history_data = safe_parse_json(history_resp)
                         if prompt_id in history_data:
                             task_history = history_data[prompt_id]
+                            status_obj = task_history.get("status", {})
+                            if isinstance(status_obj, dict) and status_obj.get("status_str") == "error":
+                                err_msgs = status_obj.get("messages") or []
+                                raise RuntimeError(f"ComfyUI 执行节点报错: {str(err_msgs)[:400]}")
                             outputs = task_history.get("outputs", {})
                             for node_id, node_out in outputs.items():
                                 images = node_out.get("images", [])
@@ -1199,6 +1662,8 @@ async def _execute_comfyui_workflow(
                                     break
                             if image_info:
                                 break
+                except RuntimeError:
+                    raise
                 except Exception:
                     continue
 
@@ -1239,12 +1704,15 @@ async def _execute_comfyui_workflow(
                 f.write(raw_bytes)
 
             if audit_required:
-                try:
-                    audit_res = await pic_audit_standalone(str(save_path), config)
-                    if not audit_res:
-                        return False
-                except Exception:
-                    pass
+                audit_url = str(draw_cfg.get("sd审核和反推api") or "").strip()
+                if audit_url:
+                    try:
+                        img_b64 = base64.b64encode(raw_bytes).decode("ascii")
+                        is_nsfw = await pic_audit_standalone(img_b64, return_none=True, url=audit_url)
+                        if is_nsfw:
+                            return False
+                    except Exception as audit_err:
+                        logger.warning(f"[ComfyUI] 图片审核调用异常，已放行: {audit_err}")
 
             return str(save_path)
     except Exception:
@@ -1265,14 +1733,13 @@ async def comfyui_img2img(
     ComfyUI 以图生图 (img2img) 核心入口：
     1. 上传参考图片至 ComfyUI 服务端 (/upload/image)
     2. 支持以图生图提示词指导优化 (optimize_prompt_for_img2img)
-    3. 构建以图生图工作流 (Illustrious Checkpoint / Anima 兼容)
+    3. 构建以图生图工作流 (Illustrious Checkpoint / Anima 兼容，自动识别服务端模型与 LoRA 路径)
     4. 执行生成、自动无损解密并返回图片路径
     """
     draw_cfg = config.ai_generated_art.config.get("ai绘画", {})
     comfy_cfg = config.ai_generated_art.config.get("comfyui", {})
 
-    base_url = (comfy_cfg.get("base_url") or comfy_cfg.get("url") or "http://127.0.0.1:7860").rstrip("/")
-    apikey = str(comfy_cfg.get("apikey") or "").strip()
+    base_url, apikey = parse_comfyui_connection(comfy_cfg)
     timeout = float(comfy_cfg.get("timeout", 300))
 
     uploaded_image_name = await upload_image_to_comfyui(image_source, base_url, apikey=apikey)
@@ -1332,6 +1799,17 @@ async def comfyui_img2img(
     if audit_required and check_censored(positive_prompt):
         return "审核api: 提示词包含受限内容，已被拦截"
 
+    caps, ckpt, clip, vae, active_loras, is_anima = await _resolve_workflow_assets(
+        base_url=base_url,
+        apikey=apikey,
+        ckpt=ckpt,
+        clip=clip,
+        vae=vae,
+        active_loras=active_loras,
+    )
+    if scheduler == "beta57" and not caps.get("has_beta57"):
+        scheduler = "beta"
+
     workflow = build_comfyui_img2img_workflow(
         image_name=uploaded_image_name,
         positive_prompt=positive_prompt,
@@ -1346,7 +1824,8 @@ async def comfyui_img2img(
         vae_name=vae,
         clip_skip=clip_skip,
         loras=active_loras,
-        filename_prefix="ComfyUI_Img2Img"
+        filename_prefix="ComfyUI_Img2Img",
+        force_is_anima=is_anima,
     )
 
     return await _execute_comfyui_workflow(
@@ -1358,4 +1837,5 @@ async def comfyui_img2img(
         groupid=groupid,
         config=config,
         client_prefix="eridanus_img2img",
+        apikey=apikey,
     )
