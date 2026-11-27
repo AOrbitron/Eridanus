@@ -240,27 +240,59 @@ async def skland_signin(userid,bot=None,event=None):
 
 
 
-async def skland_info(userid,bot=None,event=None):
+async def skland_info(userid,bot=None,event=None,proxy=None,game='arknights'):
+    """两个游戏独立查询角色信息，默认保留明日方舟调用接口。"""
+    game_name = '终末地' if game == 'endfield' else '明日方舟'
+
+    async def notify(text):
+        if bot and event:
+            await bot.send(event, [At(qq=userid), ' ' + text])
+        else:
+            print(text)
+
     @refresh_cred_token_if_needed
     @refresh_access_token_if_needed
-    async def get_character_info(user_info, uid: str):
-        return await SklandAPI.ark_card(CRED(cred=user_info['cred'], token=user_info['cred_token']), uid)
+    async def get_character_info(user_info, role):
+        cred = CRED(cred=user_info['cred'], token=user_info['cred_token'])
+        if game == 'endfield':
+            return await SklandAPI.endfield_card(cred, str(role['roleid']), str(role.get('serverid', '1')), proxy=proxy)
+        return await SklandAPI.ark_card(cred, str(role['uid']), proxy=proxy)
 
     user_info =await db.read_user(userid)
-    if not (user_info and 'skland' in user_info and 'user_info' in user_info['skland'] and 'character_info' in user_info['skland']):
-        if bot and event:await bot.send(event, '此用户还未绑定，请发送 ‘森空岛帮助’ 查看菜单')
-        else:print('此用户还未绑定，请发送 ‘森空岛帮助’ 查看菜单')
+    skland = user_info.get('skland') or {}
+    user_info_self = skland.get('user_info') or {}
+    if not user_info_self.get('cred') or not user_info_self.get('cred_token'):
+        await notify('此用户还未绑定森空岛，请发送“森空岛登录”')
         return
-    user_info_self, character_info_self = user_info['skland']['user_info'], user_info['skland']['character_info']['arknights']
-    info = await get_character_info(user_info_self, str(character_info_self['uid']))
-    #print(info)
+    characters = skland.get('character_info') or {}
+    character_info_self = characters.get(game) or {}
+    if not character_info_self and characters.get('app_code') == game:
+        character_info_self = characters
+    required_uid = 'roleid' if game == 'endfield' else 'uid'
+    if not character_info_self.get(required_uid):
+        await notify(f'未找到{game_name}角色，请发送“森空岛登录”更新绑定')
+        return
 
-    background = await get_background_image()
-    image_path = await render_ark_card(info, background)
-    if bot and event:
-        await bot.send(event, [At(qq=userid)," 的森空岛信息如下：",Image(file=image_path)])
-    else:
-        PImage.open(image_path).show()
+    try:
+        info = await get_character_info(user_info_self, character_info_self)
+        if info is None:
+            await notify(f'{game_name}信息查询失败，请稍后重试；若登录已过期，请发送“森空岛登录”')
+            return
+        background = await get_background_image()
+        image_path = (await render_endfield_card(info, character_info_self, background)
+                      if game == 'endfield' else await render_ark_card(info, background))
+        if bot and event:
+            await bot.send(event, [At(qq=userid), f' 的{game_name}信息如下：', Image(file=image_path)])
+        else:
+            print(image_path)
+        return image_path
+    except Exception as error:
+        logger.warning(f'{game_name}信息查询失败：{type(error).__name__}')
+        await notify(f'{game_name}信息查询失败，请稍后重试')
+
+
+async def endfield_info(userid,bot=None,event=None,proxy=None):
+    return await skland_info(userid, bot, event, proxy=proxy, game='endfield')
 
 
 async def rouge_info(userid,rg_type,bot=None,event=None):

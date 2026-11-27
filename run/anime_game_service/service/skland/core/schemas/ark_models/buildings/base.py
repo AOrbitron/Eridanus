@@ -34,10 +34,16 @@ class Labor(BaseModel):
 
     @property
     def labor_now(self) -> int:
-        if self.maxValue == self.value:
+        remaining = self.maxValue - self.value
+        if remaining <= 0:
             return self.maxValue
+        # Some API payloads report zero remaining time while the stored value
+        # is still below the cap. Keep the reported value instead of dividing
+        # by a zero-duration interval and failing the entire information card.
+        if self.remainSecs <= 0:
+            return self.value
         elapsed_time = datetime.now().timestamp() - self.lastUpdateTime
-        labor_increment = elapsed_time / (self.remainSecs / (self.maxValue - self.value))
+        labor_increment = elapsed_time / (self.remainSecs / remaining)
         return min(int(labor_increment + self.value), self.maxValue)
 
 

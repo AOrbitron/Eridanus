@@ -20,3 +20,10 @@ run/live2d/desktop/runtime_config.json
 
 # 用户知识库文档
 /data/knowledge/
+
+# 米游社与森空岛运行数据、下载缓存和本地验证文件
+/run/anime_game_service/service/mihuyo_club/data/
+/run/anime_game_service/service/skland/data/
+/run/anime_game_service/service/skland/core/resources/cache/
+/run/anime_game_service/service/skland/arksign.png
+/run/anime_game_service/service/skland/VALIDATION.md

@@ -4,7 +4,7 @@ from pydantic import AnyUrl as Url
 import pprint
 
 from .config import TEMPLATES_DIR, RES_DIR, Building_Dir, career_dir, card_img_dir
-from .schemas import ArkCard, RogueData
+from .schemas import ArkCard, RogueData, EndfieldCard
 from .filters import (
     loads_json,
     format_timestamp,
@@ -48,7 +48,7 @@ async def render_ark_card(props ,bg ):
     #print(bg)
 
     img_path=await manshuo_draw(
-        [{'type': 'basic_set','img_height':2000,'font_common_color':(255,255,255),'font_title_color':(255,255,255),'font_des_color':(255,255,255),
+        [{'type': 'basic_set','img_path_save':'data/pictures/cache','img_name_save':None,'img_height':2000,'font_common_color':(255,255,255),'font_title_color':(255,255,255),'font_des_color':(255,255,255),
           'backdrop_color':{'color1':'(80, 80, 80, 255)'},'stroke_layer_color':(130,130,130),'stroke_img_color':(130,130,130)},
          {'type': 'backdrop', 'subtype': 'gradient','left_color': (5,22,29),'right_color': (84,89,88)},
          {'type': 'avatar', 'img': [props.status.avatar.url],'upshift_extra': 20,'background':[bg],
@@ -59,7 +59,7 @@ async def render_ark_card(props ,bg ):
          'img': [(career_dir / 'career_1.png').as_posix(),(career_dir / 'career_2.png').as_posix(),
                  (career_dir / 'career_3.png').as_posix(),(career_dir / 'career_4.png').as_posix(),
                  (career_dir / 'career_5.png').as_posix(),],
-         'content': [f'作战进度\n{props.status.mainStageProgress}',f'雇佣干员\n{len(props.chars)}',
+         'content': [f'作战进度\n{props.status.mainStageProgress or "未公开"}',f'雇佣干员\n{len(props.chars)}',
                      f'时装数量\n{len(props.skins)}',f'家具保有\n{props.building.furniture.total}',
                      f'蚀刻章\n{props.medal.total}',]},
         '   ',{'type': 'text', 'content': ['[title]助战干员[/title]'],'layer':2},
@@ -100,6 +100,42 @@ async def render_ark_card(props ,bg ):
          '[des]                                             Function By 漫朔[/des]'
     ])
     return img_path
+
+
+async def render_endfield_card(props: EndfieldCard, role: dict, bg: str | Url):
+    """沿用明日方舟信息卡风格，展示终末地实时状态和活动模块。"""
+    name = role.get("nickname") or "管理员"
+    level = f"  Lv.{role['level']}" if role.get("level") is not None else ""
+    draw_json = [
+        {'type': 'basic_set', 'debug': False, 'img_height': 1100, 'img_path_save': 'data/pictures/cache', 'img_name_save': None,
+         'font_common_color': (255, 255, 255), 'font_title_color': (255, 255, 255),
+         'font_des_color': (210, 215, 220), 'backdrop_color': {'color1': '(80, 80, 80, 255)'},
+         'stroke_layer_color': (130, 130, 130), 'stroke_img_color': (130, 130, 130)},
+        {'type': 'backdrop', 'subtype': 'gradient', 'left_color': (5, 22, 29), 'right_color': (84, 89, 88)},
+        {'type': 'avatar', 'img': [props.data.pic or str(bg)], 'upshift_extra': 20, 'background': [str(bg)],
+         'content': [f"[name]{name}[/name] [time]{level}[/time]\n[time]UID:{role['roleid']}  终末地[/time]"]},
+        {'type': 'text', 'content': [f'[title]每日信息[/title]\n[des]更新于 {props.updated_at}（北京时间）[/des]'], 'layer': 2},
+    ]
+    counters = props.counters
+    icons = {item.name: item.icon for item in props.data.items if item.icon}
+    draw_json.append({
+        'type': 'img', 'subtype': 'common_with_des_right', 'number_per_row': 2, 'layer': 2,
+        'is_shadow_img': False, 'magnification_img': 4, 'description_color': (52, 52, 52, 255),
+        'img': [icons.get(title) or (card_img_dir / ('ap.png' if title == '体力' else 'daily.png')).as_posix()
+                for title, _ in counters],
+        'content': [f'{title}\n{value}' for title, value in counters],
+    })
+    draw_json.append({'type': 'text', 'content': [props.recovery], 'layer': 2})
+    for item in props.data.items:
+        if item.image.get('url'):
+            draw_json.append({
+                'type': 'img', 'subtype': 'common_with_des_right', 'img': [item.image['url']],
+                'content': [item.name or '活动信息'], 'number_per_row': 1,
+                'is_crop': False, 'is_shadow_img': False, 'magnification_img': 4,
+                'description_color': (52, 52, 52, 255), 'layer': 2,
+            })
+    draw_json.append('[des]                                             function by manshuo[/des]')
+    return await manshuo_draw(draw_json)
 
 
 async def render_rogue_card(props: RogueData, bg: str | Url) -> bytes:

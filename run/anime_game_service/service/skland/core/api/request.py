@@ -7,7 +7,7 @@ from urllib.parse import urlparse
 import pprint
 import httpx
 
-from ..schemas import CRED, ArkCard, RogueData, ArkSignResponse,Topics,EndfieldSignResponse
+from ..schemas import CRED, ArkCard, RogueData, ArkSignResponse,Topics,EndfieldSignResponse, EndfieldCard
 from ..exception import LoginException, RequestException, UnauthorizedException
 
 from developTools.utils.logger import get_logger
@@ -124,10 +124,10 @@ class SklandAPI:
                 raise RequestException(f"获取账号 userId 失败: {e}")
 
     @classmethod
-    async def ark_card(cls, cred: CRED, uid: str) -> ArkCard:
+    async def ark_card(cls, cred: CRED, uid: str, proxy: str | None = None) -> ArkCard:
         """获取明日方舟角色信息"""
         game_info_url = f"{base_url}/game/player/info?uid={uid}"
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(proxy=proxy, timeout=30.0) as client:
             try:
                 response = await client.get(
                     game_info_url,
@@ -175,6 +175,51 @@ class SklandAPI:
                 return ArkCard(**ark_data)
             except httpx.HTTPError as e:
                 raise RequestException(f"获取账号 userId 失败: {e}")
+
+    @classmethod
+    def get_web_sign_header(cls, cred: CRED, url: str) -> dict:
+        """终末地网页协议使用 platform=3；签名 JSON 中仍为 dId/vName。"""
+        timestamp = str(int(datetime.now().timestamp()) - 2)
+        signed = {"platform": "3", "timestamp": timestamp, "dId": "", "vName": "1.0.0"}
+        parsed = urlparse(url)
+        raw = f"{parsed.path}{parsed.query}{timestamp}{json.dumps(signed, separators=(',', ':'))}"
+        digest = hmac.new(cred.token.encode(), raw.encode(), hashlib.sha256).hexdigest()
+        return {
+            "User-Agent": cls._headers["User-Agent"],
+            "Accept": "application/json",
+            "Origin": "https://game.skland.com",
+            "Referer": "https://game.skland.com/",
+            "cred": cred.cred,
+            "sign": hashlib.md5(digest.encode()).hexdigest(),
+            "platform": "3", "timestamp": timestamp, "did": "", "vname": "1.0.0",
+        }
+
+    @classmethod
+    async def endfield_card(cls, cred: CRED, role_id: str, server_id: str = "1", proxy: str | None = None) -> EndfieldCard:
+        """参考 BeyondUID 每日信息，显式指定游戏角色，避免查到默认角色。"""
+        url = f"{base_url}/game/endfield/statistic"
+        headers = {**cls.get_web_sign_header(cred, url), "sk-game-role": f"3_{role_id}_{server_id}"}
+        try:
+            async with httpx.AsyncClient(proxy=proxy, timeout=30.0) as client:
+                response = await client.get(url, headers=headers)
+                value = response.json()
+        except (httpx.HTTPError, ValueError) as error:
+            raise RequestException("获取终末地信息网络请求失败，请稍后重试") from error
+        if not isinstance(value, dict):
+            raise RequestException("终末地信息返回格式异常")
+        code = value.get("code")
+        if code == 10002:
+            raise LoginException("森空岛登录已过期")
+        if code == 10000 or response.status_code in (401, 403):
+            raise UnauthorizedException("终末地信息授权已过期")
+        if response.is_error:
+            raise RequestException(f"获取终末地信息网络请求失败（HTTP {response.status_code}）")
+        if code != 0:
+            raise RequestException(f"获取终末地信息失败（接口返回 {code}）")
+        data = value.get("data")
+        if not isinstance(data, dict) or not isinstance(data.get("data"), dict) or not data["data"]:
+            raise RequestException("终末地信息未公开或返回数据为空")
+        return EndfieldCard.model_validate(data)
 
     @classmethod
     async def get_rogue(cls, cred: CRED, uid: str, topic_id: str) -> RogueData:
