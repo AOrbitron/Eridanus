@@ -10,9 +10,9 @@ from .utils import (
     refresh_access_token_with_error_return,
 )
 from .schemas import CRED, Topics, RogueData, ArkSignResponse
-from .render import render_ark_card,render_rogue_card,render_rogue_info
+from .render import render_ark_card,render_rogue_card,render_rogue_info,render_endfield_card
 
 __all__ = ['SklandAPI', 'SklandLoginAPI', 'refresh_cred_token_if_needed', 'refresh_access_token_if_needed',
            'CRED', 'ArkSignResponse','get_characters_and_bind','get_background_image','render_ark_card','render_rogue_card',
-           'render_rogue_info','Topics','get_rogue_background_image','RogueData'
+           'render_rogue_info','render_endfield_card','Topics','get_rogue_background_image','RogueData'
            ]

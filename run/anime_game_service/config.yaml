@@ -9,3 +9,9 @@ steamsnooping:
     - MyDockerFinder
     - DSX
     - Source SDK
+
+mihuyo_club:
+  update_resource_auto: true # 启动时自动更新游戏攻略资源
+  zzz:
+    resource_source: "auto" # 自动测速选择资源镜像，也可指定镜像名称
+    first_resource: "猫冬" # 优先使用的攻略提供方：猫冬、听雨惊花
