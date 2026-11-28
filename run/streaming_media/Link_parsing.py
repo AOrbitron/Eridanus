@@ -57,6 +57,7 @@ async def _recall_message_if_available(bot, send_result):
 
 async def _send_file_if_valid(bot, event, file_path):
     """校验文件存在且非空后以 File 格式发送，便于跨平台保存原图/原GIF。"""
+    return
     if not file_path or not os.path.isfile(file_path) or os.path.getsize(file_path) <= 0:
         raise FileNotFoundError(f'媒体文件无效或不存在: {file_path!r}')
     await bot.send(event, File(file=file_path))
@@ -107,7 +108,7 @@ async def call_bili_download_video(bot, event, config, type_download='video'):
                 # 首先检测是否为gif
                 if video_json['video_path'].endswith('.gif'):
                     await bot.send(event, [Image(file=video_json['video_path'])])
-                    await _send_file_if_valid(bot, event, video_json['video_path'])
+                    # await _send_file_if_valid(bot, event, video_json['video_path'])
                 # 非gif走下面逻辑
                 elif 'video' in video_json['type']:
                     recall_id = None
@@ -138,8 +139,8 @@ async def call_bili_download_video(bot, event, config, type_download='video'):
                         component = Video(file=video_json['video_path'])
                     node_list.append(Node(content=[component]))
                 await bot.send(event, node_list)
-                for gif_path in gif_file_paths:
-                    await _send_file_if_valid(bot, event, gif_path)
+                # for gif_path in gif_file_paths:
+                #     await _send_file_if_valid(bot, event, gif_path)
         except Exception as e:
             traceback.print_exc()
             await bot.send(event, f'下载失败\n {e}')
@@ -173,9 +174,9 @@ async def call_bili_download_video(bot, event, config, type_download='video'):
             for pic_path in image_paths_list:
                 node_list.append(Node(content=[Image(file=pic_path)]))
             await bot.send(event, node_list)
-        if json_linking.get('soft_type') == 'x':
-            for pic_path in image_paths_list:
-                await _send_file_if_valid(bot, event, pic_path)
+        # if json_linking.get('soft_type') == 'x':
+        #     for pic_path in image_paths_list:
+        #         await _send_file_if_valid(bot, event, pic_path)
 
 
 def main(bot, config):

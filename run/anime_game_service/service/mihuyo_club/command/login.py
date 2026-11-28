@@ -9,7 +9,7 @@ from framework_common.manshuo_draw import *
 import traceback
 from ..api.common import get_ltoken_by_stoken, get_cookie_token_by_stoken, get_stoken_v2_by_v1, get_device_fp, fetch_game_token_qrcode, \
     query_game_token_qrcode, \
-    get_token_by_game_token, get_cookie_token_by_game_token
+    get_token_by_game_token, get_cookie_token_by_game_token, get_game_record
 from ..model import PluginDataManager, plugin_config, UserAccount, UserData, CommandUsage, BBSCookies, \
     QueryGameTokenQrCodeStatus, GetCookieStatus
 from ..utils import read_blacklist, read_whitelist, generate_device_id, generate_qr_img
@@ -31,6 +31,61 @@ MIYOUSHE_PASSPORT_UA = (
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
     "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15"
 )
+MIYOUSHE_ROLE_GAMES = {
+    2: "GenshinImpact",
+    1: "HonkaiImpact3",
+    3: "HoukaiGakuen2",
+    4: "TearsOfThemis",
+    6: "StarRail",
+    8: "ZenlessZoneZero",
+}
+
+
+async def _save_login_game_uids(account: UserAccount, user_id, bot=None, event=None) -> None:
+    """登录后仅查询一次角色列表，连同登录凭据一起保存。"""
+    updated = False
+    fetched_game_uids: Dict[str, list] = {}
+    try:
+        status, records = await get_game_record(account, retry=False)
+        if status and records:
+            for record in records:
+                game_name = MIYOUSHE_ROLE_GAMES.get(record.game_id)
+                if game_name:
+                    uid = record.game_role_id
+                    if uid:
+                        fetched_game_uids.setdefault(game_name, [])
+                        if uid not in fetched_game_uids[game_name]:
+                            fetched_game_uids[game_name].append(uid)
+
+            # The role endpoint can return a partial or empty list. Keep saved
+            # UIDs for games absent from this response. Only games with valid
+            # returned roles may update their saved lists.
+            if fetched_game_uids:
+                game_uids = {
+                    name: list(uids or [])
+                    for name, uids in (account.game_uids or {}).items()
+                }
+                for game_name, uids in fetched_game_uids.items():
+                    game_uids[game_name] = uids
+                account.game_uids = game_uids
+                updated = True
+    except Exception as error:
+        logger.warning(f"米游社登录后获取角色 UID 异常：{type(error).__name__}")
+
+    if not PluginDataManager.write_plugin_data(
+        game_uid_updates={account.bbs_uid: fetched_game_uids} if updated else None
+    ):
+        raise RuntimeError("米游社账号数据保存失败，请稍后重试")
+    if not updated:
+        logger.warning("米游社登录后获取角色 UID 失败，已保留原有角色数据")
+        if any(account.game_uids.values()):
+            message = "未获取到新的游戏角色 UID，已保留原有角色数据；可稍后重试更新"
+        else:
+            message = "登录凭据已保存，但未获取到游戏角色 UID，请稍后重试更新"
+        if bot:
+            await bot.send(event, [At(qq=user_id), message])
+        else:
+            print(message)
 
 
 def _collect_set_cookies(headers, fallback_cookies=None) -> str:
@@ -75,7 +130,7 @@ def _parse_cookie_string(cookie: str) -> Dict[str, str]:
 
 
 def _miyoushe_account_uid(cookie_data: Dict[str, Any]) -> Optional[str]:
-    for key in ("account_id", "stuid", "ltuid", "login_uid", "account_id_v2", "ltuid_v2"):
+    for key in ("account_id", "stuid", "ltuid", "login_uid", "account_id_v2", "stuid_v2", "ltuid_v2", "login_uid_v2"):
         value = cookie_data.get(key)
         if value:
             return str(value)
@@ -94,7 +149,8 @@ def _build_bbs_cookies(cookie_data: Dict[str, str], bbs_uid: str) -> BBSCookies:
     cookies.ltoken_v2 = cookie_data.get("ltoken_v2")
     cookies.ltoken = cookie_data.get("ltoken") or cookies.ltoken_v2
     cookies.login_ticket = cookie_data.get("login_ticket")
-    cookies.mid = cookie_data.get("mid") or cookie_data.get("account_mid_v2") or cookie_data.get("ltmid_v2")
+    cookies.mid = (cookie_data.get("mid") or cookie_data.get("account_mid_v2")
+                   or cookie_data.get("ltmid_v2") or cookie_data.get("stmid_v2"))
     cookies.aliyungf_tc = cookie_data.get("aliyungf_tc")
     cookies.account_id = cookie_data.get("account_id") or cookie_data.get("account_id_v2") or bbs_uid
     cookies.ltuid = cookie_data.get("ltuid") or cookie_data.get("ltuid_v2") or bbs_uid
@@ -169,12 +225,16 @@ def _add_qr_payload_credentials(cookie_data: Dict[str, str], payload: Dict[str, 
             continue
         token = str(item["token"])
         name = str(item.get("name") or "")
-        if name == "stoken_v2" or token.startswith("v2_"):
-            cookie_data.setdefault("stoken_v2", token)
-        elif name == "stoken":
-            cookie_data.setdefault("stoken", token)
+        token_type = item.get("token_type")
+        if name in {"stoken", "stoken_v2"}:
+            cookie_data.setdefault("stoken_v2" if token.startswith("v2_") else "stoken", token)
         elif name in {"cookie_token", "cookie_token_v2", "ltoken", "ltoken_v2"}:
             cookie_data.setdefault(name, token)
+        elif token_type in (1, 2, 4):
+            token_name = {1: "stoken", 2: "ltoken", 4: "cookie_token"}[token_type]
+            if token.startswith("v2_"):
+                token_name += "_v2"
+            cookie_data.setdefault(token_name, token)
         elif fallback_token is None:
             fallback_token = token
     if fallback_token and not (cookie_data.get("stoken") or cookie_data.get("stoken_v2")):
@@ -205,7 +265,7 @@ async def _mys_login_app_qr(user_id, bot=None, event=None, config=None):
 
     PluginDataManager.plugin_data.users.setdefault(user_id, UserData())
     user = PluginDataManager.plugin_data.users[user_id]
-    device_id = generate_device_id()
+    device_id = uuid.uuid4().hex + uuid.uuid4().hex
     headers = _app_qr_headers(device_id)
 
     try:
@@ -287,7 +347,7 @@ async def _mys_login_app_qr(user_id, bot=None, event=None, config=None):
                 _add_qr_payload_credentials(cookie_data, payload)
                 bbs_uid = _miyoushe_account_uid(cookie_data)
                 if not bbs_uid:
-                    raise _UseLegacyQrLogin
+                    raise RuntimeError("扫码已确认，但米游社未返回账号 ID，请重新绑定")
 
                 cookies_save = _build_bbs_cookies(cookie_data, bbs_uid)
                 # Passport app QR responses normally contain stoken in the
@@ -297,18 +357,24 @@ async def _mys_login_app_qr(user_id, bot=None, event=None, config=None):
                         cookies_save, device_id=device_id, retry=False
                     )
                     if not stoken_status:
-                        raise _UseLegacyQrLogin
+                        raise RuntimeError("米游社 Stoken 升级失败，请重新绑定")
                 if not cookies_save.stoken_v2:
-                    raise _UseLegacyQrLogin
+                    raise RuntimeError("扫码已确认，但米游社未返回 Stoken，请重新绑定")
+                if not cookies_save.mid:
+                    raise RuntimeError("扫码已确认，但米游社未返回 mid，请重新绑定")
 
                 if not (cookies_save.cookie_token or cookies_save.cookie_token_v2):
                     cookie_status, _ = await get_cookie_token_by_stoken(
                         cookies_save, device_id=device_id, retry=False
                     )
                     if not cookie_status:
-                        raise _UseLegacyQrLogin
+                        raise RuntimeError("米游社 CookieToken 获取失败，请稍后重新绑定")
+                if not (cookies_save.cookie_token or cookies_save.cookie_token_v2):
+                    raise RuntimeError("米游社未返回 CookieToken，请重新绑定")
                 if cookies_save.stoken_v2 and cookies_save.mid and not (cookies_save.ltoken or cookies_save.ltoken_v2):
-                    await get_ltoken_by_stoken(cookies_save, device_id=device_id, retry=False)
+                    ltoken_status, _ = await get_ltoken_by_stoken(cookies_save, device_id=device_id, retry=False)
+                    if not ltoken_status:
+                        logger.warning(f"米游社账户 {bbs_uid} 获取 LToken 失败，已保留 CookieToken")
 
                 account = user.accounts.get(bbs_uid)
                 if not account or not account.cookies:
@@ -327,7 +393,7 @@ async def _mys_login_app_qr(user_id, bot=None, event=None, config=None):
                 fp_status, account.device_fp = await get_device_fp(account.device_id_ios or device_id)
                 if fp_status:
                     logger.info(f"用户 {bbs_uid} 成功获取 device_fp: {account.device_fp}")
-                PluginDataManager.write_plugin_data()
+                await _save_login_game_uids(account, user_id, bot=bot, event=event)
                 await cache_delete(db, 'mihuyo', user_id)
                 logger.info(f"{plugin_config.preference.log_head}米游社账户 {bbs_uid} 绑定成功")
                 if bot:
@@ -345,8 +411,12 @@ async def _mys_login_app_qr(user_id, bot=None, event=None, config=None):
     except _UseLegacyQrLogin:
         raise
     except Exception as error:
-        logger.error(f"米游社 App 二维码登录失败，将回退原登录方式：{error}")
-        raise _UseLegacyQrLogin from error
+        logger.error(f"米游社 App 二维码登录失败：{error}")
+        if bot:
+            await bot.send(event, [At(qq=user_id), f" 登录失败喵：{error}"])
+        else:
+            print(f"登录失败喵：{error}")
+        return False
     finally:
         if recall_id and bot:
             await bot.recall(recall_id['data']['message_id'])
@@ -354,7 +424,6 @@ async def _mys_login_app_qr(user_id, bot=None, event=None, config=None):
 
 async def mys_login_new(user_id,bot=None,event=None,config=None):
     """Use the current Passport app QR login and retain the legacy QR fallback."""
-    await cache_delete(db, 'skland', str(user_id))
     try:
         return await _mys_login_app_qr(user_id, bot=bot, event=event, config=config)
     except _UseLegacyQrLogin:
@@ -489,7 +558,7 @@ async def _mys_login_new_legacy(user_id,bot=None,event=None,config=None):
         fp_status, account.device_fp = await get_device_fp(account.device_id_ios or device_id)
         if fp_status:
             logger.info(f"用户 {bbs_uid} 成功获取 device_fp: {account.device_fp}")
-        PluginDataManager.write_plugin_data()
+        await _save_login_game_uids(account, user_id, bot=bot, event=event)
         await cache_delete(db, 'mihuyo', str(user_id))
         logger.info(f"{plugin_config.preference.log_head}米游社账户 {bbs_uid} 绑定成功")
         if bot: await bot.send(event, [At(qq=user_id), f" 欢迎，米游社用户： （{bbs_uid}） "])

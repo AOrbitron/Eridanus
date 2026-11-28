@@ -9,3 +9,8 @@ steamsnooping:
     - MyDockerFinder
     - DSX
     - Source SDK
+mihuyo_club:
+  update_resource_auto: True #是否启动项目时自动更新一次相关资源
+  zzz:
+    resource_source: "auto" #下载镜像，auto 自动测速；可选 CNJS、TW、SG、US、Azure SG、Oracle KR、Oracle JP、MiniGG、Lulu、TakeyaYuki、Elysia
+    first_resource: "猫冬" #攻略优先来源，可选 猫冬、听雨惊花；优先来源缺失时查询另一来源

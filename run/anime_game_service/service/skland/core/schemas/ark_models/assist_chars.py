@@ -45,18 +45,20 @@ class AssistChar(BaseModel):
 
     @property
     def portrait(self) -> str:
-        for symbol in ["@", "#"]:
-            if symbol in self.skinId:
-                portrait_id = self.skinId.replace(symbol, "_", 1)
-                break
-        #print(portrait_id)
+        portrait_id = next(
+            (self.skinId.replace(symbol, "_", 1) for symbol in ("@", "#") if symbol in self.skinId),
+            self.skinId,
+        )
         img_path = CACHE_DIR / "portrait" / f"{portrait_id}.png"
-        if not img_path.exists():
+        if not img_path.is_file():
             encoded_id = quote(self.skinId, safe="")
             img_url = f"https://web.hycdn.cn/arknights/game/assets/char_skin/portrait/{encoded_id}.png"
             logger.info(f"Portrait not found locally, using URL: {img_url}")
             download_file(img_url, img_path)
-            return img_path
+            # A Path object is treated as base64 by the drawing pipeline.
+            # Return the cached path as text after a successful first download.
+            if not img_path.is_file():
+                return img_url
         return img_path.as_posix()
 
     @property

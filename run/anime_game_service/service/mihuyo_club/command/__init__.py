@@ -3,4 +3,7 @@ from .help import *
 from .sign import *
 from .coin import *
 from .note import *
+from .character import *
+from .card import *
+from .game_card import *
 from .config import *

@@ -10,10 +10,10 @@ from pydantic import BaseModel
 
 __all__ = ["root_path", "data_path", "BaseModelWithSetter", "BaseModelWithUpdate", "Good", "GameRecord", "GameInfo",
            "Address", "MmtData",
-           "Award", "GameSignInfo", "MissionData", "MissionState", "GenshinNote", "StarRailNote", "ZZZNote",
+           "Award", "GameSignInfo", "MissionData", "MissionState", "GenshinNote", "StarRailNote", "ZZZNote", "HI3Note",
            "GenshinNoteNotice", "StarRailNoteNotice", "BaseApiStatus", "CreateMobileCaptchaStatus", "GetCookieStatus", "GetGoodDetailStatus",
            "ExchangeStatus", "MissionStatus", "GetFpStatus", "BoardStatus", "GenshinNoteStatus", "StarRailNoteStatus",
-           "ZZZNoteStatus",
+           "ZZZNoteStatus", "HI3NoteStatus",
            "QueryGameTokenQrCodeStatus", "GeetestResult", "GeetestResultV4", "CommandUsage"]
 
 root_path = Path(__file__).parent.parent.absolute()
@@ -369,8 +369,14 @@ class GenshinNote(BaseModel):
     """
     current_resin: Optional[int] = None
     """当前树脂数量"""
+    max_resin: Optional[int] = 200
+    """树脂上限"""
     finished_task_num: Optional[int] = None
     """每日委托完成数"""
+    total_task_num: Optional[int] = 4
+    """每日委托总数"""
+    is_extra_task_reward_received: Optional[bool] = None
+    """每日委托额外奖励是否领取"""
     current_expedition_num: Optional[int] = None
     """探索派遣 进行中的数量"""
     max_expedition_num: Optional[int] = None
@@ -383,6 +389,13 @@ class GenshinNote(BaseModel):
     """参量质变仪相关数据"""
     resin_recovery_time: Optional[int] = None
     """剩余树脂恢复时间"""
+    home_coin_recovery_time: Optional[int] = None
+    """洞天宝钱回满时间"""
+    remain_resin_discount_num: Optional[int] = None
+    resin_discount_num_limit: Optional[int] = None
+    """周本树脂减半剩余次数和次数上限"""
+    game_role: Optional[GameRecord] = None
+    """本次便签对应的角色资料，复用查询便签时获取的记录"""
 
     @property
     def transformer_text(self):
@@ -423,26 +436,28 @@ class StarRailNote(BaseModel):
     """
     崩铁实时便笺数据 (从米游社内相关页面API的返回数据初始化)
     """
-    current_stamina: Optional[int]
+    current_stamina: Optional[int] = None
     """当前开拓力"""
-    max_stamina: Optional[int]
+    max_stamina: Optional[int] = None
     """最大开拓力"""
-    stamina_recover_time: Optional[int]
+    stamina_recover_time: Optional[int] = None
     """剩余体力恢复时间"""
-    current_train_score: Optional[int]
+    current_train_score: Optional[int] = None
     """当前每日实训值"""
-    max_train_score: Optional[int]
+    max_train_score: Optional[int] = None
     """最大每日实训值"""
-    current_rogue_score: Optional[int]
+    current_rogue_score: Optional[int] = None
     """当前模拟宇宙积分"""
-    max_rogue_score: Optional[int]
+    max_rogue_score: Optional[int] = None
     """最大模拟宇宙积分"""
-    accepted_expedition_num: Optional[int]
+    accepted_expedition_num: Optional[int] = None
     """已接受委托数量"""
-    total_expedition_num: Optional[int]
+    total_expedition_num: Optional[int] = None
     """最大委托数量"""
-    has_signed: Optional[bool]
+    has_signed: Optional[bool] = None
     """当天是否签到"""
+    game_role: Optional[GameRecord] = None
+    """本次便签对应的角色资料，复用查询便签时获取的记录"""
 
     @property
     def stamina_recover_text(self):
@@ -495,6 +510,29 @@ class ZZZNote(BaseModel):
     @property
     def vhs_sale_text(self):
         return '正在营业' if self.vhs_sale_state and 'Doing' in self.vhs_sale_state else '尚未营业'
+
+
+class HI3Note(BaseModel):
+    """崩坏3实时便签的核心进度数据。"""
+
+    current_stamina: Optional[int] = None
+    max_stamina: Optional[int] = None
+    stamina_recover_time: Optional[int] = None
+    current_train_score: Optional[int] = None
+    max_train_score: Optional[int] = None
+    greedy_endless: Optional[Dict[str, Any]] = None
+    ultra_endless: Optional[Dict[str, Any]] = None
+    battle_field: Optional[Dict[str, Any]] = None
+    god_war: Optional[Dict[str, Any]] = None
+
+    @property
+    def stamina_recover_text(self):
+        if self.stamina_recover_time is None:
+            return "恢复时间未提供"
+        if self.stamina_recover_time <= 0:
+            return "已回满"
+        seconds = self.stamina_recover_time
+        return f"{seconds // 3600}小时{seconds % 3600 // 60}分钟后回满"
 
 
 class GenshinNoteNotice(GenshinNote):
@@ -668,6 +706,17 @@ class ZZZNoteStatus(BoardStatus):
 
     no_zzz_account: bool = False
     """用户没有任何绝区零账户"""
+    missing_stoken: bool = False
+    """组件便签缺少 Stoken"""
+    missing_mid: bool = False
+    """组件便签使用的 Stoken v2 缺少 mid"""
+
+
+class HI3NoteStatus(BoardStatus):
+    """崩坏3实时便签状态。"""
+
+    no_hi3_account: bool = False
+    missing_stoken: bool = False
 
 
 class QueryGameTokenQrCodeStatus(BaseApiStatus):

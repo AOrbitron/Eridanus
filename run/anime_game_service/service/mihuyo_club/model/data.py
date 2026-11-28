@@ -1,5 +1,8 @@
 import json
+import os
+import tempfile
 from json import JSONDecodeError
+from threading import RLock
 from typing import Union, Optional, Any, Dict, TYPE_CHECKING, AbstractSet, \
     Mapping, Set, Literal, List
 from uuid import UUID, uuid4
@@ -8,6 +11,11 @@ from httpx import Cookies
 from developTools.utils.logger import get_logger
 logger=get_logger('MiHoYo')
 from pydantic import BaseModel, ValidationError, validator, Field
+
+try:
+    import fcntl
+except ImportError:  # pragma: no cover - Windows development environment
+    fcntl = None
 
 from .._version import __version__
 from ..model.common import data_path, BaseModelWithSetter, Address, BaseModelWithUpdate, Good, GameRecord
@@ -26,6 +34,24 @@ _uuid_set: Set[str] = set()
 """已使用的用户UUID密钥集合"""
 _new_uuid_in_init = False
 """插件反序列化用户数据时，是否生成了新的UUID密钥"""
+
+
+def _merge_persisted_game_uids(current_data: dict, saved_data: dict,
+                               game_uid_updates: Dict[str, Dict[str, List[str]]]) -> None:
+    """普通保存保留磁盘 UID；只有登录传入的角色列表可以更新已有 UID。"""
+    saved_users = saved_data.get("users") or {}
+    for user_id, current_user in current_data.get("users", {}).items():
+        saved_accounts = (saved_users.get(user_id) or {}).get("accounts") or {}
+        for account_id, current_account in current_user.get("accounts", {}).items():
+            game_uids = dict(current_account.get("game_uids") or {})
+            saved_game_uids = (saved_accounts.get(account_id) or {}).get("game_uids") or {}
+            for game, uids in saved_game_uids.items():
+                if uids:
+                    game_uids[game] = list(uids)
+            for game, uids in game_uid_updates.get(account_id, {}).items():
+                if uids:
+                    game_uids[game] = list(uids)
+            current_account["game_uids"] = game_uids
 
 
 class BBSCookies(BaseModelWithSetter, BaseModelWithUpdate):
@@ -230,6 +256,8 @@ class UserAccount(BaseModelWithSetter):
     """手机号"""
     cookies: BBSCookies = None
     """Cookies"""
+    game_uids: Dict[str, List[str]] = Field(default_factory=dict)
+    """登录时获取的各游戏角色 UID，键与 game_sign_games 中的游戏名称一致"""
     address: Optional[Address] = None
     """收货地址"""
 
@@ -477,6 +505,7 @@ class PluginData(BaseModel):
 class PluginDataManager:
     plugin_data: Optional[PluginData] = None
     """加载出的插件数据对象"""
+    _write_lock = RLock()
 
     @classmethod
     def load_plugin_data(cls):
@@ -510,10 +539,12 @@ class PluginDataManager:
                 logger.info(f"插件数据文件 {plugin_data_path} 不存在，已创建默认插件数据文件。")
 
     @classmethod
-    def write_plugin_data(cls):
+    def write_plugin_data(cls, *, game_uid_updates: Optional[Dict[str, Dict[str, List[str]]]] = None):
         """
         写入插件数据文件
 
+        game_uid_updates: 登录时获取的 {米游社账号 ID: {游戏名: 角色 UID 列表}}。
+        普通功能不传此参数，保留磁盘中已有的角色 UID。
         :return: 是否成功
         """
         try:
@@ -521,11 +552,49 @@ class PluginDataManager:
         except (AttributeError, TypeError, ValueError):
             logger.error("数据对象序列化失败，可能是数据类型错误")
             return False
-        else:
-            with open(plugin_data_path, "w", encoding="utf-8") as f:
-                f.write(str_data)
-            #cls.load_plugin_data()
+
+        temp_path = None
+        try:
+            plugin_data_path.parent.mkdir(parents=True, exist_ok=True)
+            lock_path = plugin_data_path.with_suffix(plugin_data_path.suffix + ".lock")
+            with cls._write_lock, open(lock_path, "a", encoding="utf-8") as lock_file:
+                if fcntl is not None:
+                    fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+                saved_data = {}
+                if plugin_data_path.exists():
+                    with open(plugin_data_path, encoding="utf-8") as f:
+                        saved_data = json.load(f)
+                current_data = json.loads(str_data)
+                _merge_persisted_game_uids(current_data, saved_data, game_uid_updates or {})
+                str_data = json.dumps(current_data, ensure_ascii=False, indent=4)
+                with tempfile.NamedTemporaryFile(
+                    mode="w",
+                    encoding="utf-8",
+                    dir=plugin_data_path.parent,
+                    prefix=f".{plugin_data_path.name}.",
+                    suffix=".tmp",
+                    delete=False,
+                ) as f:
+                    temp_path = f.name
+                    f.write(str_data)
+                    f.flush()
+                    os.fsync(f.fileno())
+                os.replace(temp_path, plugin_data_path)
+
+                # Also repair the in-memory snapshot used by subsequent queries.
+                for user_id, user_data in current_data.get("users", {}).items():
+                    for account_id, account_data in user_data.get("accounts", {}).items():
+                        cls.plugin_data.users[user_id].accounts[account_id].game_uids = account_data["game_uids"]
             return True
+        except (OSError, JSONDecodeError) as error:
+            logger.error(f"写入插件数据文件失败：{error}")
+            return False
+        finally:
+            if temp_path and os.path.exists(temp_path):
+                try:
+                    os.unlink(temp_path)
+                except OSError:
+                    logger.warning(f"清理插件数据临时文件失败：{temp_path}")
 
 
 PluginDataManager_Init = PluginDataManager.load_plugin_data()

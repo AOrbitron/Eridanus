@@ -18,7 +18,7 @@ _🎊 基于 [OneBot](https://github.com/howmanybots/onebot/blob/master/README.m
 </p>
 
 <p align="center">
-  <a href="https://eridanus.netlify.app">文档</a>
+  <a href="https://eridanus-doc.vercel.app">文档</a>
   ·
   <a href="https://github.com/AOrbitron/Eridanus/releases">下载</a>
   ·

@@ -1,4 +1,5 @@
 from .cred import CRED as CRED
+from .endfield_card import EndfieldCard as EndfieldCard
 from .rogue import Topics as Topics
 from .ark_card import ArkCard as ArkCard
 from .rogue import RogueData as RogueData
